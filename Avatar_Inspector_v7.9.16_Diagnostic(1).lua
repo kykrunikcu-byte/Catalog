@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.23
+    AVATAR INSPECTOR v7.9.24
 
     CHANGES:
     - Green, larger and bold asset IDs
@@ -35,6 +35,9 @@
     - Success notifications with precisely aligned checkmark
     - Delete confirmation dialog for saved outfits
     - Persistent custom names for saved outfits
+    - Canonical account-avatar description lookup to avoid game morphs
+    - Exact HumanoidDescription accessory count and live server player count
+    - Larger saved outfit names
 ]]
 
 local AI_DIAG_STAGE = "SCRIPT_PARSED"
@@ -991,6 +994,33 @@ local function cloneCharacter(character)
     return clone
 end
 
+-- Prefer the avatar description attached to the Roblox account rather than a
+-- game-specific morph applied to Player.Character. Fall back to the live
+-- HumanoidDescription only when the account lookup is unavailable.
+local function getOriginalAvatarDescription(player, humanoid)
+    if player and player.UserId then
+        local ok, description = pcall(function()
+            if Players.GetHumanoidDescriptionFromUserIdAsync then
+                return Players:GetHumanoidDescriptionFromUserIdAsync(player.UserId)
+            end
+            return Players:GetHumanoidDescriptionFromUserId(player.UserId)
+        end)
+        if ok and description then
+            return description, "account"
+        end
+    end
+
+    if humanoid then
+        local ok, description = pcall(function()
+            return humanoid:GetAppliedDescription()
+        end)
+        if ok and description then
+            return description, "live-fallback"
+        end
+    end
+    return nil, "unavailable"
+end
+
 local function makeStaticAvatar(player)
     if not player then return nil end
 
@@ -1003,19 +1033,14 @@ local function makeStaticAvatar(player)
         return cloneCharacter(character)
     end
 
-    local description
+    local description, descriptionSource = getOriginalAvatarDescription(player, humanoid)
 
-    local descriptionSuccess = pcall(function()
-        description = humanoid:GetAppliedDescription()
-    end)
-
-    if descriptionSuccess and description then
+    if description then
+        local rigType = humanoid.RigType
         local success, cleanModel = pcall(function()
-            return Players:CreateHumanoidModelFromDescription(
-                description,
-                humanoid.RigType
-            )
+            return Players:CreateHumanoidModelFromDescription(description, rigType)
         end)
+        pcall(function() description:Destroy() end)
 
         if success and cleanModel then
             removeExtraObjects(cleanModel)
@@ -2465,12 +2490,10 @@ local function scanPlayer(player)
         return
     end
 
-    local success, description = pcall(function()
-        return humanoid:GetAppliedDescription()
-    end)
+    local description, descriptionSource = getOriginalAvatarDescription(player, humanoid)
 
-    if not success or not description then
-        Status.Text = "Could not read avatar IDs"
+    if not description then
+        Status.Text = "Could not read original avatar IDs"
         return
     end
 
@@ -2518,13 +2541,35 @@ local function scanPlayer(player)
         return description:GetAccessories(true)
     end)
 
+    -- Count all currently worn appearance items:
+    -- classic accessories + layered accessories/clothing from GetAccessories(true),
+    -- classic clothing slots, and the equipped face asset.
+    -- Body-part meshes (Head/Torso/arms/legs), body colors and animations
+    -- are intentionally excluded from this counter.
+    local wornItemCount = 0
+
     if accessorySuccess and accessories then
+        wornItemCount = #accessories
         for _, accessory in ipairs(accessories) do
             add(
                 tostring(accessory.AccessoryType or "Accessory"),
                 accessory.AssetId,
                 "Items"
             )
+        end
+    end
+
+    local classicWearableProperties = {
+        "Shirt",
+        "Pants",
+        "GraphicTShirt",
+        "Face"
+    }
+
+    for _, propertyName in ipairs(classicWearableProperties) do
+        local assetId = tonumber(description[propertyName])
+        if assetId and assetId > 0 then
+            wornItemCount += 1
         end
     end
 
@@ -2553,10 +2598,13 @@ local function scanPlayer(player)
     end
 
     Status.Text = string.format(
-        "Items: %d | Animations: %d",
+        "Items: %d | Animations: %d | Worn items: %d%s",
         itemCount,
-        animationCount
+        animationCount,
+        wornItemCount,
+        descriptionSource == "account" and " | Original account avatar" or " | Live fallback"
     )
+    pcall(function() description:Destroy() end)
 end
 
 --==================================================
@@ -2586,6 +2634,22 @@ end
 refreshPlayerList = function()
     clearGuiList(PlayerList)
 
+    local serverPlayers = #Players:GetPlayers()
+    local countHeader = create("TextLabel", {
+        Name = "ServerPlayerCount",
+        Size = UDim2.new(1, -4, 0, 24),
+        BackgroundColor3 = PANEL,
+        BackgroundTransparency = 0.1,
+        BorderSizePixel = 0,
+        Text = string.format("PLAYERS ON SERVER: %d", serverPlayers),
+        TextColor3 = ID_GREEN,
+        TextSize = 11,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        LayoutOrder = 0
+    }, PlayerList)
+    create("UIPadding", {PaddingLeft = UDim.new(0, 6)}, countHeader)
+
     local filter = string.lower(Search.Text)
 
     for _, player in ipairs(Players:GetPlayers()) do
@@ -2610,6 +2674,7 @@ refreshPlayerList = function()
                 BorderSizePixel = 0
             }, PlayerList)
 
+            row.LayoutOrder = 1 + #PlayerList:GetChildren()
             round(row, 7)
 
             local avatar = create("ImageLabel", {
@@ -2918,16 +2983,15 @@ local function captureAvatarAppearance(player)
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if not humanoid then return nil, "Humanoid unavailable" end
 
-    local ok, description = pcall(function()
-        return humanoid:GetAppliedDescription()
-    end)
-    if not ok or not description then
-        return nil, "could not read HumanoidDescription"
+    local description, descriptionSource = getOriginalAvatarDescription(player, humanoid)
+    if not description then
+        return nil, "could not read original HumanoidDescription"
     end
 
     local snapshot = {
-        version = 3,
+        version = 4,
         rigType = humanoid.RigType.Name,
+        descriptionSource = descriptionSource,
         properties = {},
         -- HumanoidDescription color properties are Color3, not BrickColor.
         -- Store normalized RGB components because JSON cannot encode Color3.
@@ -2949,7 +3013,9 @@ local function captureAvatarAppearance(player)
         end
     end
 
-    captureLiveClothingFallback(character, snapshot)
+    if descriptionSource ~= "account" then
+        captureLiveClothingFallback(character, snapshot)
+    end
 
     for _, propertyName in ipairs(AVATAR_COLOR_PROPERTIES) do
         local readOk, value = pcall(function()
@@ -3320,8 +3386,8 @@ refreshFavoritesList = function()
 
         local nameLabel = makeLabel(
             row, favorite.name,
-            UDim2.new(1, -104, 0, 20),
-            UDim2.fromOffset(8, 5), 11
+            UDim2.new(1, -104, 0, 23),
+            UDim2.fromOffset(8, 4), 13
         )
 
         nameLabel.Font = Enum.Font.GothamMedium
@@ -3330,7 +3396,7 @@ refreshFavoritesList = function()
         local usernameLabel = makeLabel(
             row, "@" .. favorite.username,
             UDim2.new(1, -104, 0, 18),
-            UDim2.fromOffset(8, 25), 9
+            UDim2.fromOffset(8, 27), 9
         )
 
         usernameLabel.TextColor3 = MUTED
