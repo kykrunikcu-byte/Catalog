@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.24
+    AVATAR INSPECTOR v7.9.26
 
     CHANGES:
     - Green, larger and bold asset IDs
@@ -119,6 +119,354 @@ local persistFavorites
 -- HELPERS
 --==================================================
 
+--==================================================
+-- LOCALIZATION (10 LANGUAGES)
+--==================================================
+
+local currentLanguage = "en"
+local languageOptions = {
+    {code = "en", name = "English"},
+    {code = "ru", name = "Русский"},
+    {code = "es", name = "Español (Latinoamérica)"},
+    {code = "pt", name = "Português (Brasil)"},
+    {code = "fr", name = "Français (France)"},
+    {code = "de", name = "Deutsch (Deutschland)"},
+    {code = "pl", name = "Polski"},
+    {code = "tr", name = "Türkçe"},
+    {code = "ja", name = "日本語"},
+    {code = "ko", name = "한국어"}
+}
+
+local translations = {
+    ru = {
+        ["AVATAR INSPECTOR"]="АВАТАР ИНСПЕКТОР", ["Search players..."]="Поиск игроков...", ["PLAYERS"]="ИГРОКИ", ["📁 OUTFITS"]="📁 НАРЯДЫ",
+        ["FIXED"]="ФИКСИРОВАННАЯ", ["FREE"]="СВОБОДНАЯ", ["T-POSE"]="Т-ПОЗА", ["A-POSE"]="А-ПОЗА", ["NEUTRAL"]="НЕЙТРАЛЬНАЯ",
+        ["AVATAR ITEMS / ANIMATIONS"]="ПРЕДМЕТЫ / АНИМАЦИИ", ["AVATAR ITEMS"]="ПРЕДМЕТЫ АВАТАРА", ["ANIMATIONS"]="АНИМАЦИИ", ["COPY"]="КОПИРОВАТЬ", ["SAVE"]="СОХРАНИТЬ",
+        ["Select a player"]="Выберите игрока", ["Select a player first"]="Сначала выберите игрока", ["Loading player..."]="Загрузка игрока...", ["Character not loaded"]="Персонаж ещё не загружен",
+        ["No Humanoid found"]="Humanoid не найден", ["Could not read avatar details"]="Не удалось прочитать данные аватара", ["Could not load avatar"]="Не удалось загрузить аватар",
+        ["Could not position avatar preview"]="Не удалось расположить модель аватара", ["Avatar loaded"]="Аватар загружен", ["This player is no longer available"]="Игрок больше недоступен",
+        ["PLAYERS ON SERVER: "]="ИГРОКОВ НА СЕРВЕРЕ: ", ["WORN ITEMS: "]="НАДЕТО ПРЕДМЕТОВ: ", ["LANGUAGE"]="ЯЗЫК", ["Choose language"]="Выберите язык",
+        ["Language changed successfully!"]="Язык успешно изменён!", ["Confirmation"]="Подтверждение", ["Are you sure?"]="Вы уверены?", ["New outfit name"]="Новое название наряда",
+        ["No"]="Нет", ["Yes"]="Да", ["Confirm deletion"]="Подтверждение удаления", ["Are you sure you want to delete this outfit?"]="Вы действительно хотите удалить этот наряд?",
+        ["Rename outfit"]="Переименовать наряд", ["Enter a new name for this saved outfit:"]="Введите новое название сохранённого наряда:", ["Save"]="Сохранить", ["Cancel"]="Отмена",
+        ["The name cannot be empty"]="Название не может быть пустым", ["Outfit name changed"]="Название наряда изменено", ["Action completed successfully"]="Операция успешно выполнена",
+        ["Accessory ID copied"]="ID аксессуара скопирован", ["Avatar saved successfully"]="Аватар успешно сохранён", ["Outfit deleted"]="Наряд удалён",
+        ["Clipboard is not available"]="Буфер обмена недоступен", ["Outfit renamed successfully"]="Наряд успешно переименован", ["Could not save the new name: "]="Не удалось сохранить новое название: ",
+        ["Could not save deletion: "]="Не удалось сохранить удаление: ", ["Outfit removed"]="Наряд удалён", ["Outfit saved permanently"]="Наряд сохранён постоянно",
+        ["Session only: "]="Только до перезапуска: ", ["Saved avatar loaded: @"]="Сохранённый аватар загружен: @", ["Saved avatar could not be fully restored: @"]="Не удалось полностью восстановить аватар: @",
+        ["Legacy outfit (IDs only): @"]="Старый формат наряда (только ID): @", ["No saved outfits yet"]="Сохранённых нарядов пока нет", ["Storage unavailable: "]="Хранилище недоступно: ",
+        ["Shirt"]="Рубашка", ["Pants"]="Штаны", ["T-Shirt"]="Футболка", ["Face"]="Лицо", ["Head"]="Голова", ["Torso"]="Торс", ["Left Arm"]="Левая рука", ["Right Arm"]="Правая рука", ["Left Leg"]="Левая нога", ["Right Leg"]="Правая нога",
+        ["Idle Animation"]="Анимация покоя", ["Walk Animation"]="Анимация ходьбы", ["Run Animation"]="Анимация бега", ["Jump Animation"]="Анимация прыжка", ["Fall Animation"]="Анимация падения", ["Climb Animation"]="Анимация лазания", ["Swim Animation"]="Анимация плавания", ["Mood Animation"]="Анимация настроения"
+    },
+    es = {
+        ["Search players..."]="Buscar jugadores...", ["PLAYERS"]="JUGADORES", ["📁 OUTFITS"]="📁 CONJUNTOS", ["FIXED"]="FIJA", ["FREE"]="LIBRE", ["T-POSE"]="POSE T", ["A-POSE"]="POSE A", ["NEUTRAL"]="NEUTRAL",
+        ["AVATAR ITEMS / ANIMATIONS"]="OBJETOS / ANIMACIONES", ["AVATAR ITEMS"]="OBJETOS DEL AVATAR", ["ANIMATIONS"]="ANIMACIONES", ["COPY"]="COPIAR", ["SAVE"]="GUARDAR", ["Select a player"]="Selecciona un jugador", ["Select a player first"]="Primero selecciona un jugador",
+        ["Loading player..."]="Cargando jugador...", ["Character not loaded"]="El personaje no está cargado", ["No Humanoid found"]="No se encontró el Humanoid", ["Could not read avatar details"]="No se pudieron leer los datos del avatar", ["Could not load avatar"]="No se pudo cargar el avatar", ["Could not position avatar preview"]="No se pudo colocar la vista previa del avatar", ["Avatar loaded"]="Avatar cargado", ["This player is no longer available"]="Este jugador ya no está disponible",
+        ["LANGUAGE"]="IDIOMA", ["Choose language"]="Elegir idioma", ["Language changed successfully!"]="¡El idioma se cambió correctamente!", ["Confirmation"]="Confirmación", ["Are you sure?"]="¿Estás seguro?", ["New outfit name"]="Nuevo nombre del conjunto", ["No"]="No", ["Yes"]="Sí", ["Confirm deletion"]="Confirmar eliminación", ["Are you sure you want to delete this outfit?"]="¿Seguro que quieres eliminar este conjunto?", ["Rename outfit"]="Cambiar nombre del conjunto", ["Enter a new name for this saved outfit:"]="Escribe un nuevo nombre para este conjunto guardado:", ["Save"]="Guardar", ["Cancel"]="Cancelar", ["The name cannot be empty"]="El nombre no puede estar vacío", ["Outfit name changed"]="Nombre del conjunto cambiado", ["Action completed successfully"]="La operación se completó correctamente", ["Accessory ID copied"]="ID del accesorio copiado", ["Avatar saved successfully"]="Avatar guardado correctamente", ["Outfit deleted"]="Conjunto eliminado", ["Clipboard is not available"]="El portapapeles no está disponible", ["Outfit renamed successfully"]="Conjunto renombrado correctamente", ["Outfit removed"]="Conjunto eliminado", ["Outfit saved permanently"]="Conjunto guardado permanentemente", ["No saved outfits yet"]="Aún no hay conjuntos guardados",
+        ["Shirt"]="Camisa", ["Pants"]="Pantalones", ["T-Shirt"]="Camiseta", ["Face"]="Cara", ["Head"]="Cabeza", ["Torso"]="Torso", ["Left Arm"]="Brazo izquierdo", ["Right Arm"]="Brazo derecho", ["Left Leg"]="Pierna izquierda", ["Right Leg"]="Pierna derecha", ["Idle Animation"]="Animación inactiva", ["Walk Animation"]="Animación al caminar", ["Run Animation"]="Animación al correr", ["Jump Animation"]="Animación de salto", ["Fall Animation"]="Animación de caída", ["Climb Animation"]="Animación de escalada", ["Swim Animation"]="Animación de natación", ["Mood Animation"]="Animación de estado de ánimo"
+    },
+    pt = {
+        ["Search players..."]="Buscar jogadores...", ["PLAYERS"]="JOGADORES", ["📁 OUTFITS"]="📁 VISUAIS", ["FIXED"]="FIXA", ["FREE"]="LIVRE", ["T-POSE"]="POSE T", ["A-POSE"]="POSE A", ["NEUTRAL"]="NEUTRA",
+        ["AVATAR ITEMS / ANIMATIONS"]="ITENS / ANIMAÇÕES", ["AVATAR ITEMS"]="ITENS DO AVATAR", ["ANIMATIONS"]="ANIMAÇÕES", ["COPY"]="COPIAR", ["SAVE"]="SALVAR", ["Select a player"]="Selecione um jogador", ["Select a player first"]="Selecione um jogador primeiro", ["Loading player..."]="Carregando jogador...", ["Character not loaded"]="Personagem não carregado", ["No Humanoid found"]="Humanoid não encontrado", ["Could not read avatar details"]="Não foi possível ler os dados do avatar", ["Could not load avatar"]="Não foi possível carregar o avatar", ["Could not position avatar preview"]="Não foi possível posicionar a prévia do avatar", ["Avatar loaded"]="Avatar carregado", ["This player is no longer available"]="Este jogador não está mais disponível",
+        ["LANGUAGE"]="IDIOMA", ["Choose language"]="Escolher idioma", ["Language changed successfully!"]="Idioma alterado com sucesso!", ["Confirmation"]="Confirmação", ["Are you sure?"]="Tem certeza?", ["New outfit name"]="Novo nome do visual", ["No"]="Não", ["Yes"]="Sim", ["Confirm deletion"]="Confirmar exclusão", ["Are you sure you want to delete this outfit?"]="Tem certeza de que deseja excluir este visual?", ["Rename outfit"]="Renomear visual", ["Enter a new name for this saved outfit:"]="Digite um novo nome para este visual salvo:", ["Save"]="Salvar", ["Cancel"]="Cancelar", ["The name cannot be empty"]="O nome não pode ficar vazio", ["Outfit name changed"]="Nome do visual alterado", ["Action completed successfully"]="Ação concluída com sucesso", ["Accessory ID copied"]="ID do acessório copiado", ["Avatar saved successfully"]="Avatar salvo com sucesso", ["Outfit deleted"]="Visual excluído", ["Clipboard is not available"]="A área de transferência não está disponível", ["Outfit renamed successfully"]="Visual renomeado com sucesso", ["Outfit removed"]="Visual removido", ["Outfit saved permanently"]="Visual salvo permanentemente", ["No saved outfits yet"]="Ainda não há visuais salvos",
+        ["Shirt"]="Camisa", ["Pants"]="Calça", ["T-Shirt"]="Camiseta", ["Face"]="Rosto", ["Head"]="Cabeça", ["Torso"]="Tronco", ["Left Arm"]="Braço esquerdo", ["Right Arm"]="Braço direito", ["Left Leg"]="Perna esquerda", ["Right Leg"]="Perna direita", ["Idle Animation"]="Animação parada", ["Walk Animation"]="Animação de caminhada", ["Run Animation"]="Animação de corrida", ["Jump Animation"]="Animação de pulo", ["Fall Animation"]="Animação de queda", ["Climb Animation"]="Animação de escalada", ["Swim Animation"]="Animação de natação", ["Mood Animation"]="Animação de humor"
+    },
+    fr = {
+        ["Search players..."]="Rechercher des joueurs...", ["PLAYERS"]="JOUEURS", ["📁 OUTFITS"]="📁 TENUES", ["FIXED"]="FIXE", ["FREE"]="LIBRE", ["T-POSE"]="POSE T", ["A-POSE"]="POSE A", ["NEUTRAL"]="NEUTRE", ["AVATAR ITEMS / ANIMATIONS"]="OBJETS / ANIMATIONS", ["AVATAR ITEMS"]="OBJETS DE L’AVATAR", ["ANIMATIONS"]="ANIMATIONS", ["COPY"]="COPIER", ["SAVE"]="ENREGISTRER", ["Select a player"]="Sélectionnez un joueur", ["Select a player first"]="Sélectionnez d’abord un joueur", ["Loading player..."]="Chargement du joueur...", ["Character not loaded"]="Personnage non chargé", ["No Humanoid found"]="Humanoid introuvable", ["Could not read avatar details"]="Impossible de lire les données de l’avatar", ["Could not load avatar"]="Impossible de charger l’avatar", ["Could not position avatar preview"]="Impossible de positionner l’aperçu de l’avatar", ["Avatar loaded"]="Avatar chargé", ["This player is no longer available"]="Ce joueur n’est plus disponible",
+        ["LANGUAGE"]="LANGUE", ["Choose language"]="Choisir la langue", ["Language changed successfully!"]="Langue modifiée avec succès !", ["Confirmation"]="Confirmation", ["Are you sure?"]="Êtes-vous sûr ?", ["New outfit name"]="Nouveau nom de tenue", ["No"]="Non", ["Yes"]="Oui", ["Confirm deletion"]="Confirmer la suppression", ["Are you sure you want to delete this outfit?"]="Voulez-vous vraiment supprimer cette tenue ?", ["Rename outfit"]="Renommer la tenue", ["Enter a new name for this saved outfit:"]="Saisissez un nouveau nom pour cette tenue enregistrée :", ["Save"]="Enregistrer", ["Cancel"]="Annuler", ["The name cannot be empty"]="Le nom ne peut pas être vide", ["Outfit name changed"]="Nom de la tenue modifié", ["Action completed successfully"]="Opération effectuée avec succès", ["Accessory ID copied"]="ID de l’accessoire copié", ["Avatar saved successfully"]="Avatar enregistré avec succès", ["Outfit deleted"]="Tenue supprimée", ["Clipboard is not available"]="Presse-papiers indisponible", ["Outfit renamed successfully"]="Tenue renommée avec succès", ["Outfit removed"]="Tenue supprimée", ["Outfit saved permanently"]="Tenue enregistrée définitivement", ["No saved outfits yet"]="Aucune tenue enregistrée pour le moment",
+        ["Shirt"]="Chemise", ["Pants"]="Pantalon", ["T-Shirt"]="T-shirt", ["Face"]="Visage", ["Head"]="Tête", ["Torso"]="Torse", ["Left Arm"]="Bras gauche", ["Right Arm"]="Bras droit", ["Left Leg"]="Jambe gauche", ["Right Leg"]="Jambe droite", ["Idle Animation"]="Animation d’attente", ["Walk Animation"]="Animation de marche", ["Run Animation"]="Animation de course", ["Jump Animation"]="Animation de saut", ["Fall Animation"]="Animation de chute", ["Climb Animation"]="Animation d’escalade", ["Swim Animation"]="Animation de nage", ["Mood Animation"]="Animation d’humeur"
+    },
+    de = {
+        ["Search players..."]="Spieler suchen...", ["PLAYERS"]="SPIELER", ["📁 OUTFITS"]="📁 OUTFITS", ["FIXED"]="FEST", ["FREE"]="FREI", ["T-POSE"]="T-POSE", ["A-POSE"]="A-POSE", ["NEUTRAL"]="NEUTRAL", ["AVATAR ITEMS / ANIMATIONS"]="AVATAR-ITEMS / ANIMATIONEN", ["AVATAR ITEMS"]="AVATAR-ITEMS", ["ANIMATIONS"]="ANIMATIONEN", ["COPY"]="KOPIEREN", ["SAVE"]="SPEICHERN", ["Select a player"]="Spieler auswählen", ["Select a player first"]="Wähle zuerst einen Spieler", ["Loading player..."]="Spieler wird geladen...", ["Character not loaded"]="Charakter nicht geladen", ["No Humanoid found"]="Kein Humanoid gefunden", ["Could not read avatar details"]="Avatar-Daten konnten nicht gelesen werden", ["Could not load avatar"]="Avatar konnte nicht geladen werden", ["Could not position avatar preview"]="Avatar-Vorschau konnte nicht positioniert werden", ["Avatar loaded"]="Avatar geladen", ["This player is no longer available"]="Dieser Spieler ist nicht mehr verfügbar",
+        ["LANGUAGE"]="SPRACHE", ["Choose language"]="Sprache auswählen", ["Language changed successfully!"]="Sprache erfolgreich geändert!", ["Confirmation"]="Bestätigung", ["Are you sure?"]="Bist du sicher?", ["New outfit name"]="Neuer Outfitname", ["No"]="Nein", ["Yes"]="Ja", ["Confirm deletion"]="Löschen bestätigen", ["Are you sure you want to delete this outfit?"]="Möchtest du dieses Outfit wirklich löschen?", ["Rename outfit"]="Outfit umbenennen", ["Enter a new name for this saved outfit:"]="Gib einen neuen Namen für dieses gespeicherte Outfit ein:", ["Save"]="Speichern", ["Cancel"]="Abbrechen", ["The name cannot be empty"]="Der Name darf nicht leer sein", ["Outfit name changed"]="Outfitname geändert", ["Action completed successfully"]="Aktion erfolgreich abgeschlossen", ["Accessory ID copied"]="Accessoire-ID kopiert", ["Avatar saved successfully"]="Avatar erfolgreich gespeichert", ["Outfit deleted"]="Outfit gelöscht", ["Clipboard is not available"]="Zwischenablage nicht verfügbar", ["Outfit renamed successfully"]="Outfit erfolgreich umbenannt", ["Outfit removed"]="Outfit entfernt", ["Outfit saved permanently"]="Outfit dauerhaft gespeichert", ["No saved outfits yet"]="Noch keine Outfits gespeichert",
+        ["Shirt"]="Hemd", ["Pants"]="Hose", ["T-Shirt"]="T-Shirt", ["Face"]="Gesicht", ["Head"]="Kopf", ["Torso"]="Oberkörper", ["Left Arm"]="Linker Arm", ["Right Arm"]="Rechter Arm", ["Left Leg"]="Linkes Bein", ["Right Leg"]="Rechtes Bein", ["Idle Animation"]="Leerlaufanimation", ["Walk Animation"]="Gehanimation", ["Run Animation"]="Laufanimation", ["Jump Animation"]="Sprunganimation", ["Fall Animation"]="Fallanimation", ["Climb Animation"]="Kletteranimation", ["Swim Animation"]="Schwimmanimation", ["Mood Animation"]="Stimmungsanimation"
+    },
+    pl = {
+        ["Search players..."]="Szukaj graczy...", ["PLAYERS"]="GRACZE", ["📁 OUTFITS"]="📁 STROJE", ["FIXED"]="STAŁA", ["FREE"]="SWOBODNA", ["T-POSE"]="POZA T", ["A-POSE"]="POZA A", ["NEUTRAL"]="NEUTRALNA", ["AVATAR ITEMS / ANIMATIONS"]="PRZEDMIOTY / ANIMACJE", ["AVATAR ITEMS"]="PRZEDMIOTY AWATARA", ["ANIMATIONS"]="ANIMACJE", ["COPY"]="KOPIUJ", ["SAVE"]="ZAPISZ", ["Select a player"]="Wybierz gracza", ["Select a player first"]="Najpierw wybierz gracza", ["Loading player..."]="Wczytywanie gracza...", ["Character not loaded"]="Postać nie została wczytana", ["No Humanoid found"]="Nie znaleziono obiektu Humanoid", ["Could not read avatar details"]="Nie udało się odczytać danych awatara", ["Could not load avatar"]="Nie udało się wczytać awatara", ["Could not position avatar preview"]="Nie udało się ustawić podglądu awatara", ["Avatar loaded"]="Awatar wczytany", ["This player is no longer available"]="Ten gracz jest już niedostępny",
+        ["LANGUAGE"]="JĘZYK", ["Choose language"]="Wybierz język", ["Language changed successfully!"]="Język został pomyślnie zmieniony!", ["Confirmation"]="Potwierdzenie", ["Are you sure?"]="Czy na pewno?", ["New outfit name"]="Nowa nazwa stroju", ["No"]="Nie", ["Yes"]="Tak", ["Confirm deletion"]="Potwierdź usunięcie", ["Are you sure you want to delete this outfit?"]="Czy na pewno chcesz usunąć ten strój?", ["Rename outfit"]="Zmień nazwę stroju", ["Enter a new name for this saved outfit:"]="Wpisz nową nazwę zapisanego stroju:", ["Save"]="Zapisz", ["Cancel"]="Anuluj", ["The name cannot be empty"]="Nazwa nie może być pusta", ["Outfit name changed"]="Zmieniono nazwę stroju", ["Action completed successfully"]="Operacja zakończona pomyślnie", ["Accessory ID copied"]="Skopiowano ID akcesorium", ["Avatar saved successfully"]="Awatar został zapisany", ["Outfit deleted"]="Strój usunięty", ["Clipboard is not available"]="Schowek jest niedostępny", ["Outfit renamed successfully"]="Zmieniono nazwę stroju", ["Outfit removed"]="Strój usunięty", ["Outfit saved permanently"]="Strój zapisano na stałe", ["No saved outfits yet"]="Nie zapisano jeszcze żadnych strojów",
+        ["Shirt"]="Koszula", ["Pants"]="Spodnie", ["T-Shirt"]="Koszulka", ["Face"]="Twarz", ["Head"]="Głowa", ["Torso"]="Tułów", ["Left Arm"]="Lewa ręka", ["Right Arm"]="Prawa ręka", ["Left Leg"]="Lewa noga", ["Right Leg"]="Prawa noga", ["Idle Animation"]="Animacja bezczynności", ["Walk Animation"]="Animacja chodzenia", ["Run Animation"]="Animacja biegu", ["Jump Animation"]="Animacja skoku", ["Fall Animation"]="Animacja spadania", ["Climb Animation"]="Animacja wspinania", ["Swim Animation"]="Animacja pływania", ["Mood Animation"]="Animacja nastroju"
+    },
+    tr = {
+        ["Search players..."]="Oyuncu ara...", ["PLAYERS"]="OYUNCULAR", ["📁 OUTFITS"]="📁 KIYAFETLER", ["FIXED"]="SABİT", ["FREE"]="SERBEST", ["T-POSE"]="T POZU", ["A-POSE"]="A POZU", ["NEUTRAL"]="NÖTR", ["AVATAR ITEMS / ANIMATIONS"]="AVATAR ÖĞELERİ / ANİMASYONLAR", ["AVATAR ITEMS"]="AVATAR ÖĞELERİ", ["ANIMATIONS"]="ANİMASYONLAR", ["COPY"]="KOPYALA", ["SAVE"]="KAYDET", ["Select a player"]="Bir oyuncu seç", ["Select a player first"]="Önce bir oyuncu seç", ["Loading player..."]="Oyuncu yükleniyor...", ["Character not loaded"]="Karakter yüklenmedi", ["No Humanoid found"]="Humanoid bulunamadı", ["Could not read avatar details"]="Avatar bilgileri okunamadı", ["Could not load avatar"]="Avatar yüklenemedi", ["Could not position avatar preview"]="Avatar önizlemesi konumlandırılamadı", ["Avatar loaded"]="Avatar yüklendi", ["This player is no longer available"]="Bu oyuncu artık mevcut değil",
+        ["LANGUAGE"]="DİL", ["Choose language"]="Dil seç", ["Language changed successfully!"]="Dil başarıyla değiştirildi!", ["Confirmation"]="Onay", ["Are you sure?"]="Emin misin?", ["New outfit name"]="Yeni kıyafet adı", ["No"]="Hayır", ["Yes"]="Evet", ["Confirm deletion"]="Silmeyi onayla", ["Are you sure you want to delete this outfit?"]="Bu kıyafeti silmek istediğinden emin misin?", ["Rename outfit"]="Kıyafeti yeniden adlandır", ["Enter a new name for this saved outfit:"]="Kaydedilen kıyafet için yeni bir ad gir:", ["Save"]="Kaydet", ["Cancel"]="İptal", ["The name cannot be empty"]="Ad boş olamaz", ["Outfit name changed"]="Kıyafet adı değiştirildi", ["Action completed successfully"]="İşlem başarıyla tamamlandı", ["Accessory ID copied"]="Aksesuar kimliği kopyalandı", ["Avatar saved successfully"]="Avatar başarıyla kaydedildi", ["Outfit deleted"]="Kıyafet silindi", ["Clipboard is not available"]="Pano kullanılamıyor", ["Outfit renamed successfully"]="Kıyafet başarıyla yeniden adlandırıldı", ["Outfit removed"]="Kıyafet kaldırıldı", ["Outfit saved permanently"]="Kıyafet kalıcı olarak kaydedildi", ["No saved outfits yet"]="Henüz kaydedilmiş kıyafet yok",
+        ["Shirt"]="Gömlek", ["Pants"]="Pantolon", ["T-Shirt"]="Tişört", ["Face"]="Yüz", ["Head"]="Kafa", ["Torso"]="Gövde", ["Left Arm"]="Sol kol", ["Right Arm"]="Sağ kol", ["Left Leg"]="Sol bacak", ["Right Leg"]="Sağ bacak", ["Idle Animation"]="Bekleme animasyonu", ["Walk Animation"]="Yürüme animasyonu", ["Run Animation"]="Koşma animasyonu", ["Jump Animation"]="Zıplama animasyonu", ["Fall Animation"]="Düşme animasyonu", ["Climb Animation"]="Tırmanma animasyonu", ["Swim Animation"]="Yüzme animasyonu", ["Mood Animation"]="Ruh hâli animasyonu"
+    },
+    ja = {
+        ["Search players..."]="プレイヤーを検索...", ["PLAYERS"]="プレイヤー", ["📁 OUTFITS"]="📁 コーデ", ["FIXED"]="固定", ["FREE"]="フリー", ["T-POSE"]="Tポーズ", ["A-POSE"]="Aポーズ", ["NEUTRAL"]="ニュートラル", ["AVATAR ITEMS / ANIMATIONS"]="アバターアイテム / アニメーション", ["AVATAR ITEMS"]="アバターアイテム", ["ANIMATIONS"]="アニメーション", ["COPY"]="コピー", ["SAVE"]="保存", ["Select a player"]="プレイヤーを選択", ["Select a player first"]="先にプレイヤーを選択してください", ["Loading player..."]="プレイヤーを読み込み中...", ["Character not loaded"]="キャラクターが読み込まれていません", ["No Humanoid found"]="Humanoidが見つかりません", ["Could not read avatar details"]="アバター情報を読み取れませんでした", ["Could not load avatar"]="アバターを読み込めませんでした", ["Could not position avatar preview"]="アバターのプレビューを配置できませんでした", ["Avatar loaded"]="アバターを読み込みました", ["This player is no longer available"]="このプレイヤーは利用できません",
+        ["LANGUAGE"]="言語", ["Choose language"]="言語を選択", ["Language changed successfully!"]="言語を変更しました！", ["Confirmation"]="確認", ["Are you sure?"]="よろしいですか？", ["New outfit name"]="新しいコーデ名", ["No"]="いいえ", ["Yes"]="はい", ["Confirm deletion"]="削除の確認", ["Are you sure you want to delete this outfit?"]="このコーデを削除してもよろしいですか？", ["Rename outfit"]="コーデ名を変更", ["Enter a new name for this saved outfit:"]="保存したコーデの新しい名前を入力してください：", ["Save"]="保存", ["Cancel"]="キャンセル", ["The name cannot be empty"]="名前を入力してください", ["Outfit name changed"]="コーデ名を変更しました", ["Action completed successfully"]="正常に完了しました", ["Accessory ID copied"]="アクセサリーIDをコピーしました", ["Avatar saved successfully"]="アバターを保存しました", ["Outfit deleted"]="コーデを削除しました", ["Clipboard is not available"]="クリップボードを利用できません", ["Outfit renamed successfully"]="コーデ名を変更しました", ["Outfit removed"]="コーデを削除しました", ["Outfit saved permanently"]="コーデを保存しました", ["No saved outfits yet"]="保存されたコーデはありません",
+        ["Shirt"]="シャツ", ["Pants"]="パンツ", ["T-Shirt"]="Tシャツ", ["Face"]="顔", ["Head"]="頭", ["Torso"]="胴体", ["Left Arm"]="左腕", ["Right Arm"]="右腕", ["Left Leg"]="左脚", ["Right Leg"]="右脚", ["Idle Animation"]="待機アニメーション", ["Walk Animation"]="歩行アニメーション", ["Run Animation"]="走行アニメーション", ["Jump Animation"]="ジャンプアニメーション", ["Fall Animation"]="落下アニメーション", ["Climb Animation"]="登るアニメーション", ["Swim Animation"]="泳ぐアニメーション", ["Mood Animation"]="ムードアニメーション"
+    },
+    ko = {
+        ["Search players..."]="플레이어 검색...", ["PLAYERS"]="플레이어", ["📁 OUTFITS"]="📁 의상", ["FIXED"]="고정", ["FREE"]="자유", ["T-POSE"]="T 포즈", ["A-POSE"]="A 포즈", ["NEUTRAL"]="중립", ["AVATAR ITEMS / ANIMATIONS"]="아바타 아이템 / 애니메이션", ["AVATAR ITEMS"]="아바타 아이템", ["ANIMATIONS"]="애니메이션", ["COPY"]="복사", ["SAVE"]="저장", ["Select a player"]="플레이어 선택", ["Select a player first"]="먼저 플레이어를 선택하세요", ["Loading player..."]="플레이어 불러오는 중...", ["Character not loaded"]="캐릭터가 로드되지 않았습니다", ["No Humanoid found"]="Humanoid를 찾을 수 없습니다", ["Could not read avatar details"]="아바타 정보를 읽을 수 없습니다", ["Could not load avatar"]="아바타를 불러올 수 없습니다", ["Could not position avatar preview"]="아바타 미리보기를 배치할 수 없습니다", ["Avatar loaded"]="아바타를 불러왔습니다", ["This player is no longer available"]="이 플레이어는 더 이상 사용할 수 없습니다",
+        ["LANGUAGE"]="언어", ["Choose language"]="언어 선택", ["Language changed successfully!"]="언어가 성공적으로 변경되었습니다!", ["Confirmation"]="확인", ["Are you sure?"]="확실합니까?", ["New outfit name"]="새 의상 이름", ["No"]="아니요", ["Yes"]="예", ["Confirm deletion"]="삭제 확인", ["Are you sure you want to delete this outfit?"]="이 의상을 삭제하시겠습니까?", ["Rename outfit"]="의상 이름 변경", ["Enter a new name for this saved outfit:"]="저장된 의상의 새 이름을 입력하세요:", ["Save"]="저장", ["Cancel"]="취소", ["The name cannot be empty"]="이름을 입력해야 합니다", ["Outfit name changed"]="의상 이름이 변경되었습니다", ["Action completed successfully"]="작업이 성공적으로 완료되었습니다", ["Accessory ID copied"]="액세서리 ID를 복사했습니다", ["Avatar saved successfully"]="아바타가 저장되었습니다", ["Outfit deleted"]="의상이 삭제되었습니다", ["Clipboard is not available"]="클립보드를 사용할 수 없습니다", ["Outfit renamed successfully"]="의상 이름이 변경되었습니다", ["Outfit removed"]="의상이 제거되었습니다", ["Outfit saved permanently"]="의상이 영구 저장되었습니다", ["No saved outfits yet"]="저장된 의상이 없습니다",
+        ["Shirt"]="셔츠", ["Pants"]="바지", ["T-Shirt"]="티셔츠", ["Face"]="얼굴", ["Head"]="머리", ["Torso"]="몸통", ["Left Arm"]="왼팔", ["Right Arm"]="오른팔", ["Left Leg"]="왼쪽 다리", ["Right Leg"]="오른쪽 다리", ["Idle Animation"]="대기 애니메이션", ["Walk Animation"]="걷기 애니메이션", ["Run Animation"]="달리기 애니메이션", ["Jump Animation"]="점프 애니메이션", ["Fall Animation"]="낙하 애니메이션", ["Climb Animation"]="등반 애니메이션", ["Swim Animation"]="수영 애니메이션", ["Mood Animation"]="기분 애니메이션"
+    }
+ }
+
+local extraTranslations = {
+    ru = {
+        ["The name cannot be empty"]="Название не может быть пустым", ["Outfit renamed successfully"]="Наряд успешно переименован", ["Clipboard is not available"]="Буфер обмена недоступен",
+        ["Saved outfit has no 3D snapshot (legacy save)"]="В старом сохранении нет 3D-снимка аватара", ["Could not frame saved avatar"]="Не удалось настроить отображение сохранённого аватара", ["Saved 3D avatar loaded"]="3D-модель сохранённого аватара загружена",
+        ["Scan the player before saving"]="Сначала просканируйте игрока", ["No valid outfit IDs to save"]="Нет действительных ID предметов для сохранения", ["Player left"]="Игрок покинул сервер",
+        ["Language changed, but this executor cannot save language settings"]="Язык изменён, но этот Executor не может сохранить настройку языка",
+        ["Could not rebuild saved avatar: "]="Не удалось восстановить сохранённый аватар: ", ["Could not recreate saved 3D avatar: "]="Не удалось заново создать 3D-модель аватара: ", ["3D appearance was not saved: "]="Не удалось сохранить 3D-внешность: ", ["Copied ID: "]="Скопирован ID: ",
+        [" | Original account avatar"]=" | Аватар из профиля", [" | Live fallback"]=" | Текущая внешность в игре"
+    },
+    es = {
+        ["The name cannot be empty"]="El nombre no puede estar vacío", ["Outfit renamed successfully"]="El conjunto se renombró correctamente", ["Clipboard is not available"]="El portapapeles no está disponible",
+        ["Saved outfit has no 3D snapshot (legacy save)"]="Este conjunto antiguo no contiene una captura 3D del avatar", ["Could not frame saved avatar"]="No se pudo ajustar la vista del avatar guardado", ["Saved 3D avatar loaded"]="Vista 3D del avatar guardado cargada",
+        ["Scan the player before saving"]="Escanea al jugador antes de guardar", ["No valid outfit IDs to save"]="No hay IDs de objetos válidos para guardar", ["Player left"]="El jugador abandonó el servidor",
+        ["Language changed, but this executor cannot save language settings"]="El idioma cambió, pero este executor no puede guardar la preferencia",
+        ["Could not rebuild saved avatar: "]="No se pudo reconstruir el avatar guardado: ", ["Could not recreate saved 3D avatar: "]="No se pudo volver a crear el avatar 3D: ", ["3D appearance was not saved: "]="No se pudo guardar la apariencia 3D: ", ["Copied ID: "]="ID copiado: ", [" | Original account avatar"]=" | Avatar del perfil", [" | Live fallback"]=" | Apariencia actual del juego"
+    },
+    pt = {
+        ["The name cannot be empty"]="O nome não pode ficar vazio", ["Outfit renamed successfully"]="Visual renomeado com sucesso", ["Clipboard is not available"]="A área de transferência não está disponível",
+        ["Saved outfit has no 3D snapshot (legacy save)"]="Este visual antigo não contém uma captura 3D do avatar", ["Could not frame saved avatar"]="Não foi possível ajustar a visualização do avatar salvo", ["Saved 3D avatar loaded"]="Visualização 3D do avatar salvo carregada",
+        ["Scan the player before saving"]="Escaneie o jogador antes de salvar", ["No valid outfit IDs to save"]="Não há IDs de itens válidos para salvar", ["Player left"]="O jogador saiu do servidor",
+        ["Language changed, but this executor cannot save language settings"]="O idioma foi alterado, mas este executor não consegue salvar a preferência",
+        ["Could not rebuild saved avatar: "]="Não foi possível reconstruir o avatar salvo: ", ["Could not recreate saved 3D avatar: "]="Não foi possível recriar o avatar 3D: ", ["3D appearance was not saved: "]="Não foi possível salvar a aparência 3D: ", ["Copied ID: "]="ID copiado: ", [" | Original account avatar"]=" | Avatar da conta", [" | Live fallback"]=" | Aparência atual do jogo"
+    },
+    fr = {
+        ["The name cannot be empty"]="Le nom ne peut pas être vide", ["Outfit renamed successfully"]="Tenue renommée avec succès", ["Clipboard is not available"]="Presse-papiers indisponible",
+        ["Saved outfit has no 3D snapshot (legacy save)"]="Cette ancienne tenue ne contient pas de capture 3D de l’avatar", ["Could not frame saved avatar"]="Impossible d’ajuster l’affichage de l’avatar enregistré", ["Saved 3D avatar loaded"]="Aperçu 3D de l’avatar enregistré chargé",
+        ["Scan the player before saving"]="Scannez le joueur avant l’enregistrement", ["No valid outfit IDs to save"]="Aucun ID d’objet valide à enregistrer", ["Player left"]="Le joueur a quitté le serveur",
+        ["Language changed, but this executor cannot save language settings"]="La langue a changé, mais cet exécuteur ne peut pas enregistrer ce choix",
+        ["Could not rebuild saved avatar: "]="Impossible de reconstruire l’avatar enregistré : ", ["Could not recreate saved 3D avatar: "]="Impossible de recréer l’avatar 3D : ", ["3D appearance was not saved: "]="L’apparence 3D n’a pas été enregistrée : ", ["Copied ID: "]="ID copié : ", [" | Original account avatar"]=" | Avatar du compte", [" | Live fallback"]=" | Apparence actuelle en jeu"
+    },
+    de = {
+        ["The name cannot be empty"]="Der Name darf nicht leer sein", ["Outfit renamed successfully"]="Outfit erfolgreich umbenannt", ["Clipboard is not available"]="Zwischenablage nicht verfügbar",
+        ["Saved outfit has no 3D snapshot (legacy save)"]="Dieses ältere Outfit enthält keinen 3D-Schnappschuss des Avatars", ["Could not frame saved avatar"]="Die Ansicht des gespeicherten Avatars konnte nicht angepasst werden", ["Saved 3D avatar loaded"]="3D-Vorschau des gespeicherten Avatars geladen",
+        ["Scan the player before saving"]="Scanne den Spieler vor dem Speichern", ["No valid outfit IDs to save"]="Keine gültigen Item-IDs zum Speichern vorhanden", ["Player left"]="Der Spieler hat den Server verlassen",
+        ["Language changed, but this executor cannot save language settings"]="Sprache geändert, aber dieser Executor kann die Einstellung nicht speichern",
+        ["Could not rebuild saved avatar: "]="Gespeicherter Avatar konnte nicht wiederhergestellt werden: ", ["Could not recreate saved 3D avatar: "]="3D-Avatar konnte nicht neu erstellt werden: ", ["3D appearance was not saved: "]="3D-Erscheinungsbild wurde nicht gespeichert: ", ["Copied ID: "]="ID kopiert: ", [" | Original account avatar"]=" | Konto-Avatar", [" | Live fallback"]=" | Aktuelles Spiel-Aussehen"
+    },
+    pl = {
+        ["The name cannot be empty"]="Nazwa nie może być pusta", ["Outfit renamed successfully"]="Pomyślnie zmieniono nazwę stroju", ["Clipboard is not available"]="Schowek jest niedostępny",
+        ["Saved outfit has no 3D snapshot (legacy save)"]="Ten starszy strój nie zawiera migawki 3D awatara", ["Could not frame saved avatar"]="Nie udało się ustawić widoku zapisanego awatara", ["Saved 3D avatar loaded"]="Wczytano podgląd 3D zapisanego awatara",
+        ["Scan the player before saving"]="Zeskanuj gracza przed zapisaniem", ["No valid outfit IDs to save"]="Brak prawidłowych identyfikatorów przedmiotów do zapisania", ["Player left"]="Gracz opuścił serwer",
+        ["Language changed, but this executor cannot save language settings"]="Język zmieniono, ale ten executor nie może zapisać ustawienia",
+        ["Could not rebuild saved avatar: "]="Nie udało się odtworzyć zapisanego awatara: ", ["Could not recreate saved 3D avatar: "]="Nie udało się ponownie utworzyć awatara 3D: ", ["3D appearance was not saved: "]="Nie udało się zapisać wyglądu 3D: ", ["Copied ID: "]="Skopiowano ID: ", [" | Original account avatar"]=" | Awatar z konta", [" | Live fallback"]=" | Wygląd z bieżącej gry"
+    },
+    tr = {
+        ["The name cannot be empty"]="Ad boş olamaz", ["Outfit renamed successfully"]="Kıyafet başarıyla yeniden adlandırıldı", ["Clipboard is not available"]="Pano kullanılamıyor",
+        ["Saved outfit has no 3D snapshot (legacy save)"]="Bu eski kayıtta avatarın 3D görüntüsü bulunmuyor", ["Could not frame saved avatar"]="Kaydedilen avatarın görünümü ayarlanamadı", ["Saved 3D avatar loaded"]="Kaydedilen avatarın 3D önizlemesi yüklendi",
+        ["Scan the player before saving"]="Kaydetmeden önce oyuncuyu tara", ["No valid outfit IDs to save"]="Kaydedilecek geçerli öğe kimliği yok", ["Player left"]="Oyuncu sunucudan ayrıldı",
+        ["Language changed, but this executor cannot save language settings"]="Dil değiştirildi ancak bu executor dil tercihini kaydedemiyor",
+        ["Could not rebuild saved avatar: "]="Kaydedilen avatar yeniden oluşturulamadı: ", ["Could not recreate saved 3D avatar: "]="3D avatar yeniden oluşturulamadı: ", ["3D appearance was not saved: "]="3D görünüm kaydedilemedi: ", ["Copied ID: "]="Kopyalanan kimlik: ", [" | Original account avatar"]=" | Hesap avatarı", [" | Live fallback"]=" | Oyundaki mevcut görünüm"
+    },
+    ja = {
+        ["The name cannot be empty"]="名前を入力してください", ["Outfit renamed successfully"]="コーデ名を変更しました", ["Clipboard is not available"]="クリップボードを利用できません",
+        ["Saved outfit has no 3D snapshot (legacy save)"]="この古い保存データにはアバターの3Dスナップショットがありません", ["Could not frame saved avatar"]="保存したアバターの表示位置を調整できませんでした", ["Saved 3D avatar loaded"]="保存したアバターの3Dプレビューを読み込みました",
+        ["Scan the player before saving"]="保存する前にプレイヤーをスキャンしてください", ["No valid outfit IDs to save"]="保存できる有効なアイテムIDがありません", ["Player left"]="プレイヤーがサーバーから退出しました",
+        ["Language changed, but this executor cannot save language settings"]="言語は変更されましたが、このExecutorでは設定を保存できません",
+        ["Could not rebuild saved avatar: "]="保存したアバターを復元できませんでした：", ["Could not recreate saved 3D avatar: "]="アバターの3Dモデルを再作成できませんでした：", ["3D appearance was not saved: "]="3Dの外見を保存できませんでした：", ["Copied ID: "]="コピーしたID：", [" | Original account avatar"]=" | アカウントのアバター", [" | Live fallback"]=" | ゲーム内の現在の外見"
+    },
+    ko = {
+        ["The name cannot be empty"]="이름을 입력해야 합니다", ["Outfit renamed successfully"]="의상 이름이 변경되었습니다", ["Clipboard is not available"]="클립보드를 사용할 수 없습니다",
+        ["Saved outfit has no 3D snapshot (legacy save)"]="이전 저장 데이터에 아바타 3D 스냅샷이 없습니다", ["Could not frame saved avatar"]="저장된 아바타의 화면 위치를 조정할 수 없습니다", ["Saved 3D avatar loaded"]="저장된 아바타의 3D 미리보기를 불러왔습니다",
+        ["Scan the player before saving"]="저장하기 전에 플레이어를 스캔하세요", ["No valid outfit IDs to save"]="저장할 수 있는 유효한 아이템 ID가 없습니다", ["Player left"]="플레이어가 서버를 나갔습니다",
+        ["Language changed, but this executor cannot save language settings"]="언어는 변경되었지만 이 Executor에서는 설정을 저장할 수 없습니다",
+        ["Could not rebuild saved avatar: "]="저장된 아바타를 복원할 수 없습니다: ", ["Could not recreate saved 3D avatar: "]="아바타 3D 모델을 다시 만들 수 없습니다: ", ["3D appearance was not saved: "]="3D 외형을 저장하지 못했습니다: ", ["Copied ID: "]="복사한 ID: ", [" | Original account avatar"]=" | 계정 아바타", [" | Live fallback"]=" | 게임 내 현재 외형"
+    }
+}
+
+local countLabelTranslations = {
+    ru = {
+        ['PLAYERS ON SERVER: '] = 'ИГРОКОВ НА СЕРВЕРЕ: ',
+        ['WORN ITEMS: '] = 'НАДЕТО ПРЕДМЕТОВ: ',
+        ['ITEMS'] = 'ПРЕДМЕТЫ',
+    },
+    es = {
+        ['PLAYERS ON SERVER: '] = 'JUGADORES EN EL SERVIDOR: ',
+        ['WORN ITEMS: '] = 'OBJETOS EQUIPADOS: ',
+        ['ITEMS'] = 'OBJETOS',
+    },
+    pt = {
+        ['PLAYERS ON SERVER: '] = 'JOGADORES NO SERVIDOR: ',
+        ['WORN ITEMS: '] = 'ITENS EM USO: ',
+        ['ITEMS'] = 'ITENS',
+    },
+    fr = {
+        ['PLAYERS ON SERVER: '] = 'JOUEURS SUR LE SERVEUR : ',
+        ['WORN ITEMS: '] = 'OBJETS PORTÉS : ',
+        ['ITEMS'] = 'OBJETS',
+    },
+    de = {
+        ['PLAYERS ON SERVER: '] = 'SPIELER AUF DEM SERVER: ',
+        ['WORN ITEMS: '] = 'GETRAGENE ITEMS: ',
+        ['ITEMS'] = 'ITEMS',
+    },
+    pl = {
+        ['PLAYERS ON SERVER: '] = 'GRACZE NA SERWERZE: ',
+        ['WORN ITEMS: '] = 'ZAŁOŻONE PRZEDMIOTY: ',
+        ['ITEMS'] = 'PRZEDMIOTY',
+    },
+    tr = {
+        ['PLAYERS ON SERVER: '] = 'SUNUCUDAKİ OYUNCULAR: ',
+        ['WORN ITEMS: '] = 'TAKILI ÖĞELER: ',
+        ['ITEMS'] = 'ÖĞELER',
+    },
+    ja = {
+        ['PLAYERS ON SERVER: '] = 'サーバー内のプレイヤー：',
+        ['WORN ITEMS: '] = '装着アイテム：',
+        ['ITEMS'] = 'アイテム',
+    },
+    ko = {
+        ['PLAYERS ON SERVER: '] = '서버 플레이어: ',
+        ['WORN ITEMS: '] = '착용 아이템: ',
+        ['ITEMS'] = '아이템',
+    },
+}
+
+for languageCode, labels in pairs(countLabelTranslations) do
+    extraTranslations[languageCode] = extraTranslations[languageCode] or {}
+    for key, value in pairs(labels) do extraTranslations[languageCode][key] = value end
+end
+
+local dynamicPrefixTranslations = {
+    ru = { ["Could not save the new name: "]="Не удалось сохранить новое название: ", ["Could not save deletion: "]="Не удалось сохранить удаление: ", ["Copied ID: "]="Скопирован ID: ", ["Storage unavailable: "]="Хранилище недоступно: ", ["Session only: "]="Только до перезапуска: ", ["Saved avatar loaded: @"]="Сохранённый аватар загружен: @", ["Saved avatar could not be fully restored: @"]="Не удалось полностью восстановить аватар: @", ["Legacy outfit (IDs only): @"]="Старый формат наряда (только ID): @" },
+    es = { ["Could not save the new name: "]="No se pudo guardar el nuevo nombre: ", ["Could not save deletion: "]="No se pudo guardar la eliminación: ", ["Copied ID: "]="ID copiado: ", ["Storage unavailable: "]="Almacenamiento no disponible: ", ["Session only: "]="Solo durante esta sesión: ", ["Saved avatar loaded: @"]="Avatar guardado cargado: @", ["Saved avatar could not be fully restored: @"]="No se pudo restaurar por completo el avatar: @", ["Legacy outfit (IDs only): @"]="Conjunto antiguo (solo IDs): @" },
+    pt = { ["Could not save the new name: "]="Não foi possível salvar o novo nome: ", ["Could not save deletion: "]="Não foi possível salvar a exclusão: ", ["Copied ID: "]="ID copiado: ", ["Storage unavailable: "]="Armazenamento indisponível: ", ["Session only: "]="Apenas nesta sessão: ", ["Saved avatar loaded: @"]="Avatar salvo carregado: @", ["Saved avatar could not be fully restored: @"]="Não foi possível restaurar totalmente o avatar: @", ["Legacy outfit (IDs only): @"]="Visual antigo (somente IDs): @" },
+    fr = { ["Could not save the new name: "]="Impossible d’enregistrer le nouveau nom : ", ["Could not save deletion: "]="Impossible d’enregistrer la suppression : ", ["Copied ID: "]="ID copié : ", ["Storage unavailable: "]="Stockage indisponible : ", ["Session only: "]="Session uniquement : ", ["Saved avatar loaded: @"]="Avatar enregistré chargé : @", ["Saved avatar could not be fully restored: @"]="Impossible de restaurer complètement l’avatar : @", ["Legacy outfit (IDs only): @"]="Ancienne tenue (ID uniquement) : @" },
+    de = { ["Could not save the new name: "]="Neuer Name konnte nicht gespeichert werden: ", ["Could not save deletion: "]="Löschung konnte nicht gespeichert werden: ", ["Copied ID: "]="ID kopiert: ", ["Storage unavailable: "]="Speicher nicht verfügbar: ", ["Session only: "]="Nur für diese Sitzung: ", ["Saved avatar loaded: @"]="Gespeicherter Avatar geladen: @", ["Saved avatar could not be fully restored: @"]="Gespeicherter Avatar konnte nicht vollständig wiederhergestellt werden: @", ["Legacy outfit (IDs only): @"]="Altes Outfit (nur IDs): @" },
+    pl = { ["Could not save the new name: "]="Nie udało się zapisać nowej nazwy: ", ["Could not save deletion: "]="Nie udało się zapisać usunięcia: ", ["Copied ID: "]="Skopiowano ID: ", ["Storage unavailable: "]="Pamięć niedostępna: ", ["Session only: "]="Tylko w tej sesji: ", ["Saved avatar loaded: @"]="Wczytano zapisanego awatara: @", ["Saved avatar could not be fully restored: @"]="Nie udało się w pełni przywrócić awatara: @", ["Legacy outfit (IDs only): @"]="Starszy strój (tylko ID): @" },
+    tr = { ["Could not save the new name: "]="Yeni ad kaydedilemedi: ", ["Could not save deletion: "]="Silme işlemi kaydedilemedi: ", ["Copied ID: "]="Kopyalanan kimlik: ", ["Storage unavailable: "]="Depolama kullanılamıyor: ", ["Session only: "]="Yalnızca bu oturumda: ", ["Saved avatar loaded: @"]="Kaydedilen avatar yüklendi: @", ["Saved avatar could not be fully restored: @"]="Kaydedilen avatar tamamen geri yüklenemedi: @", ["Legacy outfit (IDs only): @"]="Eski kıyafet (yalnızca kimlikler): @" },
+    ja = { ["Could not save the new name: "]="新しい名前を保存できませんでした：", ["Could not save deletion: "]="削除を保存できませんでした：", ["Copied ID: "]="コピーしたID：", ["Storage unavailable: "]="ストレージを利用できません：", ["Session only: "]="このセッションのみ：", ["Saved avatar loaded: @"]="保存したアバターを読み込みました：@", ["Saved avatar could not be fully restored: @"]="保存したアバターを完全に復元できませんでした：@", ["Legacy outfit (IDs only): @"]="旧形式のコーデ（IDのみ）：@" },
+    ko = { ["Could not save the new name: "]="새 이름을 저장하지 못했습니다: ", ["Could not save deletion: "]="삭제를 저장하지 못했습니다: ", ["Copied ID: "]="복사한 ID: ", ["Storage unavailable: "]="저장소를 사용할 수 없습니다: ", ["Session only: "]="현재 세션에서만 사용 가능: ", ["Saved avatar loaded: @"]="저장된 아바타 불러옴: @", ["Saved avatar could not be fully restored: @"]="저장된 아바타를 완전히 복원하지 못했습니다: @", ["Legacy outfit (IDs only): @"]="이전 의상 형식(ID만): @" }
+}
+
+for languageCode, prefixes in pairs(dynamicPrefixTranslations) do
+    extraTranslations[languageCode] = extraTranslations[languageCode] or {}
+    for key, value in pairs(prefixes) do extraTranslations[languageCode][key] = value end
+end
+
+for languageCode, extra in pairs(extraTranslations) do
+    translations[languageCode] = translations[languageCode] or {}
+    for key, value in pairs(extra) do
+        translations[languageCode][key] = value
+    end
+end
+
+local poseStatusTranslations = {
+    ru = { ["T-POSE | %s | %d shoulders"]="Т-ПОЗА | %s | плеч: %d", ["A-POSE | %s | %d shoulders"]="А-ПОЗА | %s | плеч: %d", ["Neutral | %s | %d shoulders"]="Нейтральная | %s | плеч: %d", ["%s: no shoulders | M:%d AC:%d"]="%s: плечевые суставы не найдены | M:%d AC:%d" },
+    es = { ["T-POSE | %s | %d shoulders"]="POSE T | %s | hombros: %d", ["A-POSE | %s | %d shoulders"]="POSE A | %s | hombros: %d", ["Neutral | %s | %d shoulders"]="Neutral | %s | hombros: %d", ["%s: no shoulders | M:%d AC:%d"]="%s: sin articulaciones de hombro | M:%d AC:%d" },
+    pt = { ["T-POSE | %s | %d shoulders"]="POSE T | %s | ombros: %d", ["A-POSE | %s | %d shoulders"]="POSE A | %s | ombros: %d", ["Neutral | %s | %d shoulders"]="Neutra | %s | ombros: %d", ["%s: no shoulders | M:%d AC:%d"]="%s: sem juntas de ombro | M:%d AC:%d" },
+    fr = { ["T-POSE | %s | %d shoulders"]="POSE T | %s | épaules : %d", ["A-POSE | %s | %d shoulders"]="POSE A | %s | épaules : %d", ["Neutral | %s | %d shoulders"]="Neutre | %s | épaules : %d", ["%s: no shoulders | M:%d AC:%d"]="%s : aucune articulation d’épaule | M:%d AC:%d" },
+    de = { ["T-POSE | %s | %d shoulders"]="T-POSE | %s | Schultern: %d", ["A-POSE | %s | %d shoulders"]="A-POSE | %s | Schultern: %d", ["Neutral | %s | %d shoulders"]="Neutral | %s | Schultern: %d", ["%s: no shoulders | M:%d AC:%d"]="%s: keine Schultergelenke | M:%d AC:%d" },
+    pl = { ["T-POSE | %s | %d shoulders"]="POZA T | %s | barki: %d", ["A-POSE | %s | %d shoulders"]="POZA A | %s | barki: %d", ["Neutral | %s | %d shoulders"]="Neutralna | %s | barki: %d", ["%s: no shoulders | M:%d AC:%d"]="%s: brak stawów barkowych | M:%d AC:%d" },
+    tr = { ["T-POSE | %s | %d shoulders"]="T POZU | %s | omuz: %d", ["A-POSE | %s | %d shoulders"]="A POZU | %s | omuz: %d", ["Neutral | %s | %d shoulders"]="Nötr | %s | omuz: %d", ["%s: no shoulders | M:%d AC:%d"]="%s: omuz eklemi yok | M:%d AC:%d" },
+    ja = { ["T-POSE | %s | %d shoulders"]="Tポーズ | %s | 肩：%d", ["A-POSE | %s | %d shoulders"]="Aポーズ | %s | 肩：%d", ["Neutral | %s | %d shoulders"]="ニュートラル | %s | 肩：%d", ["%s: no shoulders | M:%d AC:%d"]="%s：肩関節なし | M:%d AC:%d" },
+    ko = { ["T-POSE | %s | %d shoulders"]="T 포즈 | %s | 어깨: %d", ["A-POSE | %s | %d shoulders"]="A 포즈 | %s | 어깨: %d", ["Neutral | %s | %d shoulders"]="중립 | %s | 어깨: %d", ["%s: no shoulders | M:%d AC:%d"]="%s: 어깨 관절 없음 | M:%d AC:%d" }
+}
+
+for languageCode, poseMessages in pairs(poseStatusTranslations) do
+    translations[languageCode] = translations[languageCode] or {}
+    for key, value in pairs(poseMessages) do translations[languageCode][key] = value end
+end
+
+local accessoryTypeTranslations = {
+    ru = {Hat="Шляпа", Hair="Волосы", Neck="Шея", Shoulder="Плечо", Front="Спереди", Back="Сзади", Waist="Пояс", Jacket="Куртка", Sweater="Свитер", Shorts="Шорты", LeftShoe="Левый ботинок", RightShoe="Правый ботинок", DressSkirt="Юбка"},
+    es = {Hat="Sombrero", Hair="Cabello", Neck="Cuello", Shoulder="Hombro", Front="Frontal", Back="Espalda", Waist="Cintura", Jacket="Chaqueta", Sweater="Suéter", Shorts="Pantalones cortos", LeftShoe="Zapato izquierdo", RightShoe="Zapato derecho", DressSkirt="Falda"},
+    pt = {Hat="Chapéu", Hair="Cabelo", Neck="Pescoço", Shoulder="Ombro", Front="Frente", Back="Costas", Waist="Cintura", Jacket="Jaqueta", Sweater="Suéter", Shorts="Bermuda", LeftShoe="Sapato esquerdo", RightShoe="Sapato direito", DressSkirt="Saia"},
+    fr = {Hat="Chapeau", Hair="Cheveux", Neck="Cou", Shoulder="Épaule", Front="Avant", Back="Dos", Waist="Taille", Jacket="Veste", Sweater="Pull", Shorts="Short", LeftShoe="Chaussure gauche", RightShoe="Chaussure droite", DressSkirt="Jupe"},
+    de = {Hat="Hut", Hair="Haare", Neck="Hals", Shoulder="Schulter", Front="Vorderseite", Back="Rücken", Waist="Taille", Jacket="Jacke", Sweater="Pullover", Shorts="Shorts", LeftShoe="Linker Schuh", RightShoe="Rechter Schuh", DressSkirt="Rock"},
+    pl = {Hat="Kapelusz", Hair="Włosy", Neck="Szyja", Shoulder="Ramię", Front="Przód", Back="Tył", Waist="Pas", Jacket="Kurtka", Sweater="Sweter", Shorts="Szorty", LeftShoe="Lewy but", RightShoe="Prawy but", DressSkirt="Spódnica"},
+    tr = {Hat="Şapka", Hair="Saç", Neck="Boyun", Shoulder="Omuz", Front="Ön", Back="Arka", Waist="Bel", Jacket="Ceket", Sweater="Kazak", Shorts="Şort", LeftShoe="Sol ayakkabı", RightShoe="Sağ ayakkabı", DressSkirt="Etek"},
+    ja = {Hat="帽子", Hair="髪", Neck="首", Shoulder="肩", Front="前面", Back="背面", Waist="腰", Jacket="ジャケット", Sweater="セーター", Shorts="ショートパンツ", LeftShoe="左の靴", RightShoe="右の靴", DressSkirt="スカート"},
+    ko = {Hat="모자", Hair="머리카락", Neck="목", Shoulder="어깨", Front="앞면", Back="뒷면", Waist="허리", Jacket="재킷", Sweater="스웨터", Shorts="반바지", LeftShoe="왼쪽 신발", RightShoe="오른쪽 신발", DressSkirt="치마"}
+}
+
+for languageCode, itemNames in pairs(accessoryTypeTranslations) do
+    translations[languageCode] = translations[languageCode] or {}
+    for key, value in pairs(itemNames) do translations[languageCode][key] = value end
+end
+
+local function translateText(text)
+    text = tostring(text or "")
+    local dictionary = translations[currentLanguage]
+    if dictionary and dictionary[text] then
+        return dictionary[text]
+    end
+
+    local rig, shoulderCount = text:match("^T%-POSE | ([%w%d]+) | (%d+) shoulders$")
+    if rig then
+        local template = dictionary and dictionary["T-POSE | %s | %d shoulders"]
+        if template then return string.format(template, rig, tonumber(shoulderCount)) end
+    end
+    rig, shoulderCount = text:match("^A%-POSE | ([%w%d]+) | (%d+) shoulders$")
+    if rig then
+        local template = dictionary and dictionary["A-POSE | %s | %d shoulders"]
+        if template then return string.format(template, rig, tonumber(shoulderCount)) end
+    end
+    rig, shoulderCount = text:match("^Neutral | ([%w%d]+) | (%d+) shoulders$")
+    if rig then
+        local template = dictionary and dictionary["Neutral | %s | %d shoulders"]
+        if template then return string.format(template, rig, tonumber(shoulderCount)) end
+    end
+    local noShoulderRig, motorCount, constraintCount = text:match("^([%w%d]+): no shoulders | M:(%d+) AC:(%d+)$")
+    if noShoulderRig then
+        local template = dictionary and dictionary["%s: no shoulders | M:%d AC:%d"]
+        if template then return string.format(template, noShoulderRig, tonumber(motorCount), tonumber(constraintCount)) end
+    end
+
+    local count = text:match("^PLAYERS ON SERVER: (%d+)$")
+    if count then
+        local prefix = dictionary and dictionary["PLAYERS ON SERVER: "] or "PLAYERS ON SERVER: "
+        return prefix .. count
+    end
+    count = text:match("^WORN ITEMS: (.+)$")
+    if count then
+        local prefix = dictionary and dictionary["WORN ITEMS: "] or "WORN ITEMS: "
+        return prefix .. count
+    end
+    local items, animations, worn, suffix = text:match("^Items: (%d+) | Animations: (%d+) | Worn items: (%d+)(.*)$")
+    local labels = {
+        en = {"Items", "Animations", "Worn items"}, ru = {"Предметы", "Анимации", "Надето"}, es = {"Objetos", "Animaciones", "Equipados"}, pt = {"Itens", "Animações", "Em uso"},
+        fr = {"Objets", "Animations", "Portés"}, de = {"Items", "Animationen", "Getragen"}, pl = {"Przedmioty", "Animacje", "Założone"},
+        tr = {"Öğeler", "Animasyonlar", "Takılı"}, ja = {"アイテム", "アニメーション", "装着中"}, ko = {"아이템", "애니메이션", "착용 중"}
+    }
+    local l = labels[currentLanguage] or labels.en
+    if items then
+        return string.format("%s: %s | %s: %s | %s: %s%s", l[1], items, l[2], animations, l[3], worn, suffix)
+    end
+    items, animations, suffix = text:match("^Items: (%d+) | Animations: (%d+)(.*)$")
+    if items then
+        local suffixTranslations = dictionary or {}
+        local translatedSuffix = suffix
+        for source, translated in pairs(suffixTranslations) do
+            if source:sub(1, 3) == " | " and suffix == source then
+                translatedSuffix = translated
+                break
+            end
+        end
+        return string.format("%s: %s | %s: %s%s", l[1], items, l[2], animations, translatedSuffix)
+    end
+    if dictionary then
+        for source, translated in pairs(dictionary) do
+            if #source > 0 and (source:sub(-1) == " " or source:sub(-1) == "@") and text:sub(1, #source) == source then
+                return translated .. text:sub(#source + 1)
+            end
+        end
+    end
+    return text
+end
+
+local function applyLocalization(root)
+    for _, object in ipairs(root:GetDescendants()) do
+        if object:IsA("TextLabel") or object:IsA("TextButton") then
+            local baseText = object:GetAttribute("AIBaseText")
+            if type(baseText) == "string" then
+                object.Text = translateText(baseText)
+            end
+        elseif object:IsA("TextBox") then
+            local basePlaceholder = object:GetAttribute("AIBasePlaceholderText")
+            if type(basePlaceholder) == "string" then
+                object.PlaceholderText = translateText(basePlaceholder)
+            end
+        end
+    end
+end
+
 local function create(className, props, parent)
     local obj = Instance.new(className)
 
@@ -127,6 +475,41 @@ local function create(className, props, parent)
     end
 
     obj.Parent = parent
+
+    if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+        local initialText = tostring(obj.Text or "")
+        obj:SetAttribute("AIBaseText", initialText)
+        obj:GetPropertyChangedSignal("Text"):Connect(function()
+            local currentText = tostring(obj.Text or "")
+            local savedBase = obj:GetAttribute("AIBaseText")
+            if type(savedBase) == "string" and currentText == translateText(savedBase) then
+                return
+            end
+            obj:SetAttribute("AIBaseText", currentText)
+            local localized = translateText(currentText)
+            if localized ~= currentText then
+                obj.Text = localized
+            end
+        end)
+        obj.Text = translateText(initialText)
+    elseif obj:IsA("TextBox") then
+        local initialPlaceholder = tostring(obj.PlaceholderText or "")
+        obj:SetAttribute("AIBasePlaceholderText", initialPlaceholder)
+        obj:GetPropertyChangedSignal("PlaceholderText"):Connect(function()
+            local currentPlaceholder = tostring(obj.PlaceholderText or "")
+            local savedBase = obj:GetAttribute("AIBasePlaceholderText")
+            if type(savedBase) == "string" and currentPlaceholder == translateText(savedBase) then
+                return
+            end
+            obj:SetAttribute("AIBasePlaceholderText", currentPlaceholder)
+            local localized = translateText(currentPlaceholder)
+            if localized ~= currentPlaceholder then
+                obj.PlaceholderText = localized
+            end
+        end)
+        obj.PlaceholderText = translateText(initialPlaceholder)
+    end
+
     return obj
 end
 
@@ -246,6 +629,42 @@ else
     warn("[Avatar Inspector] HttpService unavailable; outfit storage disabled: " .. tostring(httpServiceResult))
 end
 
+local LANGUAGE_FILE = "AvatarInspector_Settings.json"
+local function loadLanguagePreference()
+    if type(readfile) ~= "function" then return end
+    local ok, contents = pcall(function() return readfile(LANGUAGE_FILE) end)
+    if not ok or type(contents) ~= "string" or contents == "" then return end
+    if not HttpService then return end
+    local decodeOk, data = pcall(function() return HttpService:JSONDecode(contents) end)
+    if decodeOk and type(data) == "table" and type(data.language) == "string" then
+        for _, option in ipairs(languageOptions) do
+            if option.code == data.language then
+                currentLanguage = option.code
+                return
+            end
+        end
+    end
+end
+
+local function saveLanguagePreference()
+    if type(writefile) ~= "function" or not HttpService then
+        return false
+    end
+    local encodeOk, encoded = pcall(function()
+        return HttpService:JSONEncode({language = currentLanguage})
+    end)
+    if not encodeOk or type(encoded) ~= "string" then return false end
+    local writeOk = pcall(function() writefile(LANGUAGE_FILE, encoded) end)
+    if not writeOk then return false end
+    if type(readfile) == "function" then
+        local verifyOk, contents = pcall(function() return readfile(LANGUAGE_FILE) end)
+        if not verifyOk or contents ~= encoded then return false end
+    end
+    return true
+end
+
+loadLanguagePreference()
+
 local Main = create("Frame", {
     Name = "MainWindow",
     Size = UDim2.fromOffset(800, 520),
@@ -273,12 +692,21 @@ local Header = create("Frame", {
 round(Header, 13)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.23",
-    UDim2.new(1, -100, 1, 0),
+    Header, "AVATAR INSPECTOR v7.9.26",
+    UDim2.new(1, -154, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
 
 HeaderTitle.Font = Enum.Font.GothamBold
+
+local LangButton = makeButton(
+    Header, currentLanguage:upper(),
+    UDim2.fromOffset(40, 32),
+    UDim2.new(1, -88, 0, 8),
+    ACCENT
+)
+LangButton.Name = "LanguageButton"
+LangButton.TextSize = 10
 
 local Close = makeButton(
     Header, "X",
@@ -292,7 +720,7 @@ local Search = create("TextBox", {
     BackgroundColor3 = PANEL,
     TextColor3 = WHITE,
     PlaceholderColor3 = MUTED,
-    PlaceholderText = "Search player...",
+    PlaceholderText = "Search players...",
     Text = "",
     TextSize = 13,
     Font = Enum.Font.Gotham,
@@ -463,12 +891,22 @@ local ItemsPanel = create("Frame", {
 round(ItemsPanel, 8)
 
 local ItemsTitle = makeLabel(
-    ItemsPanel, "AVATAR ITEMS / ANIMATIONS",
-    UDim2.new(1, -16, 0, 30),
-    UDim2.fromOffset(10, 4), 12
+    ItemsPanel, "ITEMS",
+    UDim2.new(1, -158, 0, 30),
+    UDim2.fromOffset(10, 4), 11
 )
 
 ItemsTitle.Font = Enum.Font.GothamBold
+
+local WornCountLabel = makeLabel(
+    ItemsPanel, "WORN ITEMS: —",
+    UDim2.new(0, 142, 0, 30),
+    UDim2.new(1, -148, 0, 4), 9
+)
+WornCountLabel.Name = "WornItemsCounter"
+WornCountLabel.TextColor3 = ID_GREEN
+WornCountLabel.Font = Enum.Font.GothamBold
+WornCountLabel.TextXAlignment = Enum.TextXAlignment.Right
 
 local ItemList = create("ScrollingFrame", {
     Position = UDim2.fromOffset(6, 38),
@@ -535,7 +973,7 @@ local ToastIcon = create("TextLabel", {
 }, Toast)
 
 local ToastText = makeLabel(
-    Toast, "Успешно выполнено",
+    Toast, "Action completed successfully",
     UDim2.new(1, -54, 1, 0),
     UDim2.fromOffset(48, 0), 12
 )
@@ -545,7 +983,7 @@ ToastText.ZIndex = 52
 local function showSuccessToast(message)
     toastToken += 1
     local token = toastToken
-    ToastText.Text = tostring(message or "Успешно выполнено")
+    ToastText.Text = tostring(message or "Action completed successfully")
     Toast.Visible = true
     Toast.BackgroundTransparency = 0.08
     ToastText.TextTransparency = 0
@@ -592,7 +1030,7 @@ round(ModalPanel, 11)
 addStroke(ModalPanel)
 
 local ModalTitle = makeLabel(
-    ModalPanel, "Подтверждение",
+    ModalPanel, "Confirmation",
     UDim2.new(1, -24, 0, 28),
     UDim2.fromOffset(12, 10), 14
 )
@@ -601,7 +1039,7 @@ ModalTitle.ZIndex = 72
 
 local ModalMessage = create("TextLabel", {
     BackgroundTransparency = 1,
-    Text = "Вы точно уверены?",
+    Text = "Are you sure?",
     TextColor3 = WHITE,
     TextSize = 12,
     Font = Enum.Font.Gotham,
@@ -620,7 +1058,7 @@ local RenameInput = create("TextBox", {
     BackgroundColor3 = LIGHT,
     TextColor3 = WHITE,
     PlaceholderColor3 = MUTED,
-    PlaceholderText = "Новое название наряда",
+    PlaceholderText = "New outfit name",
     Text = "",
     TextSize = 13,
     Font = Enum.Font.Gotham,
@@ -631,7 +1069,7 @@ local RenameInput = create("TextBox", {
 round(RenameInput, 7)
 
 local ModalNoButton = makeButton(
-    ModalPanel, "Нет",
+    ModalPanel, "No",
     UDim2.fromOffset(145, 34),
     UDim2.new(1, -157, 1, -46),
     RED
@@ -639,7 +1077,7 @@ local ModalNoButton = makeButton(
 ModalNoButton.ZIndex = 74
 
 local ModalYesButton = makeButton(
-    ModalPanel, "Да",
+    ModalPanel, "Yes",
     UDim2.fromOffset(145, 34),
     UDim2.fromOffset(12, 132),
     GREEN
@@ -653,33 +1091,33 @@ local function closeOutfitDialog()
     ModalOverlay.Visible = false
     pendingDialogAction = nil
     RenameInput.Visible = false
-    ModalYesButton.Text = "Да"
-    ModalNoButton.Text = "Нет"
+    ModalYesButton.Text = "Yes"
+    ModalNoButton.Text = "No"
 end
 
 local function openConfirmDialog(message, callback)
     dialogMode = "Confirm"
-    ModalTitle.Text = "Подтверждение удаления"
-    ModalMessage.Text = message or "Вы точно уверены, что хотите удалить этот наряд?"
+    ModalTitle.Text = "Confirm deletion"
+    ModalMessage.Text = message or "Are you sure you want to delete this outfit?"
     RenameInput.Visible = false
-    ModalYesButton.Text = "Да"
-    ModalNoButton.Text = "Нет"
+    ModalYesButton.Text = "Yes"
+    ModalNoButton.Text = "No"
     pendingDialogAction = callback
     ModalOverlay.Visible = true
 end
 
 local function openRenameDialog(favorite)
     dialogMode = "Rename"
-    ModalTitle.Text = "Переименовать наряд"
-    ModalMessage.Text = "Введите новое название для сохранённого наряда:"
+    ModalTitle.Text = "Rename outfit"
+    ModalMessage.Text = "Enter a new name for this saved outfit:"
     RenameInput.Text = tostring(favorite.name or "")
     RenameInput.Visible = true
-    ModalYesButton.Text = "Сохранить"
-    ModalNoButton.Text = "Отмена"
+    ModalYesButton.Text = "Save"
+    ModalNoButton.Text = "Cancel"
     pendingDialogAction = function()
         local newName = tostring(RenameInput.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
         if newName == "" then
-            Status.Text = "Название не может быть пустым"
+            Status.Text = "The name cannot be empty"
             return
         end
 
@@ -688,10 +1126,10 @@ local function openRenameDialog(favorite)
         local saved, storageError = persistFavorites()
         if not saved then
             favorite.name = oldName
-            Status.Text = "Rename not saved: " .. tostring(storageError)
+            Status.Text = "Could not save the new name: " .. tostring(storageError)
         else
             Status.Text = "Outfit renamed successfully"
-            showSuccessToast("Название наряда изменено")
+            showSuccessToast("Outfit name changed")
         end
         refreshFavoritesList()
     end
@@ -720,6 +1158,83 @@ ModalYesButton.Activated:Connect(function()
         callback()
     end
 end)
+
+-- Dedicated language picker. The option names remain in their native forms.
+local LangOverlay = create("Frame", {
+    Name = "LanguagePickerOverlay",
+    Size = UDim2.fromScale(1, 1),
+    BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+    BackgroundTransparency = 0.38,
+    BorderSizePixel = 0,
+    Visible = false,
+    Active = true,
+    ZIndex = 80
+}, Main)
+
+local LangPanel = create("Frame", {
+    Name = "LanguagePickerPanel",
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.fromScale(0.5, 0.5),
+    Size = UDim2.fromOffset(320, 340),
+    BackgroundColor3 = PANEL,
+    BorderSizePixel = 0,
+    ZIndex = 81
+}, LangOverlay)
+round(LangPanel, 11)
+addStroke(LangPanel)
+
+local LangTitle = makeLabel(LangPanel, "Choose language", UDim2.new(1, -60, 0, 30), UDim2.fromOffset(12, 10), 14)
+LangTitle.Font = Enum.Font.GothamBold
+LangTitle.ZIndex = 82
+
+local LangClose = makeButton(LangPanel, "X", UDim2.fromOffset(30, 28), UDim2.new(1, -42, 0, 9), RED)
+LangClose.ZIndex = 83
+
+for index, option in ipairs(languageOptions) do
+    local column = (index - 1) % 2
+    local row = math.floor((index - 1) / 2)
+    local optionButton = makeButton(
+        LangPanel,
+        option.name,
+        UDim2.fromOffset(142, 42),
+        UDim2.fromOffset(12 + column * 154, 52 + row * 54),
+        option.code == currentLanguage and ACCENT or LIGHT
+    )
+    optionButton.Name = "LanguageOption_" .. option.code
+    optionButton.TextSize = 11
+    optionButton.ZIndex = 83
+    optionButton.Activated:Connect(function()
+        currentLanguage = option.code
+        LangButton.Text = currentLanguage:upper()
+        LangOverlay.Visible = false
+        applyLocalization(ScreenGui)
+        LangButton.Text = currentLanguage:upper()
+        local preferenceSaved = saveLanguagePreference()
+        if not preferenceSaved then
+            Status.Text = "Language changed, but this executor cannot save language settings"
+        end
+        showSuccessToast("Language changed successfully!")
+        for _, candidate in ipairs(languageOptions) do
+            local optionObject = LangPanel:FindFirstChild("LanguageOption_" .. candidate.code)
+            if optionObject then
+                optionObject.BackgroundColor3 = candidate.code == currentLanguage and ACCENT or LIGHT
+            end
+        end
+    end)
+end
+
+LangButton.Activated:Connect(function()
+    LangOverlay.Visible = true
+end)
+
+LangClose.Activated:Connect(function()
+    LangOverlay.Visible = false
+end)
+
+-- Apply the saved language to all text already created.
+LangButton.Text = currentLanguage:upper()
+applyLocalization(ScreenGui)
+LangButton.Text = currentLanguage:upper()
 
 --==================================================
 -- RESPONSIVE LAYOUT
@@ -875,12 +1390,12 @@ local function copyID(id)
     end
 
     if not copied then
-        Status.Text = "Clipboard API unavailable"
+        Status.Text = "Clipboard is not available"
         return false
     end
 
     Status.Text = "Copied ID: " .. text
-    showSuccessToast("Аксессуар скопирован")
+    showSuccessToast("Accessory ID copied")
     return true
 end
 
@@ -2215,7 +2730,7 @@ local function showPlayerModel(player)
     if not centerModel(clone) then
         clone:Destroy()
         currentModel = nil
-        Status.Text = "Could not frame avatar"
+        Status.Text = "Could not position avatar preview"
         return nil
     end
 
@@ -2472,6 +2987,7 @@ local function scanPlayer(player)
     selectedFavorite = nil
 
     clearItems()
+    WornCountLabel.Text = "WORN ITEMS: —"
     Status.Text = "Loading player..."
 
     showPlayerModel(player)
@@ -2493,7 +3009,7 @@ local function scanPlayer(player)
     local description, descriptionSource = getOriginalAvatarDescription(player, humanoid)
 
     if not description then
-        Status.Text = "Could not read original avatar IDs"
+        Status.Text = "Could not read avatar details"
         return
     end
 
@@ -2584,6 +3100,7 @@ local function scanPlayer(player)
     add("Swim Animation", description.SwimAnimation, "Animations")
     add("Mood Animation", description.MoodAnimation, "Animations")
 
+    WornCountLabel.Text = string.format("WORN ITEMS: %d", wornItemCount)
     displaySavedItems(identifiers)
 
     local animationCount = 0
@@ -2598,10 +3115,9 @@ local function scanPlayer(player)
     end
 
     Status.Text = string.format(
-        "Items: %d | Animations: %d | Worn items: %d%s",
+        "Items: %d | Animations: %d%s",
         itemCount,
         animationCount,
-        wornItemCount,
         descriptionSource == "account" and " | Original account avatar" or " | Live fallback"
     )
     pcall(function() description:Destroy() end)
@@ -2738,7 +3254,7 @@ refreshPlayerList = function()
 
             rowSaveButton.Activated:Connect(function()
                 if not player or player.Parent ~= Players then
-                    Status.Text = "Player is no longer available"
+                    Status.Text = "This player is no longer available"
                     return
                 end
 
@@ -3327,7 +3843,7 @@ saveFavorite = function()
     local saved, storageError = persistFavorites()
     if saved then
         Status.Text = "Outfit saved permanently"
-        showSuccessToast("Аватар успешно сохранён")
+        showSuccessToast("Avatar saved successfully")
     else
         Status.Text = "Session only: " .. tostring(storageError)
     end
@@ -3366,7 +3882,7 @@ refreshFavoritesList = function()
     if #favorites == 0 then
         local empty = makeLabel(
             PlayerList,
-            "No saved favorites yet",
+            "No saved outfits yet",
             UDim2.new(1, -12, 0, 35),
             UDim2.fromOffset(6, 6), 11
         )
@@ -3434,7 +3950,7 @@ refreshFavoritesList = function()
 
         removeButton.Activated:Connect(function()
             openConfirmDialog(
-                "Вы точно уверены, что хотите удалить этот наряд?",
+                "Are you sure you want to delete this outfit?",
                 function()
                     local removedIndex = nil
 
@@ -3454,7 +3970,7 @@ refreshFavoritesList = function()
                     local saved, storageError = persistFavorites()
                     if not saved then
                         table.insert(favorites, removedIndex, favorite)
-                        Status.Text = "Delete not saved: " .. tostring(storageError)
+                        Status.Text = "Could not save deletion: " .. tostring(storageError)
                         refreshFavoritesList()
                         return
                     end
@@ -3466,7 +3982,7 @@ refreshFavoritesList = function()
                         Status.Text = "Outfit removed"
                     end
 
-                    showSuccessToast("Наряд удалён")
+                    showSuccessToast("Outfit deleted")
                     refreshFavoritesList()
                 end
             )
@@ -3528,6 +4044,7 @@ Players.PlayerRemoving:Connect(function(player)
         selectedPlayer = nil
         clearViewport()
         clearItems()
+        WornCountLabel.Text = "WORN ITEMS: —"
         Status.Text = "Player left"
     end
 
@@ -3566,7 +4083,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.23 loaded successfully")
+print("Avatar Inspector v7.9.26 loaded successfully")
 
 end
 
@@ -3589,11 +4106,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.23 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.26 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.23 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.26 INITIALIZATION FINISHED")
 end
