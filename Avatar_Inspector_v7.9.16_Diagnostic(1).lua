@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.17
+    AVATAR INSPECTOR v7.9.18
 
     CHANGES:
     - Green, larger and bold asset IDs
@@ -20,6 +20,8 @@
     - Multiple saved outfits (up to 50)
     - Dedicated OUTFITS and SAVE OUTFIT buttons
     - Per-player SAVE button with automatic avatar scan
+    - Persistent 3D avatar appearance snapshots in outfit JSON
+    - Rebuild saved avatar previews after restarting the executor
     - Mobile layout
     - Draggable interface
     - Protected initialization
@@ -2437,7 +2439,8 @@ local function loadFavoritesFromFile()
                     username = tostring(entry.username or "unknown"),
                     userId = tonumber(entry.userId) or entry.userId,
                     savedAt = tonumber(entry.savedAt) or os.time(),
-                    items = cleanItems
+                    items = cleanItems,
+                    appearance = type(entry.appearance) == "table" and entry.appearance or nil
                 })
             end
         end
@@ -2460,6 +2463,205 @@ local function loadFavoritesFromFile()
     end
 
     return true, "Loaded " .. tostring(#favorites) .. " outfit(s)"
+end
+
+--==================================================
+-- PERSISTENT 3D AVATAR APPEARANCE SNAPSHOT
+--==================================================
+
+local AVATAR_DESCRIPTION_PROPERTIES = {
+    "ClimbAnimation", "FallAnimation", "IdleAnimation", "JumpAnimation",
+    "MoodAnimation", "RunAnimation", "SwimAnimation", "WalkAnimation",
+    "GraphicTShirt", "Pants", "Shirt",
+    "Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg",
+    "BodyTypeScale", "DepthScale", "HeadScale", "HeightScale",
+    "ProportionScale", "WidthScale"
+}
+
+local AVATAR_COLOR_PROPERTIES = {
+    "HeadColor", "LeftArmColor", "LeftLegColor",
+    "RightArmColor", "RightLegColor", "TorsoColor"
+}
+
+local function captureAvatarAppearance(player)
+    if not player then return nil, "player unavailable" end
+
+    local character = player.Character
+    if not character then return nil, "character unavailable" end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return nil, "Humanoid unavailable" end
+
+    local ok, description = pcall(function()
+        return humanoid:GetAppliedDescription()
+    end)
+    if not ok or not description then
+        return nil, "could not read HumanoidDescription"
+    end
+
+    local snapshot = {
+        version = 1,
+        rigType = humanoid.RigType.Name,
+        properties = {},
+        colors = {},
+        accessories = {}
+    }
+
+    for _, propertyName in ipairs(AVATAR_DESCRIPTION_PROPERTIES) do
+        local readOk, value = pcall(function()
+            return description[propertyName]
+        end)
+        if readOk then
+            local valueType = typeof(value)
+            if valueType == "number" then
+                snapshot.properties[propertyName] = value
+            elseif valueType == "string" then
+                snapshot.properties[propertyName] = value
+            end
+        end
+    end
+
+    for _, propertyName in ipairs(AVATAR_COLOR_PROPERTIES) do
+        local readOk, value = pcall(function()
+            return description[propertyName]
+        end)
+        if readOk and typeof(value) == "BrickColor" then
+            snapshot.colors[propertyName] = value.Number
+        end
+    end
+
+    local accessoryOk, accessories = pcall(function()
+        return description:GetAccessories(true)
+    end)
+
+    if accessoryOk and type(accessories) == "table" then
+        for _, accessory in ipairs(accessories) do
+            local assetId = tonumber(accessory.AssetId)
+            local accessoryType = accessory.AccessoryType
+            local typeName = nil
+
+            pcall(function()
+                typeName = accessoryType.Name
+            end)
+
+            if assetId and assetId > 0 and typeName then
+                table.insert(snapshot.accessories, {
+                    assetId = assetId,
+                    accessoryType = typeName,
+                    isLayered = accessory.IsLayered == true,
+                    order = tonumber(accessory.Order) or 0
+                })
+            end
+        end
+    end
+
+    return snapshot
+end
+
+local function buildDescriptionFromSnapshot(snapshot)
+    if type(snapshot) ~= "table" or type(snapshot.properties) ~= "table" then
+        return nil, "saved appearance data is missing"
+    end
+
+    local description = Instance.new("HumanoidDescription")
+
+    for propertyName, value in pairs(snapshot.properties) do
+        if type(propertyName) == "string" and
+            (type(value) == "number" or type(value) == "string") then
+            pcall(function()
+                description[propertyName] = value
+            end)
+        end
+    end
+
+    if type(snapshot.colors) == "table" then
+        for propertyName, colorNumber in pairs(snapshot.colors) do
+            local number = tonumber(colorNumber)
+            if type(propertyName) == "string" and number then
+                pcall(function()
+                    description[propertyName] = BrickColor.new(number)
+                end)
+            end
+        end
+    end
+
+    if type(snapshot.accessories) == "table" then
+        local rebuiltAccessories = {}
+        for _, accessory in ipairs(snapshot.accessories) do
+            local assetId = tonumber(accessory.assetId)
+            local typeName = tostring(accessory.accessoryType or "")
+            local enumType = nil
+            pcall(function()
+                enumType = Enum.AccessoryType[typeName]
+            end)
+
+            if assetId and assetId > 0 and enumType then
+                table.insert(rebuiltAccessories, {
+                    AssetId = assetId,
+                    AccessoryType = enumType,
+                    IsLayered = accessory.isLayered == true,
+                    Order = tonumber(accessory.order) or 0
+                })
+            end
+        end
+
+        if #rebuiltAccessories > 0 then
+            pcall(function()
+                description:SetAccessories(rebuiltAccessories, true)
+            end)
+        end
+    end
+
+    return description
+end
+
+local function showSavedAvatarAppearance(favorite)
+    clearViewport()
+
+    if type(favorite.appearance) ~= "table" then
+        Status.Text = "Saved outfit has no 3D snapshot (legacy save)"
+        return false
+    end
+
+    local description, descriptionError = buildDescriptionFromSnapshot(favorite.appearance)
+    if not description then
+        Status.Text = "Could not rebuild saved avatar: " .. tostring(descriptionError)
+        return false
+    end
+
+    local rigType = Enum.HumanoidRigType.R15
+    if favorite.appearance.rigType == "R6" then
+        rigType = Enum.HumanoidRigType.R6
+    end
+
+    local createOk, model = pcall(function()
+        return Players:CreateHumanoidModelFromDescription(description, rigType)
+    end)
+
+    pcall(function() description:Destroy() end)
+
+    if not createOk or not model then
+        Status.Text = "Could not recreate saved 3D avatar"
+        return false
+    end
+
+    removeExtraObjects(model)
+    model.Parent = World
+    currentModel = model
+
+    resetJoints(model)
+    rememberJointBases(model)
+
+    if not centerModel(model) then
+        model:Destroy()
+        currentModel = nil
+        Status.Text = "Could not frame saved avatar"
+        return false
+    end
+
+    applyPose(model, "N")
+    Status.Text = "Saved 3D avatar loaded"
+    return true
 end
 
 saveFavorite = function()
@@ -2493,12 +2695,19 @@ saveFavorite = function()
         return
     end
 
+    local appearance, appearanceError = captureAvatarAppearance(selectedPlayer)
+    if not appearance then
+        Status.Text = "3D appearance was not saved: " .. tostring(appearanceError)
+        return
+    end
+
     local newFavorite = {
         name = selectedPlayer.DisplayName,
         username = selectedPlayer.Name,
         userId = selectedPlayer.UserId,
         savedAt = os.time(),
-        items = savedItems
+        items = savedItems,
+        appearance = appearance
     }
 
     table.insert(favorites, newFavorite)
@@ -2525,12 +2734,16 @@ showFavorite = function(favorite)
     selectedPlayer = nil
     selectedFavorite = favorite
 
-    -- В избранном нет 3D-модели: очищаем окно предпросмотра.
-    clearViewport()
+    -- Restore the saved appearance snapshot from JSON into the 3D viewport.
+    showSavedAvatarAppearance(favorite)
 
-    -- Показываем только сохранённые ID предметов и анимаций.
+    -- Keep the saved asset and animation ID list visible alongside the model.
     displaySavedItems(favorite.items)
-    Status.Text = "Favorite: @" .. favorite.username
+    if type(favorite.appearance) == "table" then
+        Status.Text = "Saved avatar: @" .. favorite.username
+    else
+        Status.Text = "Legacy outfit (IDs only): @" .. favorite.username
+    end
 end
 
 refreshFavoritesList = function()
