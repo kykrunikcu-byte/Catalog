@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.20
+    AVATAR INSPECTOR v7.9.21
 
     CHANGES:
     - Green, larger and bold asset IDs
@@ -30,6 +30,9 @@
     - Mobile layout
     - Draggable interface
     - Protected initialization
+    - Fixed rotation and free orbit camera modes
+    - Bounded zoom controls and viewport clipping
+    - Success notifications for copied IDs and saved avatars
 ]]
 
 local AI_DIAG_STAGE = "SCRIPT_PARSED"
@@ -87,6 +90,15 @@ local currentPose = "N"
 local currentMode = "Players"
 local rotating = false
 local lastPointer = nil
+local viewportMode = "Fixed"
+local orbitYaw = 0
+local orbitPitch = 0
+local orbitDistance = 10
+local baseCameraDistance = 10
+local minimumCameraDistance = 8
+local maximumCameraDistance = 40
+local currentModelBounds = Vector3.new(4, 6, 2)
+local toastToken = 0
 
 local jointBases = {}
 local poseTweens = {}
@@ -324,10 +336,71 @@ local Viewport = create("ViewportFrame", {
     BackgroundColor3 = PANEL,
     BorderSizePixel = 0,
     Active = true,
-    Selectable = true
+    Selectable = true,
+    ClipsDescendants = true
 }, Main)
 
 round(Viewport, 8)
+addStroke(Viewport)
+
+local ViewModeBar = create("Frame", {
+    Name = "ViewModeBar",
+    Position = UDim2.fromOffset(7, 7),
+    Size = UDim2.fromOffset(150, 27),
+    BackgroundColor3 = BG,
+    BackgroundTransparency = 0.12,
+    BorderSizePixel = 0,
+    ZIndex = 20
+}, Viewport)
+round(ViewModeBar, 7)
+
+local FixedViewButton = makeButton(
+    ViewModeBar, "FIXED",
+    UDim2.new(0.5, -3, 1, -4),
+    UDim2.fromOffset(2, 2),
+    ACCENT
+)
+FixedViewButton.TextSize = 10
+FixedViewButton.ZIndex = 21
+
+local FreeViewButton = makeButton(
+    ViewModeBar, "FREE",
+    UDim2.new(0.5, -3, 1, -4),
+    UDim2.new(0.5, 1, 0, 2),
+    LIGHT
+)
+FreeViewButton.TextSize = 10
+FreeViewButton.ZIndex = 21
+
+local ZoomBar = create("Frame", {
+    Name = "ZoomBar",
+    AnchorPoint = Vector2.new(1, 1),
+    Position = UDim2.new(1, -7, 1, -7),
+    Size = UDim2.fromOffset(78, 30),
+    BackgroundColor3 = BG,
+    BackgroundTransparency = 0.12,
+    BorderSizePixel = 0,
+    ZIndex = 20
+}, Viewport)
+round(ZoomBar, 7)
+
+local ZoomOutButton = makeButton(
+    ZoomBar, "−",
+    UDim2.fromOffset(34, 26),
+    UDim2.fromOffset(2, 2),
+    LIGHT
+)
+ZoomOutButton.TextSize = 18
+ZoomOutButton.ZIndex = 21
+
+local ZoomInButton = makeButton(
+    ZoomBar, "+",
+    UDim2.fromOffset(34, 26),
+    UDim2.fromOffset(42, 2),
+    LIGHT
+)
+ZoomInButton.TextSize = 18
+ZoomInButton.ZIndex = 21
 
 local World = Instance.new("WorldModel")
 World.Parent = Viewport
@@ -434,6 +507,64 @@ local Status = makeLabel(
 )
 
 Status.TextColor3 = MUTED
+
+-- Compact confirmation toast for completed copy/save actions.
+local Toast = create("Frame", {
+    Name = "ActionToast",
+    AnchorPoint = Vector2.new(0.5, 0),
+    Position = UDim2.new(0.5, 0, 0, 10),
+    Size = UDim2.fromOffset(260, 38),
+    BackgroundColor3 = Color3.fromRGB(30, 105, 70),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    Visible = false,
+    ZIndex = 50
+}, Main)
+round(Toast, 9)
+addStroke(Toast)
+
+local ToastIcon = makeLabel(
+    Toast, "✓",
+    UDim2.fromOffset(28, 30),
+    UDim2.fromOffset(9, 4), 21
+)
+ToastIcon.TextColor3 = Color3.fromRGB(130, 255, 165)
+ToastIcon.Font = Enum.Font.GothamBold
+ToastIcon.TextXAlignment = Enum.TextXAlignment.Center
+ToastIcon.ZIndex = 52
+
+local ToastText = makeLabel(
+    Toast, "Успешно выполнено",
+    UDim2.new(1, -48, 1, 0),
+    UDim2.fromOffset(42, 0), 12
+)
+ToastText.Font = Enum.Font.GothamBold
+ToastText.ZIndex = 52
+
+local function showSuccessToast(message)
+    toastToken += 1
+    local token = toastToken
+    ToastText.Text = tostring(message or "Успешно выполнено")
+    Toast.Visible = true
+    Toast.BackgroundTransparency = 0.08
+    ToastText.TextTransparency = 0
+    ToastIcon.TextTransparency = 0
+
+    task.delay(1.8, function()
+        if token ~= toastToken or not Toast.Parent then return end
+        local fadeInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        pcall(function()
+            TweenService:Create(Toast, fadeInfo, {BackgroundTransparency = 1}):Play()
+            TweenService:Create(ToastText, fadeInfo, {TextTransparency = 1}):Play()
+            TweenService:Create(ToastIcon, fadeInfo, {TextTransparency = 1}):Play()
+        end)
+        task.delay(0.3, function()
+            if token == toastToken and Toast.Parent then
+                Toast.Visible = false
+            end
+        end)
+    end)
+end
 
 --==================================================
 -- RESPONSIVE LAYOUT
@@ -587,23 +718,27 @@ local function copyID(id)
     local copied = false
 
     if type(setclipboard) == "function" then
-        copied = pcall(function()
+        local ok = pcall(function()
             setclipboard(text)
         end)
+        copied = ok
     end
 
     if not copied and type(toclipboard) == "function" then
-        copied = pcall(function()
+        local ok = pcall(function()
             toclipboard(text)
         end)
+        copied = ok
     end
 
     if not copied then
         Status.Text = "Clipboard API unavailable"
-        return
+        return false
     end
 
     Status.Text = "Copied ID: " .. text
+    showSuccessToast("Аксессуар скопирован")
+    return true
 end
 
 --==================================================
@@ -780,6 +915,8 @@ local function clearViewport()
     end
 
     currentModel = nil
+    rotating = false
+    lastPointer = nil
     table.clear(jointBases)
 
     for _, tween in ipairs(poseTweens) do
@@ -789,6 +926,63 @@ local function clearViewport()
     end
 
     table.clear(poseTweens)
+end
+
+local function calculateFitDistance(boxSize)
+    -- Use a bounding sphere so the avatar stays inside the viewport even
+    -- when the camera orbits to diagonal / side / elevated angles.
+    local verticalHalfFov = math.rad(Camera.FieldOfView / 2)
+    local viewportSize = Viewport.AbsoluteSize
+    local aspect = math.max(viewportSize.X / math.max(viewportSize.Y, 1), 0.5)
+    local horizontalHalfFov = math.atan(math.tan(verticalHalfFov) * aspect)
+    local limitingHalfFov = math.min(verticalHalfFov, horizontalHalfFov)
+    local radius = boxSize.Magnitude / 2
+    return math.max(radius / math.sin(limitingHalfFov), 4)
+end
+
+local function updateFreeOrbitCamera()
+    if not currentModel then return end
+    local pitchLimit = math.rad(78)
+    orbitPitch = math.clamp(orbitPitch, -pitchLimit, pitchLimit)
+    orbitDistance = math.clamp(orbitDistance, minimumCameraDistance, maximumCameraDistance)
+
+    local horizontal = math.cos(orbitPitch) * orbitDistance
+    local offset = Vector3.new(
+        math.sin(orbitYaw) * horizontal,
+        math.sin(orbitPitch) * orbitDistance,
+        math.cos(orbitYaw) * horizontal
+    )
+    Camera.CFrame = CFrame.lookAt(offset, Vector3.new(0, 0, 0), Vector3.yAxis)
+end
+
+local function setViewportMode(mode)
+    viewportMode = mode == "Free" and "Free" or "Fixed"
+    rotating = false
+
+    if viewportMode == "Free" then
+        FixedViewButton.BackgroundColor3 = LIGHT
+        FreeViewButton.BackgroundColor3 = ACCENT
+        orbitYaw = 0
+        orbitPitch = 0
+        orbitDistance = baseCameraDistance
+        updateFreeOrbitCamera()
+    else
+        FixedViewButton.BackgroundColor3 = ACCENT
+        FreeViewButton.BackgroundColor3 = LIGHT
+        Camera.CFrame = CFrame.lookAt(
+            Vector3.new(0, 0, baseCameraDistance),
+            Vector3.new(0, 0, 0)
+        )
+    end
+end
+
+local function changeZoom(direction)
+    if not currentModel then return end
+    if viewportMode ~= "Free" then
+        setViewportMode("Free")
+    end
+    orbitDistance = orbitDistance * (direction > 0 and 0.86 or 1.16)
+    updateFreeOrbitCamera()
 end
 
 local function centerModel(model)
@@ -803,39 +997,23 @@ local function centerModel(model)
     local pivot = model:GetPivot()
     model:PivotTo(CFrame.new(-boxCFrame.Position) * pivot)
 
-    local fov = 40
-    Camera.FieldOfView = fov
-
+    Camera.FieldOfView = 40
     task.wait()
 
-    local viewportSize = Viewport.AbsoluteSize
-
-    local aspect = math.max(
-        viewportSize.X / math.max(viewportSize.Y, 1),
-        0.5
-    )
-
-    local halfFov = math.rad(fov / 2)
-
-    local verticalDistance =
-        (boxSize.Y / 2) / math.tan(halfFov)
-
-    local horizontalDistance =
-        (boxSize.X / 2) / (math.tan(halfFov) * aspect)
-
-    local distance = math.max(
-        verticalDistance,
-        horizontalDistance,
-        boxSize.Z
-    ) * 1.22
-
-    distance = math.max(distance, 4)
-
-    local target = Vector3.new(0, 0, 0)
+    currentModelBounds = boxSize
+    local fitDistance = calculateFitDistance(boxSize)
+    baseCameraDistance = math.max(fitDistance * 1.22, 4)
+    -- Allow close inspection; ViewportFrame clipping keeps the model
+    -- contained by the editor boundaries while zoomed in.
+    minimumCameraDistance = math.max(fitDistance * 0.42, 2.5)
+    maximumCameraDistance = math.max(baseCameraDistance * 4, minimumCameraDistance + 10)
+    orbitDistance = baseCameraDistance
+    orbitYaw = 0
+    orbitPitch = 0
 
     Camera.CFrame = CFrame.lookAt(
-        target + Vector3.new(0, 0, distance),
-        target
+        Vector3.new(0, 0, baseCameraDistance),
+        Vector3.new(0, 0, 0)
     )
 
     return true
@@ -1876,6 +2054,7 @@ local function showPlayerModel(player)
         return nil
     end
 
+    setViewportMode("Fixed")
     applyPose(clone, "N")
     Status.Text = "Avatar loaded"
 
@@ -1883,12 +2062,38 @@ local function showPlayerModel(player)
 end
 
 --==================================================
--- VIEWPORT ROTATION
+-- VIEWPORT ROTATION / FREE ORBIT / ZOOM
 --==================================================
+
+FixedViewButton.Activated:Connect(function()
+    setViewportMode("Fixed")
+end)
+
+FreeViewButton.Activated:Connect(function()
+    setViewportMode("Free")
+end)
+
+ZoomInButton.Activated:Connect(function()
+    changeZoom(1)
+end)
+
+ZoomOutButton.Activated:Connect(function()
+    changeZoom(-1)
+end)
 
 Viewport.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1
     or input.UserInputType == Enum.UserInputType.Touch then
+        local pointer = input.Position
+        local function insideControl(guiObject)
+            local position = guiObject.AbsolutePosition
+            local size = guiObject.AbsoluteSize
+            return pointer.X >= position.X and pointer.X <= position.X + size.X
+                and pointer.Y >= position.Y and pointer.Y <= position.Y + size.Y
+        end
+        if insideControl(ViewModeBar) or insideControl(ZoomBar) then
+            return
+        end
 
         rotating = true
         lastPointer = input.Position
@@ -1896,26 +2101,51 @@ Viewport.InputBegan:Connect(function(input)
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 rotating = false
+                lastPointer = nil
             end
         end)
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if not rotating or not currentModel then
+    if input.UserInputType == Enum.UserInputType.MouseWheel then
+        local mousePosition = UserInputService:GetMouseLocation()
+        local viewPosition = Viewport.AbsolutePosition
+        local viewSize = Viewport.AbsoluteSize
+        local overViewport = mousePosition.X >= viewPosition.X
+            and mousePosition.X <= viewPosition.X + viewSize.X
+            and mousePosition.Y >= viewPosition.Y
+            and mousePosition.Y <= viewPosition.Y + viewSize.Y
+        if currentModel and overViewport then
+            local wheel = input.Position.Z
+            if wheel ~= 0 then
+                if viewportMode ~= "Free" then setViewportMode("Free") end
+                orbitDistance = orbitDistance * (wheel > 0 and 0.88 or 1.14)
+                updateFreeOrbitCamera()
+            end
+        end
+        return
+    end
+
+    if not rotating or not currentModel or not lastPointer then
         return
     end
 
     if input.UserInputType == Enum.UserInputType.MouseMovement
     or input.UserInputType == Enum.UserInputType.Touch then
-
         local delta = input.Position - lastPointer
         lastPointer = input.Position
 
-        currentModel:PivotTo(
-            currentModel:GetPivot()
-            * CFrame.Angles(0, -delta.X * 0.01, 0)
-        )
+        if viewportMode == "Free" then
+            orbitYaw = orbitYaw - delta.X * 0.01
+            orbitPitch = orbitPitch + delta.Y * 0.01
+            updateFreeOrbitCamera()
+        else
+            currentModel:PivotTo(
+                currentModel:GetPivot()
+                * CFrame.Angles(0, -delta.X * 0.01, 0)
+            )
+        end
     end
 end)
 
@@ -2830,6 +3060,7 @@ local function showSavedAvatarAppearance(favorite)
         return false
     end
 
+    setViewportMode("Fixed")
     applyPose(model, "N")
     Status.Text = "Saved 3D avatar loaded"
     return true
@@ -2890,6 +3121,7 @@ saveFavorite = function()
     local saved, storageError = persistFavorites()
     if saved then
         Status.Text = "Outfit saved permanently"
+        showSuccessToast("Аватар успешно сохранён")
     else
         Status.Text = "Session only: " .. tostring(storageError)
     end
@@ -3111,7 +3343,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.20 loaded successfully")
+print("Avatar Inspector v7.9.21 loaded successfully")
 
 end
 
