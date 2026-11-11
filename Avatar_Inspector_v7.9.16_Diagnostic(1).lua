@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.18
+    AVATAR INSPECTOR v7.9.19
 
     CHANGES:
     - Green, larger and bold asset IDs
@@ -21,6 +21,8 @@
     - Dedicated OUTFITS and SAVE OUTFIT buttons
     - Per-player SAVE button with automatic avatar scan
     - Persistent 3D avatar appearance snapshots in outfit JSON
+    - Correct Color3 capture/restoration for skin and body colors
+    - Face asset, layered accessory metadata and Puffiness preservation
     - Rebuild saved avatar previews after restarting the executor
     - Mobile layout
     - Draggable interface
@@ -250,7 +252,7 @@ local Header = create("Frame", {
 round(Header, 13)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.17",
+    Header, "AVATAR INSPECTOR v7.9.19",
     UDim2.new(1, -100, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1791,7 +1793,7 @@ applyPose = function(model, pose)
     end
 
     print(string.format(
-        "[Avatar Inspector v7.9.17] Rig: %s | Motor6D: %d | AnimationConstraint: %d | Shoulders: %d | Changed: %d",
+        "[Avatar Inspector v7.9.19] Rig: %s | Motor6D: %d | AnimationConstraint: %d | Shoulders: %d | Changed: %d",
         rigType,
         motorCount,
         constraintCount,
@@ -1801,7 +1803,7 @@ applyPose = function(model, pose)
 
     if #axisDiagnostics > 0 then
         print(
-            "[Avatar Inspector v7.9.17] Adaptive axes: "
+            "[Avatar Inspector v7.9.19] Adaptive axes: "
             .. table.concat(axisDiagnostics, " | ")
         )
     end
@@ -2472,7 +2474,7 @@ end
 local AVATAR_DESCRIPTION_PROPERTIES = {
     "ClimbAnimation", "FallAnimation", "IdleAnimation", "JumpAnimation",
     "MoodAnimation", "RunAnimation", "SwimAnimation", "WalkAnimation",
-    "GraphicTShirt", "Pants", "Shirt",
+    "GraphicTShirt", "Pants", "Shirt", "Face",
     "Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg",
     "BodyTypeScale", "DepthScale", "HeadScale", "HeightScale",
     "ProportionScale", "WidthScale"
@@ -2500,9 +2502,11 @@ local function captureAvatarAppearance(player)
     end
 
     local snapshot = {
-        version = 1,
+        version = 2,
         rigType = humanoid.RigType.Name,
         properties = {},
+        -- HumanoidDescription color properties are Color3, not BrickColor.
+        -- Store normalized RGB components because JSON cannot encode Color3.
         colors = {},
         accessories = {}
     }
@@ -2525,8 +2529,42 @@ local function captureAvatarAppearance(player)
         local readOk, value = pcall(function()
             return description[propertyName]
         end)
-        if readOk and typeof(value) == "BrickColor" then
-            snapshot.colors[propertyName] = value.Number
+
+        if readOk and typeof(value) == "Color3" then
+            snapshot.colors[propertyName] = {
+                value.R,
+                value.G,
+                value.B
+            }
+        end
+    end
+
+    -- Fallback to the live BodyColors instance if a description color
+    -- could not be read. This also captures runtime body color overrides.
+    local bodyColors = character:FindFirstChildOfClass("BodyColors")
+    if bodyColors then
+        local bodyColorMap = {
+            HeadColor = "HeadColor3",
+            LeftArmColor = "LeftArmColor3",
+            LeftLegColor = "LeftLegColor3",
+            RightArmColor = "RightArmColor3",
+            RightLegColor = "RightLegColor3",
+            TorsoColor = "TorsoColor3"
+        }
+
+        for descriptionName, bodyName in pairs(bodyColorMap) do
+            if snapshot.colors[descriptionName] == nil then
+                local colorOk, color = pcall(function()
+                    return bodyColors[bodyName]
+                end)
+                if colorOk and typeof(color) == "Color3" then
+                    snapshot.colors[descriptionName] = {
+                        color.R,
+                        color.G,
+                        color.B
+                    }
+                end
+            end
         end
     end
 
@@ -2544,16 +2582,30 @@ local function captureAvatarAppearance(player)
                 typeName = accessoryType.Name
             end)
 
-            if assetId and assetId > 0 and typeName then
+            if assetId and assetId > 0 then
+                -- Keep every valid accessory asset. Unknown legacy types
+                -- fall back to Hat rather than silently dropping the item.
+                if not typeName or typeName == "" then
+                    typeName = "Hat"
+                end
+
+                local puffiness = tonumber(accessory.Puffiness)
                 table.insert(snapshot.accessories, {
                     assetId = assetId,
                     accessoryType = typeName,
                     isLayered = accessory.IsLayered == true,
-                    order = tonumber(accessory.Order) or 0
+                    order = tonumber(accessory.Order) or 0,
+                    puffiness = puffiness
                 })
             end
         end
     end
+
+    -- GetAppliedDescription returns a separate Instance; release it after
+    -- all serializable appearance data has been copied into the snapshot.
+    pcall(function()
+        description:Destroy()
+    end)
 
     return snapshot
 end
@@ -2575,12 +2627,37 @@ local function buildDescriptionFromSnapshot(snapshot)
     end
 
     if type(snapshot.colors) == "table" then
-        for propertyName, colorNumber in pairs(snapshot.colors) do
-            local number = tonumber(colorNumber)
-            if type(propertyName) == "string" and number then
-                pcall(function()
-                    description[propertyName] = BrickColor.new(number)
-                end)
+        for propertyName, colorData in pairs(snapshot.colors) do
+            if type(propertyName) == "string" then
+                local color = nil
+
+                -- v2 format: {R, G, B} normalized Color3 components.
+                if type(colorData) == "table" then
+                    local r = tonumber(colorData[1])
+                    local g = tonumber(colorData[2])
+                    local b = tonumber(colorData[3])
+                    if r and g and b then
+                        color = Color3.new(
+                            math.clamp(r, 0, 1),
+                            math.clamp(g, 0, 1),
+                            math.clamp(b, 0, 1)
+                        )
+                    end
+                else
+                    -- Backward compatibility with old BrickColor-number snapshots.
+                    local number = tonumber(colorData)
+                    if number then
+                        pcall(function()
+                            color = BrickColor.new(number).Color
+                        end)
+                    end
+                end
+
+                if color then
+                    pcall(function()
+                        description[propertyName] = color
+                    end)
+                end
             end
         end
     end
@@ -2600,7 +2677,8 @@ local function buildDescriptionFromSnapshot(snapshot)
                     AssetId = assetId,
                     AccessoryType = enumType,
                     IsLayered = accessory.isLayered == true,
-                    Order = tonumber(accessory.order) or 0
+                    Order = tonumber(accessory.order) or 0,
+                    Puffiness = tonumber(accessory.puffiness) or 0
                 })
             end
         end
@@ -2935,7 +3013,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.17 loaded successfully")
+print("Avatar Inspector v7.9.19 loaded successfully")
 
 end
 
@@ -2958,11 +3036,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.17 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.19 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.17 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.19 INITIALIZATION FINISHED")
 end
