@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.22
+    AVATAR INSPECTOR v7.9.23
 
     CHANGES:
     - Green, larger and bold asset IDs
@@ -18,7 +18,7 @@
     - Automatic clipboard
     - Simple persistent JSON outfit storage
     - Multiple saved outfits (up to 50)
-    - Dedicated OUTFITS and SAVE OUTFIT buttons
+    - Player selection scans manually; per-player SAVE button saves the selected avatar
     - Per-player SAVE button with automatic avatar scan
     - Persistent 3D avatar appearance snapshots in outfit JSON
     - Legacy accessory property capture and restoration
@@ -32,7 +32,7 @@
     - Protected initialization
     - Fixed rotation and free orbit camera modes
     - Bounded zoom controls and viewport clipping
-    - Success notifications with centered checkmark
+    - Success notifications with precisely aligned checkmark
     - Delete confirmation dialog for saved outfits
     - Persistent custom names for saved outfits
 ]]
@@ -270,7 +270,7 @@ local Header = create("Frame", {
 round(Header, 13)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.22",
+    Header, "AVATAR INSPECTOR v7.9.23",
     UDim2.new(1, -100, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -489,24 +489,13 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
-local ScanButton = makeButton(
-    Main, "SCAN PLAYER",
-    UDim2.fromOffset(130, 36),
-    UDim2.new(0, 12, 1, -46),
-    ACCENT
-)
-
-local SaveButton = makeButton(
-    Main, "SAVE OUTFIT",
-    UDim2.fromOffset(130, 36),
-    UDim2.new(0, 150, 1, -46),
-    GREEN
-)
-
+-- The redundant bottom SCAN PLAYER / SAVE OUTFIT buttons are removed.
+-- Selecting a player performs the manual scan; the per-player SAVE button
+-- stores that exact selected avatar without auto-refreshing its appearance.
 local Status = makeLabel(
     Main, "Select a player",
-    UDim2.new(1, -300, 0, 36),
-    UDim2.new(0, 290, 1, -46), 12
+    UDim2.new(1, -24, 0, 36),
+    UDim2.new(0, 12, 1, -46), 12
 )
 
 Status.TextColor3 = MUTED
@@ -536,16 +525,16 @@ local ToastIcon = create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Center,
     TextYAlignment = Enum.TextYAlignment.Center,
     AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.new(0, 23, 0.5, 0),
-    Size = UDim2.fromOffset(24, 24),
+    Position = UDim2.new(0, 24, 0.5, 1),
+    Size = UDim2.fromOffset(22, 22),
     Rotation = 0,
     ZIndex = 52
 }, Toast)
 
 local ToastText = makeLabel(
     Toast, "Успешно выполнено",
-    UDim2.new(1, -48, 1, 0),
-    UDim2.fromOffset(42, 0), 12
+    UDim2.new(1, -54, 1, 0),
+    UDim2.fromOffset(48, 0), 12
 )
 ToastText.Font = Enum.Font.GothamBold
 ToastText.ZIndex = 52
@@ -770,14 +759,8 @@ local function updateLayout()
         ItemsPanel.Position = UDim2.fromOffset(12, 388)
         ItemsPanel.Size = UDim2.new(1, -24, 0, 150)
 
-        ScanButton.Position = UDim2.new(0, 12, 1, -46)
-        ScanButton.Size = UDim2.fromOffset(96, 36)
-
-        SaveButton.Position = UDim2.new(0, 114, 1, -46)
-        SaveButton.Size = UDim2.fromOffset(104, 36)
-
-        Status.Position = UDim2.new(0, 226, 1, -46)
-        Status.Size = UDim2.new(1, -238, 0, 36)
+        Status.Position = UDim2.new(0, 12, 1, -46)
+        Status.Size = UDim2.new(1, -24, 0, 36)
     else
         Search.Position = UDim2.fromOffset(12, 58)
         Search.Size = UDim2.new(1, -120, 0, 36)
@@ -797,14 +780,8 @@ local function updateLayout()
         ItemsPanel.Position = UDim2.fromOffset(526, 104)
         ItemsPanel.Size = UDim2.fromOffset(262, 350)
 
-        ScanButton.Position = UDim2.new(0, 12, 1, -46)
-        ScanButton.Size = UDim2.fromOffset(130, 36)
-
-        SaveButton.Position = UDim2.new(0, 150, 1, -46)
-        SaveButton.Size = UDim2.fromOffset(130, 36)
-
-        Status.Position = UDim2.new(0, 290, 1, -46)
-        Status.Size = UDim2.new(1, -302, 0, 36)
+        Status.Position = UDim2.new(0, 12, 1, -46)
+        Status.Size = UDim2.new(1, -24, 0, 36)
     end
 end
 
@@ -3366,24 +3343,28 @@ refreshFavoritesList = function()
         end
 
         local renameButton = makeButton(
-            row, "✎",
-            UDim2.fromOffset(28, 28),
-            UDim2.new(1, -68, 0, 11),
+            row, "✏",
+            UDim2.fromOffset(30, 30),
+            UDim2.new(1, -72, 0, 10),
             ACCENT
         )
-        renameButton.TextSize = 16
-        renameButton.ZIndex = 3
+        renameButton.Name = "RenameOutfitButton"
+        renameButton.TextSize = 18
+        renameButton.Font = Enum.Font.GothamBold
+        renameButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        renameButton.ZIndex = 10
         renameButton.Activated:Connect(function()
             openRenameDialog(favorite)
         end)
 
         local removeButton = makeButton(
             row, "X",
-            UDim2.fromOffset(28, 28),
-            UDim2.new(1, -36, 0, 11),
+            UDim2.fromOffset(30, 30),
+            UDim2.new(1, -38, 0, 10),
             RED
         )
-        removeButton.ZIndex = 3
+        removeButton.Name = "DeleteOutfitButton"
+        removeButton.ZIndex = 10
 
         removeButton.Activated:Connect(function()
             openConfirmDialog(
@@ -3426,7 +3407,7 @@ refreshFavoritesList = function()
         end)
 
         local selectButton = create("TextButton", {
-            Size = UDim2.new(1, -74, 1, 0),
+            Size = UDim2.new(1, -78, 1, 0),
             BackgroundTransparency = 1,
             Text = "",
             Active = true,
@@ -3501,18 +3482,6 @@ Close.Activated:Connect(function()
     Main.Visible = false
 end)
 
-ScanButton.Activated:Connect(function()
-    if selectedPlayer then
-        scanPlayer(selectedPlayer)
-    elseif selectedFavorite then
-        showFavorite(selectedFavorite)
-    else
-        Status.Text = "Select a player first"
-    end
-end)
-
-SaveButton.Activated:Connect(saveFavorite)
-
 --==================================================
 -- START
 --==================================================
@@ -3531,7 +3500,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.22 loaded successfully")
+print("Avatar Inspector v7.9.23 loaded successfully")
 
 end
 
@@ -3554,11 +3523,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.22 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.23 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.22 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.23 INITIALIZATION FINISHED")
 end
