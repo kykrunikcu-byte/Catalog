@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.32
+    AVATAR INSPECTOR v7.9.33
 
     CHANGES:
     - 12-language localization: added Simplified Chinese and Belarusian
@@ -42,6 +42,7 @@
     - Canonical account-avatar description lookup to avoid game morphs
     - Exact HumanoidDescription accessory count and live server player count
     - Larger saved outfit names
+    - v7.9.33 hotfix: fixed floating icon entrance animation startup error
     - New blue-purple visual theme and profile-style floating toggle
     - Lightweight button press/hover animations
     - Smooth main-window open/close transitions
@@ -912,8 +913,9 @@ if toggleScale then
 end
 TweenService:Create(Toggle, floatingFadeInfo, {BackgroundTransparency = 0}):Play()
 TweenService:Create(headStroke, floatingFadeInfo, {Transparency = 0}):Play()
-for _, line in ipairs(profileLines) do
-    TweenService:Create(line, floatingFadeInfo, {BackgroundTransparency = 0}):Play()
+TweenService:Create(bodyStroke, floatingFadeInfo, {Transparency = 0}):Play()
+for _, detail in ipairs(profileDetails) do
+    TweenService:Create(detail, floatingFadeInfo, {BackgroundTransparency = 0}):Play()
 end
 AI_DIAG_STAGE = "AI_BUTTON_CREATED"
 AIDiag("10 AI button created successfully")
@@ -1026,7 +1028,7 @@ local HeaderIcon = create("TextLabel", {
 }, HeaderIconTile)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.32",
+    Header, "AVATAR INSPECTOR v7.9.33",
     UDim2.new(1, -230, 0, 22),
     UDim2.fromOffset(54, 4), 14
 )
