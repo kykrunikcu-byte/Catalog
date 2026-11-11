@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.27
+    AVATAR INSPECTOR v7.9.28
 
     CHANGES:
     - 12-language localization: added Simplified Chinese and Belarusian
@@ -42,6 +42,10 @@
     - Canonical account-avatar description lookup to avoid game morphs
     - Exact HumanoidDescription accessory count and live server player count
     - Larger saved outfit names
+    - New blue-purple visual theme and profile-style floating toggle
+    - Lightweight button press/hover animations
+    - Smooth main-window open/close transitions
+    - Small UI performance refinements without removing features
 ]]
 
 local AI_DIAG_STAGE = "SCRIPT_PARSED"
@@ -83,6 +87,8 @@ local BG = Color3.fromRGB(19, 21, 27)
 local PANEL = Color3.fromRGB(29, 32, 40)
 local LIGHT = Color3.fromRGB(41, 46, 57)
 local ACCENT = Color3.fromRGB(105, 145, 255)
+local ACCENT_PURPLE = Color3.fromRGB(119, 91, 190)
+local OUTLINE = Color3.fromRGB(67, 82, 119)
 local WHITE = Color3.fromRGB(235, 238, 245)
 local MUTED = Color3.fromRGB(155, 162, 177)
 local GREEN = Color3.fromRGB(65, 135, 100)
@@ -108,6 +114,7 @@ local minimumCameraDistance = 8
 local maximumCameraDistance = 40
 local currentModelBounds = Vector3.new(4, 6, 2)
 local toastToken = 0
+local windowBaseScale = 1
 
 local jointBases = {}
 local poseTweens = {}
@@ -124,7 +131,7 @@ local persistFavorites
 --==================================================
 
 --==================================================
--- LOCALIZATION (10 LANGUAGES)
+-- LOCALIZATION (12 LANGUAGES)
 --==================================================
 
 local currentLanguage = "en"
@@ -613,20 +620,53 @@ local function makeLabel(parent, text, size, position, textSize)
 end
 
 local function makeButton(parent, text, size, position, color)
+    local baseColor = color or LIGHT
     local obj = create("TextButton", {
         Size = size,
         Position = position,
-        BackgroundColor3 = color or LIGHT,
+        BackgroundColor3 = baseColor,
         Text = text,
         TextColor3 = WHITE,
         TextSize = 12,
         Font = Enum.Font.GothamMedium,
-        AutoButtonColor = true,
+        AutoButtonColor = false,
         Active = true,
         Selectable = true
     }, parent)
 
-    round(obj, 7)
+    round(obj, 8)
+    local outline = create("UIStroke", {
+        Color = baseColor:Lerp(WHITE, 0.16),
+        Thickness = 1,
+        Transparency = 0.42
+    }, obj)
+    local scale = create("UIScale", {Scale = 1}, obj)
+    local pressInfo = TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local releaseInfo = TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    local hoverInfo = TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+    obj.MouseEnter:Connect(function()
+        if not obj.Parent then return end
+        TweenService:Create(obj, hoverInfo, {BackgroundColor3 = baseColor:Lerp(WHITE, 0.09)}):Play()
+        TweenService:Create(outline, hoverInfo, {Transparency = 0.12}):Play()
+    end)
+    obj.MouseLeave:Connect(function()
+        if not obj.Parent then return end
+        TweenService:Create(obj, hoverInfo, {BackgroundColor3 = baseColor}):Play()
+        TweenService:Create(outline, hoverInfo, {Transparency = 0.42}):Play()
+    end)
+    obj.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            TweenService:Create(scale, pressInfo, {Scale = 0.94}):Play()
+        end
+    end)
+    obj.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            TweenService:Create(scale, releaseInfo, {Scale = 1}):Play()
+        end
+    end)
     return obj
 end
 
@@ -678,15 +718,58 @@ AI_DIAG_STAGE = "SCREEN_GUI_CREATED"
 AIDiag("09 ScreenGui created and parented to PlayerGui")
 
 local Toggle = makeButton(
-    ScreenGui, "AI",
-    UDim2.fromOffset(52, 52),
-    UDim2.new(0, 20, 0.5, -26),
+    ScreenGui, "",
+    UDim2.fromOffset(58, 58),
+    UDim2.new(0, 20, 0.5, -29),
     ACCENT
 )
+Toggle.Name = "AvatarInspectorFloatingButton"
+Toggle.Text = ""
+Toggle.BackgroundColor3 = ACCENT
+Toggle.ClipsDescendants = true
+local toggleCorner = Toggle:FindFirstChildOfClass("UICorner")
+if toggleCorner then toggleCorner.CornerRadius = UDim.new(0, 29) end
+create("UIGradient", {
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 190, 205)),
+        ColorSequenceKeypoint.new(0.52, Color3.fromRGB(35, 139, 190)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(112, 76, 170))
+    }),
+    Rotation = 35
+}, Toggle)
 
-Toggle.TextSize = 18
-Toggle.Font = Enum.Font.GothamBold
-round(Toggle, 16)
+-- Lightweight vector recreation of the supplied profile icon. This avoids
+-- external image downloads and executor-specific custom-asset dependencies.
+local IconHead = create("Frame", {
+    Name = "ProfileHead",
+    BackgroundTransparency = 1,
+    Size = UDim2.fromOffset(18, 18),
+    Position = UDim2.fromOffset(20, 9),
+    ZIndex = Toggle.ZIndex + 1
+}, Toggle)
+round(IconHead, 9)
+create("UIStroke", {Color = Color3.fromRGB(5, 17, 29), Thickness = 3.2}, IconHead)
+
+local IconBody = create("Frame", {
+    Name = "ProfileShoulders",
+    BackgroundTransparency = 1,
+    Size = UDim2.fromOffset(34, 25),
+    Position = UDim2.fromOffset(12, 29),
+    ZIndex = Toggle.ZIndex + 1
+}, Toggle)
+round(IconBody, 12)
+create("UIStroke", {Color = Color3.fromRGB(5, 17, 29), Thickness = 3.2}, IconBody)
+
+for _, x in ipairs({8, 25}) do
+    create("Frame", {
+        Name = "ProfileDetail",
+        BackgroundColor3 = Color3.fromRGB(5, 17, 29),
+        BorderSizePixel = 0,
+        Size = UDim2.fromOffset(3, 8),
+        Position = UDim2.fromOffset(x, 14),
+        ZIndex = Toggle.ZIndex + 2
+    }, IconBody)
+end
 AI_DIAG_STAGE = "AI_BUTTON_CREATED"
 AIDiag("10 AI button created successfully")
 
@@ -748,8 +831,15 @@ local Main = create("Frame", {
     ClipsDescendants = true
 }, ScreenGui)
 
-round(Main, 13)
+round(Main, 16)
 addStroke(Main)
+create("UIGradient", {
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(22, 29, 45)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(31, 25, 45))
+    }),
+    Rotation = 25
+}, Main)
 
 local UIScale = create("UIScale", {
     Scale = 1
@@ -761,15 +851,20 @@ local Header = create("Frame", {
     Active = true
 }, Main)
 
-round(Header, 13)
+round(Header, 15)
+create("UIGradient", {
+    Color = ColorSequence.new(ACCENT, ACCENT_PURPLE),
+    Rotation = 0
+}, Header)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.27",
+    Header, "AVATAR INSPECTOR v7.9.28",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
 
 HeaderTitle.Font = Enum.Font.GothamBold
+HeaderTitle.TextColor3 = Color3.fromRGB(250, 250, 255)
 
 local LangButton = makeButton(
     Header, currentLanguage:upper(),
@@ -800,7 +895,8 @@ local Search = create("TextBox", {
     Active = true
 }, Main)
 
-round(Search, 8)
+round(Search, 9)
+addStroke(Search)
 
 local ModeButton = makeButton(
     Main, "📁 OUTFITS",
@@ -822,7 +918,8 @@ local PlayerList = create("ScrollingFrame", {
     Active = true
 }, Main)
 
-round(PlayerList, 8)
+round(PlayerList, 9)
+addStroke(PlayerList)
 
 create("UIListLayout", {
     Padding = UDim.new(0, 5),
@@ -924,7 +1021,8 @@ local PoseBar = create("Frame", {
     Active = true
 }, Main)
 
-round(PoseBar, 7)
+round(PoseBar, 9)
+addStroke(PoseBar)
 
 local TPoseButton = makeButton(
     PoseBar, "T-POSE",
@@ -960,7 +1058,8 @@ local ItemsPanel = create("Frame", {
     Active = true
 }, Main)
 
-round(ItemsPanel, 8)
+round(ItemsPanel, 10)
+addStroke(ItemsPanel)
 
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
@@ -1098,8 +1197,9 @@ local ModalPanel = create("Frame", {
     BorderSizePixel = 0,
     ZIndex = 71
 }, ModalOverlay)
-round(ModalPanel, 11)
+round(ModalPanel, 13)
 addStroke(ModalPanel)
+create("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(31, 39, 59), Color3.fromRGB(42, 31, 57)), Rotation = 25}, ModalPanel)
 
 local ModalTitle = makeLabel(
     ModalPanel, "Confirmation",
@@ -1252,8 +1352,9 @@ local LangPanel = create("Frame", {
     BorderSizePixel = 0,
     ZIndex = 81
 }, LangOverlay)
-round(LangPanel, 11)
+round(LangPanel, 13)
 addStroke(LangPanel)
+create("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(31, 39, 59), Color3.fromRGB(42, 31, 57)), Rotation = 25}, LangPanel)
 
 local LangTitle = makeLabel(LangPanel, "Choose language", UDim2.new(1, -60, 0, 30), UDim2.fromOffset(12, 10), 14)
 LangTitle.Font = Enum.Font.GothamBold
@@ -1331,6 +1432,7 @@ local function updateLayout()
         (screen.Y - 30) / height,
         1
     )
+    windowBaseScale = UIScale.Scale
 
     if mobile then
         Search.Position = UDim2.fromOffset(12, 58)
@@ -3201,7 +3303,12 @@ end
 -- PLAYER THUMBNAILS
 --==================================================
 
+local playerThumbnailCache = {}
+
 local function getPlayerThumbnail(player)
+    local cached = playerThumbnailCache[player.UserId]
+    if cached then return cached end
+
     local success, image = pcall(function()
         return Players:GetUserThumbnailAsync(
             player.UserId,
@@ -3211,6 +3318,7 @@ local function getPlayerThumbnail(player)
     end)
 
     if success then
+        playerThumbnailCache[player.UserId] = image
         return image
     end
 
@@ -3224,7 +3332,8 @@ end
 refreshPlayerList = function()
     clearGuiList(PlayerList)
 
-    local serverPlayers = #Players:GetPlayers()
+    local serverPlayerList = Players:GetPlayers()
+    local serverPlayers = #serverPlayerList
     local countHeader = create("TextLabel", {
         Name = "ServerPlayerCount",
         Size = UDim2.new(1, -4, 0, 24),
@@ -3242,7 +3351,7 @@ refreshPlayerList = function()
 
     local filter = string.lower(Search.Text)
 
-    for _, player in ipairs(Players:GetPlayers()) do
+    for _, player in ipairs(serverPlayerList) do
         local matches =
             string.find(
                 string.lower(player.Name),
@@ -4098,13 +4207,56 @@ end
 ModeButton.Activated:Connect(updateListMode)
 
 --==================================================
+-- SMOOTH MAIN WINDOW TRANSITIONS
+--==================================================
+
+local windowAnimationToken = 0
+local windowBasePosition = UDim2.fromScale(0.5, 0.5)
+
+local function setMainWindowVisible(shouldShow)
+    windowAnimationToken += 1
+    local token = windowAnimationToken
+    local baseScale = windowBaseScale
+    if baseScale <= 0 then baseScale = 1 end
+
+    if shouldShow then
+        Main.Visible = true
+        Main.Position = UDim2.new(0.5, 0, 0.5, 16)
+        UIScale.Scale = baseScale * 0.90
+        local info = TweenInfo.new(0.26, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+        TweenService:Create(Main, info, {Position = windowBasePosition}):Play()
+        TweenService:Create(UIScale, info, {Scale = baseScale}):Play()
+    else
+        if not Main.Visible then return end
+        local info = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        local move = TweenService:Create(Main, info, {Position = UDim2.new(0.5, 0, 0.5, 12)})
+        local shrink = TweenService:Create(UIScale, info, {Scale = baseScale * 0.92})
+        move:Play()
+        shrink:Play()
+        move.Completed:Connect(function()
+            if token ~= windowAnimationToken then return end
+            Main.Visible = false
+            Main.Position = windowBasePosition
+            UIScale.Scale = baseScale
+        end)
+    end
+end
+
+--==================================================
 -- EVENTS
 --==================================================
 
+local playerSearchRefreshToken = 0
 Search:GetPropertyChangedSignal("Text"):Connect(function()
-    if currentMode == "Players" then
-        refreshPlayerList()
-    end
+    if currentMode ~= "Players" then return end
+    playerSearchRefreshToken += 1
+    local token = playerSearchRefreshToken
+    task.delay(0.14, function()
+        if token ~= playerSearchRefreshToken then return end
+        if Search.Parent and currentMode == "Players" then
+            refreshPlayerList()
+        end
+    end)
 end)
 
 Players.PlayerAdded:Connect(function()
@@ -4132,11 +4284,11 @@ end)
 --==================================================
 
 Toggle.Activated:Connect(function()
-    Main.Visible = not Main.Visible
+    setMainWindowVisible(not Main.Visible)
 end)
 
 Close.Activated:Connect(function()
-    Main.Visible = false
+    setMainWindowVisible(false)
 end)
 
 --==================================================
@@ -4157,7 +4309,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.26 loaded successfully")
+print("Avatar Inspector v7.9.28 loaded successfully")
 
 end
 
@@ -4180,11 +4332,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.27 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.28 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.27 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.28 INITIALIZATION FINISHED")
 end
