@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.21
+    AVATAR INSPECTOR v7.9.22
 
     CHANGES:
     - Green, larger and bold asset IDs
@@ -32,7 +32,9 @@
     - Protected initialization
     - Fixed rotation and free orbit camera modes
     - Bounded zoom controls and viewport clipping
-    - Success notifications for copied IDs and saved avatars
+    - Success notifications with centered checkmark
+    - Delete confirmation dialog for saved outfits
+    - Persistent custom names for saved outfits
 ]]
 
 local AI_DIAG_STAGE = "SCRIPT_PARSED"
@@ -108,6 +110,7 @@ local saveFavorite
 local refreshFavoritesList
 local showFavorite
 local applyPose
+local persistFavorites
 
 --==================================================
 -- HELPERS
@@ -267,7 +270,7 @@ local Header = create("Frame", {
 round(Header, 13)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.20",
+    Header, "AVATAR INSPECTOR v7.9.22",
     UDim2.new(1, -100, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -523,15 +526,21 @@ local Toast = create("Frame", {
 round(Toast, 9)
 addStroke(Toast)
 
-local ToastIcon = makeLabel(
-    Toast, "✓",
-    UDim2.fromOffset(28, 30),
-    UDim2.fromOffset(9, 4), 21
-)
-ToastIcon.TextColor3 = Color3.fromRGB(130, 255, 165)
-ToastIcon.Font = Enum.Font.GothamBold
-ToastIcon.TextXAlignment = Enum.TextXAlignment.Center
-ToastIcon.ZIndex = 52
+local ToastIcon = create("TextLabel", {
+    Name = "SuccessCheckmark",
+    BackgroundTransparency = 1,
+    Text = "✓",
+    TextColor3 = Color3.fromRGB(130, 255, 165),
+    TextSize = 19,
+    Font = Enum.Font.GothamBold,
+    TextXAlignment = Enum.TextXAlignment.Center,
+    TextYAlignment = Enum.TextYAlignment.Center,
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.new(0, 23, 0.5, 0),
+    Size = UDim2.fromOffset(24, 24),
+    Rotation = 0,
+    ZIndex = 52
+}, Toast)
 
 local ToastText = makeLabel(
     Toast, "Успешно выполнено",
@@ -565,6 +574,160 @@ local function showSuccessToast(message)
         end)
     end)
 end
+
+-- Reusable modal for safe outfit deletion and renaming.
+local ModalOverlay = create("Frame", {
+    Name = "OutfitDialogOverlay",
+    Size = UDim2.fromScale(1, 1),
+    BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+    BackgroundTransparency = 0.38,
+    BorderSizePixel = 0,
+    Visible = false,
+    Active = true,
+    ZIndex = 70
+}, Main)
+
+local ModalPanel = create("Frame", {
+    Name = "OutfitDialog",
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.fromScale(0.5, 0.5),
+    Size = UDim2.fromOffset(340, 178),
+    BackgroundColor3 = PANEL,
+    BorderSizePixel = 0,
+    ZIndex = 71
+}, ModalOverlay)
+round(ModalPanel, 11)
+addStroke(ModalPanel)
+
+local ModalTitle = makeLabel(
+    ModalPanel, "Подтверждение",
+    UDim2.new(1, -24, 0, 28),
+    UDim2.fromOffset(12, 10), 14
+)
+ModalTitle.Font = Enum.Font.GothamBold
+ModalTitle.ZIndex = 72
+
+local ModalMessage = create("TextLabel", {
+    BackgroundTransparency = 1,
+    Text = "Вы точно уверены?",
+    TextColor3 = WHITE,
+    TextSize = 12,
+    Font = Enum.Font.Gotham,
+    TextWrapped = true,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Center,
+    Position = UDim2.fromOffset(12, 43),
+    Size = UDim2.new(1, -24, 0, 48),
+    ZIndex = 72
+}, ModalPanel)
+
+local RenameInput = create("TextBox", {
+    Name = "RenameInput",
+    Position = UDim2.fromOffset(12, 91),
+    Size = UDim2.new(1, -24, 0, 34),
+    BackgroundColor3 = LIGHT,
+    TextColor3 = WHITE,
+    PlaceholderColor3 = MUTED,
+    PlaceholderText = "Новое название наряда",
+    Text = "",
+    TextSize = 13,
+    Font = Enum.Font.Gotham,
+    ClearTextOnFocus = false,
+    Visible = false,
+    ZIndex = 73
+}, ModalPanel)
+round(RenameInput, 7)
+
+local ModalNoButton = makeButton(
+    ModalPanel, "Нет",
+    UDim2.fromOffset(145, 34),
+    UDim2.new(1, -157, 1, -46),
+    RED
+)
+ModalNoButton.ZIndex = 74
+
+local ModalYesButton = makeButton(
+    ModalPanel, "Да",
+    UDim2.fromOffset(145, 34),
+    UDim2.fromOffset(12, 132),
+    GREEN
+)
+ModalYesButton.ZIndex = 74
+
+local pendingDialogAction = nil
+local dialogMode = "Confirm"
+
+local function closeOutfitDialog()
+    ModalOverlay.Visible = false
+    pendingDialogAction = nil
+    RenameInput.Visible = false
+    ModalYesButton.Text = "Да"
+    ModalNoButton.Text = "Нет"
+end
+
+local function openConfirmDialog(message, callback)
+    dialogMode = "Confirm"
+    ModalTitle.Text = "Подтверждение удаления"
+    ModalMessage.Text = message or "Вы точно уверены, что хотите удалить этот наряд?"
+    RenameInput.Visible = false
+    ModalYesButton.Text = "Да"
+    ModalNoButton.Text = "Нет"
+    pendingDialogAction = callback
+    ModalOverlay.Visible = true
+end
+
+local function openRenameDialog(favorite)
+    dialogMode = "Rename"
+    ModalTitle.Text = "Переименовать наряд"
+    ModalMessage.Text = "Введите новое название для сохранённого наряда:"
+    RenameInput.Text = tostring(favorite.name or "")
+    RenameInput.Visible = true
+    ModalYesButton.Text = "Сохранить"
+    ModalNoButton.Text = "Отмена"
+    pendingDialogAction = function()
+        local newName = tostring(RenameInput.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if newName == "" then
+            Status.Text = "Название не может быть пустым"
+            return
+        end
+
+        local oldName = favorite.name
+        favorite.name = newName
+        local saved, storageError = persistFavorites()
+        if not saved then
+            favorite.name = oldName
+            Status.Text = "Rename not saved: " .. tostring(storageError)
+        else
+            Status.Text = "Outfit renamed successfully"
+            showSuccessToast("Название наряда изменено")
+        end
+        refreshFavoritesList()
+    end
+    ModalOverlay.Visible = true
+    task.defer(function()
+        pcall(function() RenameInput:CaptureFocus() end)
+    end)
+end
+
+ModalNoButton.Activated:Connect(function()
+    closeOutfitDialog()
+end)
+
+ModalYesButton.Activated:Connect(function()
+    local callback = pendingDialogAction
+    if type(callback) ~= "function" then
+        closeOutfitDialog()
+        return
+    end
+
+    if dialogMode == "Confirm" then
+        closeOutfitDialog()
+        callback()
+    else
+        closeOutfitDialog()
+        callback()
+    end
+end)
 
 --==================================================
 -- RESPONSIVE LAYOUT
@@ -2583,7 +2746,7 @@ local function readOutfitFile(path)
     return contents
 end
 
-local function persistFavorites()
+persistFavorites = function()
     if type(writefile) ~= "function" then
         return false, "writefile unavailable"
     end
@@ -3180,19 +3343,21 @@ refreshFavoritesList = function()
 
         local nameLabel = makeLabel(
             row, favorite.name,
-            UDim2.new(1, -60, 0, 20),
+            UDim2.new(1, -104, 0, 20),
             UDim2.fromOffset(8, 5), 11
         )
 
         nameLabel.Font = Enum.Font.GothamMedium
+        nameLabel.ZIndex = 2
 
         local usernameLabel = makeLabel(
             row, "@" .. favorite.username,
-            UDim2.new(1, -60, 0, 18),
+            UDim2.new(1, -104, 0, 18),
             UDim2.fromOffset(8, 25), 9
         )
 
         usernameLabel.TextColor3 = MUTED
+        usernameLabel.ZIndex = 2
         local dateOk, dateText = pcall(function()
             return os.date("%m/%d %H:%M", tonumber(favorite.savedAt) or os.time())
         end)
@@ -3200,50 +3365,73 @@ refreshFavoritesList = function()
             usernameLabel.Text = "@" .. favorite.username .. "  •  " .. dateText
         end
 
+        local renameButton = makeButton(
+            row, "✎",
+            UDim2.fromOffset(28, 28),
+            UDim2.new(1, -68, 0, 11),
+            ACCENT
+        )
+        renameButton.TextSize = 16
+        renameButton.ZIndex = 3
+        renameButton.Activated:Connect(function()
+            openRenameDialog(favorite)
+        end)
+
         local removeButton = makeButton(
             row, "X",
-            UDim2.fromOffset(30, 30),
-            UDim2.new(1, -36, 0, 10),
+            UDim2.fromOffset(28, 28),
+            UDim2.new(1, -36, 0, 11),
             RED
         )
+        removeButton.ZIndex = 3
 
         removeButton.Activated:Connect(function()
-            local removedIndex = nil
+            openConfirmDialog(
+                "Вы точно уверены, что хотите удалить этот наряд?",
+                function()
+                    local removedIndex = nil
 
-            for i = #favorites, 1, -1 do
-                if favorites[i] == favorite then
-                    removedIndex = i
-                    table.remove(favorites, i)
-                    break
+                    for i = #favorites, 1, -1 do
+                        if favorites[i] == favorite then
+                            removedIndex = i
+                            table.remove(favorites, i)
+                            break
+                        end
+                    end
+
+                    if not removedIndex then
+                        refreshFavoritesList()
+                        return
+                    end
+
+                    local saved, storageError = persistFavorites()
+                    if not saved then
+                        table.insert(favorites, removedIndex, favorite)
+                        Status.Text = "Delete not saved: " .. tostring(storageError)
+                        refreshFavoritesList()
+                        return
+                    end
+
+                    if selectedFavorite == favorite then
+                        selectedFavorite = nil
+                        clearViewport()
+                        clearItems()
+                        Status.Text = "Outfit removed"
+                    end
+
+                    showSuccessToast("Наряд удалён")
+                    refreshFavoritesList()
                 end
-            end
-
-            local saved, storageError = persistFavorites()
-            if not saved then
-                if removedIndex then
-                    table.insert(favorites, removedIndex, favorite)
-                end
-                Status.Text = "Delete not saved: " .. tostring(storageError)
-                refreshFavoritesList()
-                return
-            end
-
-            if selectedFavorite == favorite then
-                selectedFavorite = nil
-                clearViewport()
-                clearItems()
-                Status.Text = "Outfit removed"
-            end
-
-            refreshFavoritesList()
+            )
         end)
 
         local selectButton = create("TextButton", {
-            Size = UDim2.new(1, -38, 1, 0),
+            Size = UDim2.new(1, -74, 1, 0),
             BackgroundTransparency = 1,
             Text = "",
             Active = true,
-            Selectable = true
+            Selectable = true,
+            ZIndex = 1
         }, row)
 
         selectButton.Activated:Connect(function()
@@ -3343,7 +3531,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.21 loaded successfully")
+print("Avatar Inspector v7.9.22 loaded successfully")
 
 end
 
@@ -3366,11 +3554,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.20 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.22 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.20 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.22 INITIALIZATION FINISHED")
 end
