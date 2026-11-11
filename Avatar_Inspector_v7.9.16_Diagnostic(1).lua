@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.30
+    AVATAR INSPECTOR v7.9.31
 
     CHANGES:
     - 12-language localization: added Simplified Chinese and Belarusian
@@ -42,10 +42,9 @@
     - Canonical account-avatar description lookup to avoid game morphs
     - Exact HumanoidDescription accessory count and live server player count
     - Larger saved outfit names
-    - New graphite/minimal visual theme inspired by the user's video reference
-    - Neutral charcoal buttons with subtle borders and softer press/hover animations
-    - Green checkmark state on successful COPY actions; green reserved for success
-    - Preserved the previously selected floating profile icon
+    - Restored exact thin-outline profile icon with cyan-blue-purple vertical gradient
+    - Rebuilt main UI visual language around the supplied video: charcoal card surfaces,
+      quiet outlines, large rounded action controls and green Copied success state
     - Lightweight button press/hover animations
     - Smooth main-window open/close transitions
     - Small UI performance refinements without removing features
@@ -88,18 +87,18 @@ if not PlayerGui then error("PlayerGui unavailable") end
 AI_DIAG_STAGE = "PLAYER_GUI_OK"
 AIDiag("07 PlayerGui OK")
 
--- v7.9.30 graphite UI palette, based on the user's video reference.
-local BG = Color3.fromRGB(15, 17, 19)
-local PANEL = Color3.fromRGB(25, 28, 31)
-local LIGHT = Color3.fromRGB(34, 38, 42)
-local ACCENT = Color3.fromRGB(76, 143, 135)
-local ACCENT_PURPLE = Color3.fromRGB(105, 91, 133)
-local OUTLINE = Color3.fromRGB(57, 63, 68)
-local WHITE = Color3.fromRGB(232, 235, 237)
-local MUTED = Color3.fromRGB(151, 158, 163)
-local GREEN = Color3.fromRGB(39, 112, 76)
-local ID_GREEN = Color3.fromRGB(104, 207, 145)
-local RED = Color3.fromRGB(145, 61, 68)
+-- v7.9.31: charcoal card UI palette sampled from the user's video reference.
+local BG = Color3.fromRGB(17, 18, 20)
+local PANEL = Color3.fromRGB(28, 30, 33)
+local LIGHT = Color3.fromRGB(37, 39, 42)
+local ACCENT = Color3.fromRGB(104, 111, 119)
+local ACCENT_PURPLE = Color3.fromRGB(116, 108, 130)
+local OUTLINE = Color3.fromRGB(57, 59, 63)
+local WHITE = Color3.fromRGB(224, 226, 229)
+local MUTED = Color3.fromRGB(145, 149, 155)
+local GREEN = Color3.fromRGB(35, 105, 72)
+local ID_GREEN = Color3.fromRGB(125, 205, 148)
+local RED = Color3.fromRGB(150, 62, 68)
 
 local selectedPlayer = nil
 local selectedFavorite = nil
@@ -616,7 +615,7 @@ local function addStroke(obj)
     create("UIStroke", {
         Color = OUTLINE,
         Thickness = 1,
-        Transparency = 0.18
+        Transparency = 0.12
     }, obj)
 end
 
@@ -637,8 +636,8 @@ end
 local function makeButton(parent, text, size, position, color)
     local requestedColor = color or LIGHT
     local baseColor = requestedColor
-    -- Most controls in the reference are neutral charcoal; reserve color for
-    -- success/danger states and selected states that are explicitly updated later.
+    -- The reference uses charcoal controls; color is reserved for explicit
+    -- success/danger states and for selected states updated by their handlers.
     if requestedColor == ACCENT or requestedColor == ACCENT_PURPLE then
         baseColor = LIGHT
     end
@@ -655,31 +654,31 @@ local function makeButton(parent, text, size, position, color)
         Selectable = true
     }, parent)
 
-    round(obj, 8)
+    round(obj, 11)
     local outline = create("UIStroke", {
         Color = OUTLINE,
         Thickness = 1,
-        Transparency = 0.20
+        Transparency = 0.10
     }, obj)
     local scale = create("UIScale", {Scale = 1}, obj)
     local pressInfo = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    local releaseInfo = TweenInfo.new(0.17, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    local hoverInfo = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local releaseInfo = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local hoverInfo = TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
     obj.MouseEnter:Connect(function()
         if not obj.Parent then return end
-        TweenService:Create(obj, hoverInfo, {BackgroundColor3 = baseColor:Lerp(WHITE, 0.055)}):Play()
-        TweenService:Create(outline, hoverInfo, {Transparency = 0.08}):Play()
+        TweenService:Create(obj, hoverInfo, {BackgroundColor3 = baseColor:Lerp(WHITE, 0.045)}):Play()
+        TweenService:Create(outline, hoverInfo, {Transparency = 0.04}):Play()
     end)
     obj.MouseLeave:Connect(function()
         if not obj.Parent then return end
         TweenService:Create(obj, hoverInfo, {BackgroundColor3 = baseColor}):Play()
-        TweenService:Create(outline, hoverInfo, {Transparency = 0.20}):Play()
+        TweenService:Create(outline, hoverInfo, {Transparency = 0.10}):Play()
     end)
     obj.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
-            TweenService:Create(scale, pressInfo, {Scale = 0.97}):Play()
+            TweenService:Create(scale, pressInfo, {Scale = 0.975}):Play()
         end
     end)
     obj.InputEnded:Connect(function(input)
@@ -752,41 +751,41 @@ local toggleCorner = Toggle:FindFirstChildOfClass("UICorner")
 if toggleCorner then toggleCorner.CornerRadius = UDim.new(0, 29) end
 create("UIGradient", {
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 190, 205)),
-        ColorSequenceKeypoint.new(0.52, Color3.fromRGB(35, 139, 190)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(112, 76, 170))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 174, 190)),
+        ColorSequenceKeypoint.new(0.52, Color3.fromRGB(42, 126, 183)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(101, 77, 157))
     }),
-    Rotation = 35
+    Rotation = 90
 }, Toggle)
 
 -- Lightweight vector recreation of the supplied profile icon. This avoids
 -- external image downloads and executor-specific custom-asset dependencies.
-local iconInk = Color3.fromRGB(0, 12, 20)
+local iconInk = Color3.fromRGB(0, 0, 0)
 local IconHead = create("Frame", {
     Name = "ProfileHead",
     BackgroundTransparency = 1,
-    Size = UDim2.fromOffset(17, 17),
-    Position = UDim2.fromOffset(20.5, 9),
+    Size = UDim2.fromOffset(16, 16),
+    Position = UDim2.fromOffset(21, 9.5),
     ZIndex = Toggle.ZIndex + 1
 }, Toggle)
 round(IconHead, 10)
 local headStroke = create("UIStroke", {
     Color = iconInk,
-    Thickness = 3.5,
+    Thickness = 2.5,
     Transparency = 1
 }, IconHead)
 
 local IconBody = create("Frame", {
     Name = "ProfileShoulders",
     BackgroundTransparency = 1,
-    Size = UDim2.fromOffset(33, 21),
-    Position = UDim2.fromOffset(12.5, 28),
+    Size = UDim2.fromOffset(32, 20),
+    Position = UDim2.fromOffset(13, 28.5),
     ZIndex = Toggle.ZIndex + 1
 }, Toggle)
 round(IconBody, 6)
 local bodyStroke = create("UIStroke", {
     Color = iconInk,
-    Thickness = 3.5,
+    Thickness = 2.5,
     Transparency = 1
 }, IconBody)
 
@@ -797,8 +796,8 @@ for _, x in ipairs({7, 23}) do
         BackgroundColor3 = iconInk,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Size = UDim2.fromOffset(3, 6),
-        Position = UDim2.fromOffset(x, 11),
+        Size = UDim2.fromOffset(2.5, 6),
+        Position = UDim2.fromOffset(x, 10.5),
         ZIndex = Toggle.ZIndex + 2
     }, IconBody)
     round(detail, 2)
@@ -885,8 +884,8 @@ round(Main, 16)
 addStroke(Main)
 create("UIGradient", {
     Color = ColorSequence.new(
-        Color3.fromRGB(27, 30, 33),
-        Color3.fromRGB(20, 23, 25)
+        Color3.fromRGB(30, 32, 35),
+        Color3.fromRGB(24, 26, 28)
     ),
     Rotation = 90
 }, Main)
@@ -904,14 +903,14 @@ local Header = create("Frame", {
 round(Header, 15)
 create("UIGradient", {
     Color = ColorSequence.new(
-        Color3.fromRGB(39, 43, 47),
-        Color3.fromRGB(28, 32, 35)
+        Color3.fromRGB(36, 38, 41),
+        Color3.fromRGB(29, 31, 34)
     ),
     Rotation = 90
 }, Header)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.30",
+    Header, "AVATAR INSPECTOR v7.9.31",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1036,7 +1035,7 @@ local PlayerList = create("ScrollingFrame", {
     BackgroundColor3 = PANEL,
     BorderSizePixel = 0,
     ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(91, 104, 108),
+    ScrollBarImageColor3 = Color3.fromRGB(104, 108, 113),
     AutomaticCanvasSize = Enum.AutomaticSize.Y,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -1210,7 +1209,7 @@ local ItemList = create("ScrollingFrame", {
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(91, 104, 108),
+    ScrollBarImageColor3 = Color3.fromRGB(104, 108, 113),
     AutomaticCanvasSize = Enum.AutomaticSize.Y,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -1243,7 +1242,7 @@ local Toast = create("Frame", {
     AnchorPoint = Vector2.new(0.5, 0),
     Position = UDim2.new(0.5, 0, 0, 10),
     Size = UDim2.fromOffset(260, 38),
-    BackgroundColor3 = Color3.fromRGB(31, 91, 63),
+    BackgroundColor3 = Color3.fromRGB(35, 105, 72),
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     Visible = false,
@@ -1256,7 +1255,7 @@ local ToastIcon = create("TextLabel", {
     Name = "SuccessCheckmark",
     BackgroundTransparency = 1,
     Text = "✓",
-    TextColor3 = Color3.fromRGB(157, 226, 181),
+    TextColor3 = Color3.fromRGB(157, 229, 184),
     TextSize = 19,
     Font = Enum.Font.GothamBold,
     TextXAlignment = Enum.TextXAlignment.Center,
@@ -1324,7 +1323,7 @@ local ModalPanel = create("Frame", {
 }, ModalOverlay)
 round(ModalPanel, 13)
 addStroke(ModalPanel)
-create("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(34, 38, 42), Color3.fromRGB(26, 29, 32)), Rotation = 90}, ModalPanel)
+create("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(37, 39, 42), Color3.fromRGB(28, 30, 33)), Rotation = 90}, ModalPanel)
 
 local ModalTitle = makeLabel(
     ModalPanel, "Confirmation",
@@ -1479,7 +1478,7 @@ local LangPanel = create("Frame", {
 }, LangOverlay)
 round(LangPanel, 13)
 addStroke(LangPanel)
-create("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(34, 38, 42), Color3.fromRGB(26, 29, 32)), Rotation = 90}, LangPanel)
+create("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(37, 39, 42), Color3.fromRGB(28, 30, 33)), Rotation = 90}, LangPanel)
 
 local LangTitle = makeLabel(LangPanel, "Choose language", UDim2.new(1, -60, 0, 30), UDim2.fromOffset(12, 10), 14)
 LangTitle.Font = Enum.Font.GothamBold
@@ -3195,7 +3194,7 @@ local function addSectionHeader(text)
         BackgroundColor3 = PANEL,
         BackgroundTransparency = 0.15,
         Text = text,
-        TextColor3 = Color3.fromRGB(126, 170, 160),
+        TextColor3 = Color3.fromRGB(174, 178, 183),
         TextSize = 11,
         Font = Enum.Font.GothamBold,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -3230,7 +3229,8 @@ local function addItem(name, assetId, category)
         BorderSizePixel = 0
     }, ItemList)
 
-    round(card, 8)
+    round(card, 11)
+    addStroke(card)
 
     local image = create("ImageLabel", {
         Size = UDim2.fromOffset(48, 48),
@@ -3276,25 +3276,28 @@ local function addItem(name, assetId, category)
         copyStateToken += 1
         local token = copyStateToken
         copyButton.Text = "✓"
-        copyButton.BackgroundColor3 = GREEN
+        copyButton.TextColor3 = Color3.fromRGB(166, 235, 190)
+        copyButton.BackgroundColor3 = Color3.fromRGB(35, 105, 72)
+
         local copyStroke = copyButton:FindFirstChildOfClass("UIStroke")
         if copyStroke then
             TweenService:Create(copyStroke, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Color = Color3.fromRGB(93, 176, 128),
-                Transparency = 0.05
+                Color = Color3.fromRGB(67, 160, 108),
+                Transparency = 0
             }):Play()
         end
 
-        task.delay(1.05, function()
+        task.delay(1.15, function()
             if token ~= copyStateToken or not copyButton.Parent then return end
             copyButton.Text = copyDefaultText
+            copyButton.TextColor3 = WHITE
             TweenService:Create(copyButton, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 BackgroundColor3 = LIGHT
             }):Play()
             if copyStroke then
                 TweenService:Create(copyStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                     Color = OUTLINE,
-                    Transparency = 0.20
+                    Transparency = 0.10
                 }):Play()
             end
         end)
@@ -3545,7 +3548,8 @@ refreshPlayerList = function()
             }, PlayerList)
 
             row.LayoutOrder = 1 + #PlayerList:GetChildren()
-            round(row, 7)
+            round(row, 10)
+            addStroke(row)
 
             local avatar = create("ImageLabel", {
                 Size = UDim2.fromOffset(38, 38),
@@ -4480,7 +4484,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.30 loaded successfully")
+print("Avatar Inspector v7.9.31 loaded successfully")
 
 end
 
@@ -4503,11 +4507,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.30 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.31 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.30 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.31 INITIALIZATION FINISHED")
 end
