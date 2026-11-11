@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.16
+    AVATAR INSPECTOR v7.9.17
 
     CHANGES:
     - Green, larger and bold asset IDs
@@ -19,6 +19,7 @@
     - Simple persistent JSON outfit storage
     - Multiple saved outfits (up to 50)
     - Dedicated OUTFITS and SAVE OUTFIT buttons
+    - Per-player SAVE button with automatic avatar scan
     - Mobile layout
     - Draggable interface
     - Protected initialization
@@ -84,6 +85,7 @@ local jointBases = {}
 local poseTweens = {}
 
 local refreshPlayerList
+local saveFavorite
 local refreshFavoritesList
 local showFavorite
 local applyPose
@@ -246,7 +248,7 @@ local Header = create("Frame", {
 round(Header, 13)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.16",
+    Header, "AVATAR INSPECTOR v7.9.17",
     UDim2.new(1, -100, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1787,7 +1789,7 @@ applyPose = function(model, pose)
     end
 
     print(string.format(
-        "[Avatar Inspector v7.9.16] Rig: %s | Motor6D: %d | AnimationConstraint: %d | Shoulders: %d | Changed: %d",
+        "[Avatar Inspector v7.9.17] Rig: %s | Motor6D: %d | AnimationConstraint: %d | Shoulders: %d | Changed: %d",
         rigType,
         motorCount,
         constraintCount,
@@ -1797,7 +1799,7 @@ applyPose = function(model, pose)
 
     if #axisDiagnostics > 0 then
         print(
-            "[Avatar Inspector v7.9.16] Adaptive axes: "
+            "[Avatar Inspector v7.9.17] Adaptive axes: "
             .. table.concat(axisDiagnostics, " | ")
         )
     end
@@ -2253,7 +2255,7 @@ refreshPlayerList = function()
 
             local nameLabel = makeLabel(
                 row, player.DisplayName,
-                UDim2.new(1, -55, 0, 20),
+                UDim2.new(1, -105, 0, 20),
                 UDim2.fromOffset(49, 5), 10
             )
 
@@ -2261,22 +2263,45 @@ refreshPlayerList = function()
 
             local usernameLabel = makeLabel(
                 row, "@" .. player.Name,
-                UDim2.new(1, -55, 0, 18),
+                UDim2.new(1, -105, 0, 18),
                 UDim2.fromOffset(49, 24), 9
             )
 
             usernameLabel.TextColor3 = MUTED
 
             local selectButton = create("TextButton", {
-                Size = UDim2.fromScale(1, 1),
+                Size = UDim2.new(1, -52, 1, 0),
+                Position = UDim2.fromOffset(0, 0),
                 BackgroundTransparency = 1,
                 Text = "",
                 Active = true,
-                Selectable = true
+                Selectable = true,
+                ZIndex = 2
             }, row)
 
             selectButton.Activated:Connect(function()
                 scanPlayer(player)
+            end)
+
+            -- Save this player's outfit directly from the player list.
+            -- scanPlayer() fills currentItems synchronously before saveFavorite().
+            local rowSaveButton = makeButton(
+                row, "SAVE",
+                UDim2.fromOffset(44, 30),
+                UDim2.new(1, -49, 0, 9),
+                GREEN
+            )
+            rowSaveButton.TextSize = 10
+            rowSaveButton.ZIndex = 5
+
+            rowSaveButton.Activated:Connect(function()
+                if not player or player.Parent ~= Players then
+                    Status.Text = "Player is no longer available"
+                    return
+                end
+
+                scanPlayer(player)
+                saveFavorite()
             end)
         end
     end
@@ -2437,7 +2462,7 @@ local function loadFavoritesFromFile()
     return true, "Loaded " .. tostring(#favorites) .. " outfit(s)"
 end
 
-local function saveFavorite()
+saveFavorite = function()
     if not selectedPlayer then
         Status.Text = "Select a player first"
         return
@@ -2697,7 +2722,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.16 loaded successfully")
+print("Avatar Inspector v7.9.17 loaded successfully")
 
 end
 
@@ -2720,11 +2745,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.16 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.17 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.16 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.17 INITIALIZATION FINISHED")
 end
