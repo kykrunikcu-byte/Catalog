@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.19
+    AVATAR INSPECTOR v7.9.20
 
     CHANGES:
     - Green, larger and bold asset IDs
@@ -21,6 +21,9 @@
     - Dedicated OUTFITS and SAVE OUTFIT buttons
     - Per-player SAVE button with automatic avatar scan
     - Persistent 3D avatar appearance snapshots in outfit JSON
+    - Legacy accessory property capture and restoration
+    - Async saved-avatar reconstruction with synchronous fallback
+    - Live clothing and face fallback capture
     - Correct Color3 capture/restoration for skin and body colors
     - Face asset, layered accessory metadata and Puffiness preservation
     - Rebuild saved avatar previews after restarting the executor
@@ -252,7 +255,7 @@ local Header = create("Frame", {
 round(Header, 13)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.19",
+    Header, "AVATAR INSPECTOR v7.9.20",
     UDim2.new(1, -100, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1793,7 +1796,7 @@ applyPose = function(model, pose)
     end
 
     print(string.format(
-        "[Avatar Inspector v7.9.19] Rig: %s | Motor6D: %d | AnimationConstraint: %d | Shoulders: %d | Changed: %d",
+        "[Avatar Inspector v7.9.20] Rig: %s | Motor6D: %d | AnimationConstraint: %d | Shoulders: %d | Changed: %d",
         rigType,
         motorCount,
         constraintCount,
@@ -1803,7 +1806,7 @@ applyPose = function(model, pose)
 
     if #axisDiagnostics > 0 then
         print(
-            "[Avatar Inspector v7.9.19] Adaptive axes: "
+            "[Avatar Inspector v7.9.20] Adaptive axes: "
             .. table.concat(axisDiagnostics, " | ")
         )
     end
@@ -2475,6 +2478,10 @@ local AVATAR_DESCRIPTION_PROPERTIES = {
     "ClimbAnimation", "FallAnimation", "IdleAnimation", "JumpAnimation",
     "MoodAnimation", "RunAnimation", "SwimAnimation", "WalkAnimation",
     "GraphicTShirt", "Pants", "Shirt", "Face",
+    -- Legacy rigid accessory properties are separate HumanoidDescription
+    -- fields and must be preserved in addition to GetAccessories().
+    "HatAccessory", "HairAccessory", "FaceAccessory", "NeckAccessory",
+    "ShoulderAccessory", "FrontAccessory", "BackAccessory", "WaistAccessory",
     "Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg",
     "BodyTypeScale", "DepthScale", "HeadScale", "HeightScale",
     "ProportionScale", "WidthScale"
@@ -2484,6 +2491,53 @@ local AVATAR_COLOR_PROPERTIES = {
     "HeadColor", "LeftArmColor", "LeftLegColor",
     "RightArmColor", "RightLegColor", "TorsoColor"
 }
+
+local function extractAssetId(value)
+    if type(value) == "number" then
+        return value > 0 and math.floor(value) or nil
+    end
+    if type(value) ~= "string" then return nil end
+    local digits = value:match("[?&]id=(%d+)") or value:match("rbxassetid://(%d+)") or value:match("(%d+)")
+    local number = tonumber(digits)
+    return number and number > 0 and number or nil
+end
+
+local function captureLiveClothingFallback(character, snapshot)
+    local liveMap = {
+        Shirt = {className = "Shirt", property = "ShirtTemplate"},
+        Pants = {className = "Pants", property = "PantsTemplate"},
+        GraphicTShirt = {className = "ShirtGraphic", property = "Graphic"}
+    }
+
+    for descriptionName, info in pairs(liveMap) do
+        local clothing = character:FindFirstChildOfClass(info.className)
+        if clothing then
+            local ok, value = pcall(function()
+                return clothing[info.property]
+            end)
+            if ok then
+                local assetId = extractAssetId(value)
+                if assetId and (tonumber(snapshot.properties[descriptionName]) or 0) == 0 then
+                    snapshot.properties[descriptionName] = assetId
+                end
+            end
+        end
+    end
+
+    local head = character:FindFirstChild("Head")
+    if head and (tonumber(snapshot.properties.Face) or 0) == 0 then
+        for _, child in ipairs(head:GetChildren()) do
+            if child:IsA("Decal") and (child.Name == "face" or child.Name == "Face") then
+                local ok, texture = pcall(function() return child.Texture end)
+                local assetId = ok and extractAssetId(texture) or nil
+                if assetId then
+                    snapshot.properties.Face = assetId
+                    break
+                end
+            end
+        end
+    end
+end
 
 local function captureAvatarAppearance(player)
     if not player then return nil, "player unavailable" end
@@ -2502,7 +2556,7 @@ local function captureAvatarAppearance(player)
     end
 
     local snapshot = {
-        version = 2,
+        version = 3,
         rigType = humanoid.RigType.Name,
         properties = {},
         -- HumanoidDescription color properties are Color3, not BrickColor.
@@ -2524,6 +2578,8 @@ local function captureAvatarAppearance(player)
             end
         end
     end
+
+    captureLiveClothingFallback(character, snapshot)
 
     for _, propertyName in ipairs(AVATAR_COLOR_PROPERTIES) do
         local readOk, value = pcall(function()
@@ -2601,6 +2657,14 @@ local function captureAvatarAppearance(player)
         end
     end
 
+    snapshot.accessoryCount = #snapshot.accessories
+    snapshot.liveAccessoryCount = 0
+    for _, child in ipairs(character:GetChildren()) do
+        if child:IsA("Accessory") then
+            snapshot.liveAccessoryCount = snapshot.liveAccessoryCount + 1
+        end
+    end
+
     -- GetAppliedDescription returns a separate Instance; release it after
     -- all serializable appearance data has been copied into the snapshot.
     pcall(function()
@@ -2672,11 +2736,16 @@ local function buildDescriptionFromSnapshot(snapshot)
                 enumType = Enum.AccessoryType[typeName]
             end)
 
-            if assetId and assetId > 0 and enumType then
+            -- Rigid/classic accessories are restored through the dedicated
+            -- HumanoidDescription fields (HatAccessory, HairAccessory, etc.).
+            -- SetAccessories is therefore used only for layered accessories,
+            -- preventing rigid items from being applied twice or overwriting
+            -- the legacy accessory fields.
+            if assetId and assetId > 0 and enumType and accessory.isLayered == true then
                 table.insert(rebuiltAccessories, {
                     AssetId = assetId,
                     AccessoryType = enumType,
-                    IsLayered = accessory.isLayered == true,
+                    IsLayered = true,
                     Order = tonumber(accessory.order) or 0,
                     Puffiness = tonumber(accessory.puffiness) or 0
                 })
@@ -2685,7 +2754,7 @@ local function buildDescriptionFromSnapshot(snapshot)
 
         if #rebuiltAccessories > 0 then
             pcall(function()
-                description:SetAccessories(rebuiltAccessories, true)
+                description:SetAccessories(rebuiltAccessories, false)
             end)
         end
     end
@@ -2712,14 +2781,38 @@ local function showSavedAvatarAppearance(favorite)
         rigType = Enum.HumanoidRigType.R6
     end
 
-    local createOk, model = pcall(function()
-        return Players:CreateHumanoidModelFromDescription(description, rigType)
-    end)
+    local model = nil
+    local createErrors = {}
+
+    -- Async construction waits for avatar assets to finish loading. The
+    -- synchronous API remains as a compatibility fallback for executors.
+    local asyncCreator = Players.CreateHumanoidModelFromDescriptionAsync
+    if type(asyncCreator) == "function" then
+        local asyncOk, asyncModel = pcall(function()
+            return Players:CreateHumanoidModelFromDescriptionAsync(description, rigType)
+        end)
+        if asyncOk and asyncModel then
+            model = asyncModel
+        else
+            table.insert(createErrors, "async: " .. tostring(asyncModel))
+        end
+    end
+
+    if not model then
+        local syncOk, syncModel = pcall(function()
+            return Players:CreateHumanoidModelFromDescription(description, rigType)
+        end)
+        if syncOk and syncModel then
+            model = syncModel
+        else
+            table.insert(createErrors, "sync: " .. tostring(syncModel))
+        end
+    end
 
     pcall(function() description:Destroy() end)
 
-    if not createOk or not model then
-        Status.Text = "Could not recreate saved 3D avatar"
+    if not model then
+        Status.Text = "Could not recreate saved 3D avatar: " .. table.concat(createErrors, " | ")
         return false
     end
 
@@ -2813,12 +2906,17 @@ showFavorite = function(favorite)
     selectedFavorite = favorite
 
     -- Restore the saved appearance snapshot from JSON into the 3D viewport.
-    showSavedAvatarAppearance(favorite)
+    local appearanceLoaded = showSavedAvatarAppearance(favorite)
 
     -- Keep the saved asset and animation ID list visible alongside the model.
     displaySavedItems(favorite.items)
-    if type(favorite.appearance) == "table" then
-        Status.Text = "Saved avatar: @" .. favorite.username
+    if appearanceLoaded then
+        local accessoryCount = tonumber(favorite.appearance.accessoryCount)
+            or #(favorite.appearance.accessories or {})
+        Status.Text = "Saved avatar loaded: @" .. favorite.username
+            .. " | accessories: " .. tostring(accessoryCount)
+    elseif type(favorite.appearance) == "table" then
+        Status.Text = "Saved avatar could not be fully restored: @" .. favorite.username
     else
         Status.Text = "Legacy outfit (IDs only): @" .. favorite.username
     end
@@ -3013,7 +3111,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.19 loaded successfully")
+print("Avatar Inspector v7.9.20 loaded successfully")
 
 end
 
@@ -3036,11 +3134,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.19 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.20 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.19 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.20 INITIALIZATION FINISHED")
 end
