@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.28
+    AVATAR INSPECTOR v7.9.29
 
     CHANGES:
     - 12-language localization: added Simplified Chinese and Belarusian
@@ -46,6 +46,8 @@
     - Lightweight button press/hover animations
     - Smooth main-window open/close transitions
     - Small UI performance refinements without removing features
+    - Close confirmation with explicit full shutdown
+    - Smooth floating-button entrance and refined profile icon proportions
 ]]
 
 local AI_DIAG_STAGE = "SCRIPT_PARSED"
@@ -118,6 +120,14 @@ local windowBaseScale = 1
 
 local jointBases = {}
 local poseTweens = {}
+local externalConnections = {}
+local function trackExternalConnection(connection)
+    if connection then
+        table.insert(externalConnections, connection)
+    end
+    return connection
+end
+local shutdownAvatarInspector
 
 local refreshPlayerList
 local saveFavorite
@@ -740,35 +750,64 @@ create("UIGradient", {
 
 -- Lightweight vector recreation of the supplied profile icon. This avoids
 -- external image downloads and executor-specific custom-asset dependencies.
+local iconInk = Color3.fromRGB(0, 12, 20)
 local IconHead = create("Frame", {
     Name = "ProfileHead",
     BackgroundTransparency = 1,
-    Size = UDim2.fromOffset(18, 18),
-    Position = UDim2.fromOffset(20, 9),
+    Size = UDim2.fromOffset(17, 17),
+    Position = UDim2.fromOffset(20.5, 9),
     ZIndex = Toggle.ZIndex + 1
 }, Toggle)
-round(IconHead, 9)
-create("UIStroke", {Color = Color3.fromRGB(5, 17, 29), Thickness = 3.2}, IconHead)
+round(IconHead, 10)
+local headStroke = create("UIStroke", {
+    Color = iconInk,
+    Thickness = 3.5,
+    Transparency = 1
+}, IconHead)
 
 local IconBody = create("Frame", {
     Name = "ProfileShoulders",
     BackgroundTransparency = 1,
-    Size = UDim2.fromOffset(34, 25),
-    Position = UDim2.fromOffset(12, 29),
+    Size = UDim2.fromOffset(33, 21),
+    Position = UDim2.fromOffset(12.5, 28),
     ZIndex = Toggle.ZIndex + 1
 }, Toggle)
-round(IconBody, 12)
-create("UIStroke", {Color = Color3.fromRGB(5, 17, 29), Thickness = 3.2}, IconBody)
+round(IconBody, 6)
+local bodyStroke = create("UIStroke", {
+    Color = iconInk,
+    Thickness = 3.5,
+    Transparency = 1
+}, IconBody)
 
-for _, x in ipairs({8, 25}) do
-    create("Frame", {
+local profileDetails = {}
+for _, x in ipairs({7, 23}) do
+    local detail = create("Frame", {
         Name = "ProfileDetail",
-        BackgroundColor3 = Color3.fromRGB(5, 17, 29),
+        BackgroundColor3 = iconInk,
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Size = UDim2.fromOffset(3, 8),
-        Position = UDim2.fromOffset(x, 14),
+        Size = UDim2.fromOffset(3, 6),
+        Position = UDim2.fromOffset(x, 11),
         ZIndex = Toggle.ZIndex + 2
     }, IconBody)
+    round(detail, 2)
+    table.insert(profileDetails, detail)
+end
+
+-- Animate the floating control itself (not only the main window).
+local toggleScale = Toggle:FindFirstChildOfClass("UIScale")
+if toggleScale then toggleScale.Scale = 0.72 end
+Toggle.BackgroundTransparency = 1
+local floatingAppearInfo = TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local floatingFadeInfo = TweenInfo.new(0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+if toggleScale then
+    TweenService:Create(toggleScale, floatingAppearInfo, {Scale = 1}):Play()
+end
+TweenService:Create(Toggle, floatingFadeInfo, {BackgroundTransparency = 0}):Play()
+TweenService:Create(headStroke, floatingFadeInfo, {Transparency = 0}):Play()
+TweenService:Create(bodyStroke, floatingFadeInfo, {Transparency = 0}):Play()
+for _, detail in ipairs(profileDetails) do
+    TweenService:Create(detail, floatingFadeInfo, {BackgroundTransparency = 0}):Play()
 end
 AI_DIAG_STAGE = "AI_BUTTON_CREATED"
 AIDiag("10 AI button created successfully")
@@ -858,7 +897,7 @@ create("UIGradient", {
 }, Header)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.28",
+    Header, "AVATAR INSPECTOR v7.9.29",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -880,6 +919,78 @@ local Close = makeButton(
     UDim2.fromOffset(34, 32),
     UDim2.new(1, -44, 0, 8)
 )
+
+-- Full shutdown confirmation. Tapping the floating profile button still only hides the window.
+local ExitOverlay = create("Frame", {
+    Name = "ExitConfirmationOverlay",
+    Size = UDim2.fromScale(1, 1),
+    BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+    BackgroundTransparency = 0.38,
+    BorderSizePixel = 0,
+    Visible = false,
+    ZIndex = 200
+}, ScreenGui)
+
+local ExitPanel = create("Frame", {
+    Name = "ExitConfirmationPanel",
+    Size = UDim2.fromOffset(286, 154),
+    Position = UDim2.fromScale(0.5, 0.5),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundColor3 = PANEL,
+    BorderSizePixel = 0,
+    ZIndex = 201
+}, ExitOverlay)
+round(ExitPanel, 14)
+addStroke(ExitPanel)
+
+local ExitTitle = makeLabel(
+    ExitPanel, "Confirmation",
+    UDim2.new(1, -24, 0, 28), UDim2.fromOffset(12, 12), 16
+)
+ExitTitle.Font = Enum.Font.GothamBold
+ExitTitle.TextXAlignment = Enum.TextXAlignment.Center
+ExitTitle.ZIndex = 202
+
+local ExitMessage = makeLabel(
+    ExitPanel, "Are you sure?",
+    UDim2.new(1, -24, 0, 30), UDim2.fromOffset(12, 45), 13
+)
+ExitMessage.TextXAlignment = Enum.TextXAlignment.Center
+ExitMessage.ZIndex = 202
+
+local ExitYes = makeButton(
+    ExitPanel, "Yes",
+    UDim2.fromOffset(112, 36), UDim2.new(0, 20, 1, -50), GREEN
+)
+ExitYes.ZIndex = 203
+ExitYes.TextSize = 13
+
+local ExitNo = makeButton(
+    ExitPanel, "No",
+    UDim2.fromOffset(112, 36), UDim2.new(1, -132, 1, -50), RED
+)
+ExitNo.ZIndex = 203
+ExitNo.TextSize = 13
+
+local exitPanelScale = create("UIScale", {Scale = 0.92}, ExitPanel)
+local function showExitConfirmation()
+    ExitOverlay.Visible = true
+    ExitPanelScale.Scale = 0.92
+    TweenService:Create(ExitPanelScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+end
+
+local function hideExitConfirmation()
+    ExitOverlay.Visible = false
+end
+
+ExitNo.Activated:Connect(hideExitConfirmation)
+ExitYes.Activated:Connect(function()
+    if shutdownAvatarInspector then
+        shutdownAvatarInspector()
+    else
+        ScreenGui:Destroy()
+    end
+end)
 
 local Search = create("TextBox", {
     Size = UDim2.new(1, -120, 0, 36),
@@ -1485,17 +1596,17 @@ local function connectCameraResize()
     local camera = workspace.CurrentCamera
 
     if camera then
-        camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateLayout)
+        trackExternalConnection(camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateLayout))
     end
 end
 
 connectCameraResize()
 
-workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+trackExternalConnection(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
     task.wait()
     connectCameraResize()
     updateLayout()
-end)
+end))
 
 --==================================================
 -- DRAGGING
@@ -1522,7 +1633,7 @@ local function makeDraggable(guiObject, handle)
         end
     end)
 
-    UserInputService.InputChanged:Connect(function(input)
+    trackExternalConnection(UserInputService.InputChanged:Connect(function(input)
         if not dragging then return end
 
         if input.UserInputType == Enum.UserInputType.MouseMovement
@@ -1537,7 +1648,7 @@ local function makeDraggable(guiObject, handle)
                 startGuiPosition.Y.Offset + delta.Y
             )
         end
-    end)
+    end))
 end
 
 makeDraggable(Toggle, Toggle)
@@ -2023,6 +2134,23 @@ local function cancelPoseTweens()
     end
 
     table.clear(poseTweens)
+end
+
+shutdownAvatarInspector = function()
+    -- Disconnect listeners attached to services/workspace before removing the GUI.
+    for _, connection in ipairs(externalConnections) do
+        pcall(function() connection:Disconnect() end)
+    end
+    table.clear(externalConnections)
+
+    -- Stop active pose tweens so they do not outlive the interface.
+    cancelPoseTweens()
+
+    -- Destroying the ScreenGui removes all interface-owned event connections,
+    -- modal elements, viewport models and the floating toggle in one operation.
+    if ScreenGui and ScreenGui.Parent then
+        ScreenGui:Destroy()
+    end
 end
 
 local function updatePoseButtons(pose)
@@ -2963,7 +3091,7 @@ Viewport.InputBegan:Connect(function(input)
     end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
+trackExternalConnection(UserInputService.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseWheel then
         local mousePosition = UserInputService:GetMouseLocation()
         local viewPosition = Viewport.AbsolutePosition
@@ -3003,7 +3131,7 @@ UserInputService.InputChanged:Connect(function(input)
             )
         end
     end
-end)
+end))
 
 --==================================================
 -- POSE BUTTON EVENTS
@@ -4259,13 +4387,13 @@ Search:GetPropertyChangedSignal("Text"):Connect(function()
     end)
 end)
 
-Players.PlayerAdded:Connect(function()
+trackExternalConnection(Players.PlayerAdded:Connect(function()
     if currentMode == "Players" then
         refreshPlayerList()
     end
-end)
+end))
 
-Players.PlayerRemoving:Connect(function(player)
+trackExternalConnection(Players.PlayerRemoving:Connect(function(player)
     if selectedPlayer == player then
         selectedPlayer = nil
         clearViewport()
@@ -4277,7 +4405,7 @@ Players.PlayerRemoving:Connect(function(player)
     if currentMode == "Players" then
         refreshPlayerList()
     end
-end)
+end))
 
 --==================================================
 -- MAIN BUTTONS
@@ -4288,7 +4416,7 @@ Toggle.Activated:Connect(function()
 end)
 
 Close.Activated:Connect(function()
-    setMainWindowVisible(false)
+    showExitConfirmation()
 end)
 
 --==================================================
@@ -4309,7 +4437,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.28 loaded successfully")
+print("Avatar Inspector v7.9.29 loaded successfully")
 
 end
 
@@ -4332,11 +4460,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.28 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.29 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.28 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.29 INITIALIZATION FINISHED")
 end
