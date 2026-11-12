@@ -1,10 +1,10 @@
 --[[
-    AVATAR INSPECTOR v7.9.54
+    AVATAR INSPECTOR v7.9.55
 
-    CHANGES IN v7.9.54:
-    - Animated copper/rose neon border on the players list and item panel
-    - Slightly brighter outlines for player and accessory cards
-    - Two shared lightweight border animations, no per-card loops
+    CHANGES IN v7.9.55:
+    - Refined signature icon pack integration using cleaner vector geometry
+    - Rebuilt players, 3D-scan, items, search and placeholder icons closer to the approved set
+    - Preserved the working neon lists and current Event Horizon layout
     - No floating-button, camera, saved outfit or avatar logic changes
 
     CHANGES IN v7.9.53:
@@ -790,12 +790,18 @@ function EH.icon(parent, kind, position, size)
         Active = false
     }, parent)
 
+    local function roundedFrame(props, corner)
+        local frame = create("Frame", props, root)
+        create("UICorner", {CornerRadius = UDim.new(0, corner or math.floor((props.Size.X.Offset or 8) * 0.45))}, frame)
+        return frame
+    end
+
     local function strokeLine(x1, y1, x2, y2, width)
         local dx, dy = x2 - x1, y2 - y1
         local length = math.sqrt(dx * dx + dy * dy) * u
-        local thickness = math.max(1.5, (width or 2) * u)
+        local thickness = math.max(1.35, (width or 2) * u)
         local angle = math.deg(math.atan2(dy, dx))
-        local part = create("Frame", {
+        local part = roundedFrame({
             Name = "Line",
             Size = UDim2.fromOffset(length, thickness),
             Position = UDim2.fromOffset(
@@ -807,8 +813,7 @@ function EH.icon(parent, kind, position, size)
             BackgroundColor3 = ink,
             Active = false,
             ZIndex = z + 1
-        }, root)
-        create("UICorner", {CornerRadius = UDim.new(1, 0)}, part)
+        }, math.floor(thickness * 0.5))
         return part
     end
 
@@ -825,7 +830,7 @@ function EH.icon(parent, kind, position, size)
         create("UICorner", {CornerRadius = UDim.new(0, (radius or 2) * u)}, part)
         create("UIStroke", {
             Color = ink,
-            Thickness = math.max(1.5, (thickness or 2) * u),
+            Thickness = math.max(1.35, (thickness or 2) * u),
             Transparency = 0,
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         }, part)
@@ -833,7 +838,7 @@ function EH.icon(parent, kind, position, size)
     end
 
     local function dot(x, y, diameter)
-        local part = create("Frame", {
+        return roundedFrame({
             Name = "Dot",
             Position = UDim2.fromOffset(x * u, y * u),
             Size = UDim2.fromOffset(diameter * u, diameter * u),
@@ -841,119 +846,127 @@ function EH.icon(parent, kind, position, size)
             BorderSizePixel = 0,
             Active = false,
             ZIndex = z + 1
-        }, root)
-        create("UICorner", {CornerRadius = UDim.new(1, 0)}, part)
-        return part
+        }, math.floor(diameter * u * 0.5))
+    end
+
+    local function curve(points, width)
+        local prev = points[1]
+        for i = 2, #points do
+            local p = points[i]
+            strokeLine(prev[1], prev[2], p[1], p[2], width)
+            prev = p
+        end
     end
 
     if kind == "players" then
-        -- Smooth, symmetrical shoulder curves like the reference icon.
-        -- No half-hidden UIStroke / gradient: those produced jagged gaps.
-        local function curvedShoulders(x0, y0, cx, cy, x1, y1, steps, width)
-            local previousX, previousY = x0, y0
-            for i = 1, steps do
-                local t = i / steps
-                local inv = 1 - t
-                local x = inv * inv * x0 + 2 * inv * t * cx + t * t * x1
-                local y = inv * inv * y0 + 2 * inv * t * cy + t * t * y1
-                strokeLine(previousX, previousY, x, y, width)
-                previousX, previousY = x, y
-            end
-        end
-        -- Rear person first, so the front portrait reads as a single shape.
-        outline(14.7, 4.2, 5.5, 5.5, 5.5, 2.1)
-        curvedShoulders(13.9, 17.1, 18, 10.5, 22.1, 20, 8, 2.25)
-        outline(4.5, 2.7, 7.2, 7.2, 7.2, 2.1)
-        curvedShoulders(2.0, 21.0, 8.4, 5.4, 14.9, 21.0, 12, 2.35)
+        -- Closer to the reference sheet: two clean heads and two smooth user busts.
+        outline(12.8, 3.7, 5.0, 5.0, 5.0, 2.05)
+        curve({{12.9, 17.4}, {14.6, 14.0}, {17.5, 14.0}, {19.1, 17.0}}, 2.05)
+
+        outline(4.1, 2.1, 6.5, 6.5, 6.5, 2.15)
+        curve({{2.2, 19.8}, {4.8, 14.2}, {8.7, 12.5}, {12.5, 14.0}, {15.0, 19.8}}, 2.2)
     elseif kind == "viewer" then
-        -- Four scanning corners, eyes and a small smile.
-        strokeLine(2.5, 8.5, 2.5, 4)
-        strokeLine(2.5, 4, 7.4, 4)
-        strokeLine(16.6, 4, 21.5, 4)
-        strokeLine(21.5, 4, 21.5, 8.5)
-        strokeLine(2.5, 15.5, 2.5, 20)
-        strokeLine(2.5, 20, 7.4, 20)
-        strokeLine(16.6, 20, 21.5, 20)
-        strokeLine(21.5, 20, 21.5, 15.5)
-        dot(8.4, 10.8, 2.1)
-        dot(13.6, 10.8, 2.1)
-        strokeLine(8.7, 15.5, 10.5, 17.1, 1.75)
-        strokeLine(10.5, 17.1, 13.5, 17.1, 1.75)
-        strokeLine(13.5, 17.1, 15.3, 15.5, 1.75)
+        -- Friendly 3D-scan pictogram with smiling face from the reference pack.
+        strokeLine(2.8, 8.1, 2.8, 4.2, 2.0)
+        strokeLine(2.8, 4.2, 7.2, 4.2, 2.0)
+        strokeLine(16.8, 4.2, 21.2, 4.2, 2.0)
+        strokeLine(21.2, 4.2, 21.2, 8.1, 2.0)
+        strokeLine(2.8, 15.9, 2.8, 19.8, 2.0)
+        strokeLine(2.8, 19.8, 7.2, 19.8, 2.0)
+        strokeLine(16.8, 19.8, 21.2, 19.8, 2.0)
+        strokeLine(21.2, 15.9, 21.2, 19.8, 2.0)
+        dot(8.0, 10.2, 2.2)
+        dot(13.8, 10.2, 2.2)
+        curve({{8.8, 15.0}, {10.2, 16.3}, {12.0, 16.9}, {13.8, 16.3}, {15.2, 15.0}}, 1.75)
     elseif kind == "items" then
-        -- Stacked layers: trapezoid cap plus two thin horizontal separators.
-        strokeLine(4.0, 8.1, 7.0, 4.2)
-        strokeLine(7.0, 4.2, 17.0, 4.2)
-        strokeLine(17.0, 4.2, 20.0, 8.1)
-        strokeLine(4.0, 8.1, 20.0, 8.1)
-        strokeLine(4.0, 13.0, 20.0, 13.0)
-        strokeLine(4.0, 18.2, 20.0, 18.2)
+        strokeLine(5.1, 8.2, 7.7, 4.7, 2.0)
+        strokeLine(7.7, 4.7, 16.4, 4.7, 2.0)
+        strokeLine(16.4, 4.7, 18.9, 8.2, 2.0)
+        strokeLine(4.1, 8.2, 19.9, 8.2, 2.0)
+        strokeLine(4.1, 13.0, 19.9, 13.0, 1.95)
+        strokeLine(4.1, 18.0, 19.9, 18.0, 1.95)
     elseif kind == "search" then
-        outline(3.1, 2.8, 14.4, 14.4, 10, 2.2)
-        strokeLine(16.3, 16.4, 21.5, 21.5, 2.5)
+        outline(3.5, 3.1, 13.8, 13.8, 10, 2.2)
+        strokeLine(15.9, 15.8, 20.9, 20.8, 2.4)
     elseif kind == "copy" then
-        outline(3.2, 3.0, 12.8, 13.8, 2.7, 2.15)
-        outline(9.0, 9.1, 12.0, 12.4, 2.7, 2.15)
+        outline(3.3, 4.0, 11.6, 12.4, 2.8, 2.15)
+        outline(8.9, 8.0, 11.8, 12.4, 2.8, 2.15)
     elseif kind == "edit" then
-        -- Geometrically aligned 45-degree pencil: parallel sides,
-        -- identical stroke widths, a clear cap and a centered sharp nib.
-        local tipX, tipY = 4.55, 21.25
-        local leftX, leftY = 6.8, 15.9
-        local rightX, rightY = 9.9, 19.0
-        local upperLeftX, upperLeftY = 16.0, 6.7
-        local upperRightX, upperRightY = 19.1, 9.8
-        strokeLine(leftX, leftY, upperLeftX, upperLeftY, 2.25)
-        strokeLine(upperLeftX, upperLeftY, upperRightX, upperRightY, 2.25)
-        strokeLine(upperRightX, upperRightY, rightX, rightY, 2.25)
-        strokeLine(rightX, rightY, tipX, tipY, 2.05)
-        strokeLine(tipX, tipY, leftX, leftY, 2.05)
-        strokeLine(leftX, leftY, rightX, rightY, 1.9)
-        -- Small ferrule seam, perpendicular to the pencil barrel.
-        strokeLine(13.9, 8.8, 17.0, 11.9, 1.65)
+        -- Cleaner pencil matching the downloaded reference pack.
+        local tipX, tipY = 4.8, 20.9
+        local leftX, leftY = 7.2, 15.7
+        local rightX, rightY = 9.8, 18.3
+        local upperLeftX, upperLeftY = 15.9, 7.0
+        local upperRightX, upperRightY = 18.5, 9.6
+        strokeLine(leftX, leftY, upperLeftX, upperLeftY, 2.15)
+        strokeLine(upperLeftX, upperLeftY, upperRightX, upperRightY, 2.15)
+        strokeLine(upperRightX, upperRightY, rightX, rightY, 2.15)
+        strokeLine(rightX, rightY, tipX, tipY, 2.0)
+        strokeLine(tipX, tipY, leftX, leftY, 2.0)
+        strokeLine(leftX, leftY, rightX, rightY, 1.8)
     elseif kind == "delete" then
-        strokeLine(3.5, 6.8, 20.5, 6.8, 2.1)
-        strokeLine(9, 4.1, 15, 4.1, 2.1)
-        strokeLine(9, 4.1, 8.2, 6.8, 2.1)
-        strokeLine(15, 4.1, 15.8, 6.8, 2.1)
-        strokeLine(6.5, 8.8, 7.1, 20.3, 2)
-        strokeLine(17.5, 8.8, 16.9, 20.3, 2)
-        strokeLine(7.1, 20.3, 16.9, 20.3, 2)
-        strokeLine(10.2, 10.6, 10.2, 17.2, 1.7)
-        strokeLine(13.8, 10.6, 13.8, 17.2, 1.7)
+        strokeLine(4.0, 6.8, 20.0, 6.8, 2.0)
+        strokeLine(9.0, 4.2, 15.0, 4.2, 2.0)
+        strokeLine(9.0, 4.2, 8.2, 6.8, 2.0)
+        strokeLine(15.0, 4.2, 15.8, 6.8, 2.0)
+        strokeLine(7.2, 8.8, 7.8, 19.8, 1.95)
+        strokeLine(16.8, 8.8, 16.2, 19.8, 1.95)
+        strokeLine(7.8, 19.8, 16.2, 19.8, 1.95)
+        strokeLine(10.4, 10.5, 10.4, 17.3, 1.7)
+        strokeLine(13.6, 10.5, 13.6, 17.3, 1.7)
     elseif kind == "save" then
-        -- Bookmark with plus sign, not a text glyph.
-        strokeLine(6.0, 3.2, 18.0, 3.2, 2.2)
-        strokeLine(6.0, 3.2, 6.0, 21.0, 2.2)
-        strokeLine(18.0, 3.2, 18.0, 21.0, 2.2)
-        strokeLine(6.0, 21.0, 12.0, 17.4, 2.2)
-        strokeLine(12.0, 17.4, 18.0, 21.0, 2.2)
-        strokeLine(12, 7, 12, 14, 2.1)
-        strokeLine(8.5, 10.5, 15.5, 10.5, 2.1)
+        strokeLine(6.2, 3.5, 17.8, 3.5, 2.1)
+        strokeLine(6.2, 3.5, 6.2, 20.8, 2.1)
+        strokeLine(17.8, 3.5, 17.8, 20.8, 2.1)
+        strokeLine(6.2, 20.8, 12.0, 17.2, 2.1)
+        strokeLine(12.0, 17.2, 17.8, 20.8, 2.1)
+        strokeLine(12.0, 7.3, 12.0, 13.6, 1.95)
+        strokeLine(8.9, 10.4, 15.1, 10.4, 1.95)
     elseif kind == "close" then
-        strokeLine(5, 5, 19, 19, 2.4)
-        strokeLine(19, 5, 5, 19, 2.4)
+        strokeLine(5.2, 5.2, 18.8, 18.8, 2.35)
+        strokeLine(18.8, 5.2, 5.2, 18.8, 2.35)
     elseif kind == "folder" then
-        strokeLine(2.5, 7.5, 2.5, 20, 2)
-        strokeLine(2.5, 7.5, 9.5, 7.5, 2)
-        strokeLine(9.5, 7.5, 12, 10, 2)
-        strokeLine(12, 10, 21.5, 10, 2)
-        strokeLine(21.5, 10, 21.5, 20, 2)
-        strokeLine(2.5, 20, 21.5, 20, 2)
+        strokeLine(2.8, 8.0, 2.8, 19.8, 2.0)
+        strokeLine(2.8, 8.0, 8.8, 8.0, 2.0)
+        strokeLine(8.8, 8.0, 11.7, 10.1, 2.0)
+        strokeLine(11.7, 10.1, 21.0, 10.1, 2.0)
+        strokeLine(21.0, 10.1, 21.0, 19.8, 2.0)
+        strokeLine(2.8, 19.8, 21.0, 19.8, 2.0)
     elseif kind == "placeholder" then
-        -- Clear single-user pictogram on an empty 3D viewport.
-        outline(8.1, 2, 7.8, 7.8, 8, 2)
-        strokeLine(4.0, 20, 4.0, 17.0, 2.2)
-        strokeLine(4.0, 17.0, 7.2, 13.1, 2.2)
-        strokeLine(7.2, 13.1, 16.8, 13.1, 2.2)
-        strokeLine(16.8, 13.1, 20.0, 17.0, 2.2)
-        strokeLine(20.0, 17.0, 20.0, 20.0, 2.2)
+        -- Smoother placeholder silhouette for the empty 3D viewport.
+        outline(8.0, 2.0, 8.0, 8.0, 8.0, 2.1)
+        roundedFrame({
+            Name = "ShoulderBar",
+            Position = UDim2.fromOffset(6.2 * u, 12.6 * u),
+            Size = UDim2.fromOffset(11.6 * u, 2.8 * u),
+            BackgroundColor3 = ink,
+            BorderSizePixel = 0,
+            Active = false,
+            ZIndex = z + 1
+        }, math.floor(1.3 * u))
+        strokeLine(6.4, 14.0, 3.8, 17.2, 2.2)
+        strokeLine(17.6, 14.0, 20.2, 17.2, 2.2)
+        roundedFrame({
+            Name = "LeftStem",
+            Position = UDim2.fromOffset(2.9 * u, 16.7 * u),
+            Size = UDim2.fromOffset(2.4 * u, 4.2 * u),
+            BackgroundColor3 = ink,
+            BorderSizePixel = 0,
+            Active = false,
+            ZIndex = z + 1
+        }, math.floor(1.0 * u))
+        roundedFrame({
+            Name = "RightStem",
+            Position = UDim2.fromOffset(18.7 * u, 16.7 * u),
+            Size = UDim2.fromOffset(2.4 * u, 4.2 * u),
+            BackgroundColor3 = ink,
+            BorderSizePixel = 0,
+            Active = false,
+            ZIndex = z + 1
+        }, math.floor(1.0 * u))
     elseif kind == "status" then
-        outline(2.5, 3, 19, 18, 4, 2)
-        strokeLine(5, 13, 8.5, 13, 1.7)
-        strokeLine(8.5, 13, 11.3, 9.5, 1.7)
-        strokeLine(11.3, 9.5, 14.3, 16, 1.7)
-        strokeLine(14.3, 16, 16.9, 12.6, 1.7)
-        strokeLine(16.9, 12.6, 19.2, 12.6, 1.7)
+        outline(2.6, 3.2, 18.8, 17.6, 4.2, 2.0)
+        curve({{5.2, 13.4}, {8.1, 13.4}, {10.7, 10.1}, {13.4, 15.8}, {16.0, 12.8}, {18.3, 12.8}}, 1.65)
     end
     return root
 end
@@ -1393,7 +1406,7 @@ if HeaderContour then
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.54",
+    Header, "AVATAR INSPECTOR v7.9.55",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1405,7 +1418,7 @@ HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
 HeaderTitle.Position = UDim2.fromOffset(18, 3)
 
 do
-    local subtitle = makeLabel(Header, "EVENT HORIZON / 053",
+    local subtitle = makeLabel(Header, "EVENT HORIZON / 055",
         UDim2.fromOffset(260, 14), UDim2.fromOffset(17, 29), 9)
     subtitle.Font = Enum.Font.GothamBold
     subtitle.TextColor3 = Color3.fromRGB(244, 184, 136)
@@ -1891,7 +1904,7 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- EVENT HORIZON / 053 lower structural belt: a segmented bridge + useful status console.
+-- EVENT HORIZON / 055 lower structural belt: a segmented bridge + useful status console.
 -- Explicitly replaces the older v7.9.42 bridge and brand pill; no stacking.
 local EHBridge = create("Frame", {
     Name = "EHLowerBridge",
@@ -5230,7 +5243,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.54 loaded successfully")
+print("Avatar Inspector v7.9.55 loaded successfully")
 
 end
 
@@ -5253,11 +5266,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.54 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.55 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.54 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.55 INITIALIZATION FINISHED")
 end
