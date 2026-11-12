@@ -1,11 +1,11 @@
 --[[
-    AVATAR INSPECTOR v7.9.52
+    AVATAR INSPECTOR v7.9.53
 
-    CHANGES IN v7.9.52:
-    - Signature Labels: real framed ONLINE, MODEL READY, worn-item and scan chips
-    - Model-ready indicator changes with preview selection state
-    - Search icon moved back to the left, slightly inset
-    - Previous brightness polish and removal of detached top bars retained
+    CHANGES IN v7.9.53:
+    - Two-person icon rebuilt with symmetrical curved shoulders and clean circular heads
+    - Rename-pencil icon redrawn at a consistent 45-degree angle with aligned tip
+    - Removed jagged gradient-masked shoulder outlines, preserving the chosen copper palette
+    - Preserves v7.9.52 Signature Labels, layout, camera, favorites, and icon button actions
 
     PRESERVED FEATURES:
     - Event Horizon Signature: integrated frames, dark animated controls and empty-preview avatar
@@ -791,24 +791,24 @@ function EH.icon(parent, kind, position, size)
     end
 
     if kind == "players" then
-        outline(3, 2.2, 7.2, 7.2, 7, 2.1)
-        outline(14.3, 4.2, 6.1, 6.1, 6, 2.1)
-        -- Shoulder arches use a soft rounded stroke masked at the bottom.
-        for _, a in ipairs({{x=1.5,y=13,w=13,h=12},{x=13.6,y=14,w=9.2,h=10}}) do
-            local shoulder = outline(a.x, a.y, a.w, a.h, 8, 2.2)
-            local border = shoulder:FindFirstChildOfClass("UIStroke")
-            if border then
-                create("UIGradient", {
-                    Transparency = NumberSequence.new({
-                        NumberSequenceKeypoint.new(0, 0),
-                        NumberSequenceKeypoint.new(0.54, 0),
-                        NumberSequenceKeypoint.new(0.60, 1),
-                        NumberSequenceKeypoint.new(1, 1)
-                    }),
-                    Rotation = 90
-                }, border)
+        -- Smooth, symmetrical shoulder curves like the reference icon.
+        -- No half-hidden UIStroke / gradient: those produced jagged gaps.
+        local function curvedShoulders(x0, y0, cx, cy, x1, y1, steps, width)
+            local previousX, previousY = x0, y0
+            for i = 1, steps do
+                local t = i / steps
+                local inv = 1 - t
+                local x = inv * inv * x0 + 2 * inv * t * cx + t * t * x1
+                local y = inv * inv * y0 + 2 * inv * t * cy + t * t * y1
+                strokeLine(previousX, previousY, x, y, width)
+                previousX, previousY = x, y
             end
         end
+        -- Rear person first, so the front portrait reads as a single shape.
+        outline(14.7, 4.2, 5.5, 5.5, 5.5, 2.1)
+        curvedShoulders(13.9, 17.1, 18, 10.5, 22.1, 20, 8, 2.25)
+        outline(4.5, 2.7, 7.2, 7.2, 7.2, 2.1)
+        curvedShoulders(2.0, 21.0, 8.4, 5.4, 14.9, 21.0, 12, 2.35)
     elseif kind == "viewer" then
         -- Four scanning corners, eyes and a small smile.
         strokeLine(2.5, 8.5, 2.5, 4)
@@ -839,13 +839,21 @@ function EH.icon(parent, kind, position, size)
         outline(3.2, 3.0, 12.8, 13.8, 2.7, 2.15)
         outline(9.0, 9.1, 12.0, 12.4, 2.7, 2.15)
     elseif kind == "edit" then
-        -- Pencil tilted to the upper right, with a clear cap and pointed tip.
-        strokeLine(5.3, 18.3, 16.8, 6.8, 2.1)
-        strokeLine(8.7, 21.5, 20.2, 10.0, 2.1)
-        strokeLine(16.8, 6.8, 20.2, 10.0, 2.1)
-        strokeLine(5.3, 18.3, 8.7, 21.5, 2.1)
-        strokeLine(3.0, 22.3, 5.3, 18.3, 1.9)
-        strokeLine(3.0, 22.3, 8.7, 21.5, 1.9)
+        -- Geometrically aligned 45-degree pencil: parallel sides,
+        -- identical stroke widths, a clear cap and a centered sharp nib.
+        local tipX, tipY = 4.55, 21.25
+        local leftX, leftY = 6.8, 15.9
+        local rightX, rightY = 9.9, 19.0
+        local upperLeftX, upperLeftY = 16.0, 6.7
+        local upperRightX, upperRightY = 19.1, 9.8
+        strokeLine(leftX, leftY, upperLeftX, upperLeftY, 2.25)
+        strokeLine(upperLeftX, upperLeftY, upperRightX, upperRightY, 2.25)
+        strokeLine(upperRightX, upperRightY, rightX, rightY, 2.25)
+        strokeLine(rightX, rightY, tipX, tipY, 2.05)
+        strokeLine(tipX, tipY, leftX, leftY, 2.05)
+        strokeLine(leftX, leftY, rightX, rightY, 1.9)
+        -- Small ferrule seam, perpendicular to the pencil barrel.
+        strokeLine(13.9, 8.8, 17.0, 11.9, 1.65)
     elseif kind == "delete" then
         strokeLine(3.5, 6.8, 20.5, 6.8, 2.1)
         strokeLine(9, 4.1, 15, 4.1, 2.1)
@@ -1329,7 +1337,7 @@ if HeaderContour then
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.52",
+    Header, "AVATAR INSPECTOR v7.9.53",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1341,7 +1349,7 @@ HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
 HeaderTitle.Position = UDim2.fromOffset(18, 3)
 
 do
-    local subtitle = makeLabel(Header, "EVENT HORIZON / 052",
+    local subtitle = makeLabel(Header, "EVENT HORIZON / 053",
         UDim2.fromOffset(260, 14), UDim2.fromOffset(17, 29), 9)
     subtitle.Font = Enum.Font.GothamBold
     subtitle.TextColor3 = Color3.fromRGB(244, 184, 136)
@@ -1825,7 +1833,7 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- EVENT HORIZON / 052 lower structural belt: a segmented bridge + useful status console.
+-- EVENT HORIZON / 053 lower structural belt: a segmented bridge + useful status console.
 -- Explicitly replaces the older v7.9.42 bridge and brand pill; no stacking.
 local EHBridge = create("Frame", {
     Name = "EHLowerBridge",
@@ -4157,7 +4165,7 @@ refreshPlayerList = function()
         UDim2.fromOffset(18, 18), UDim2.fromOffset(10, 8), 12)
     listIcon.TextColor3 = Color3.fromRGB(234, 181, 137)
     listIcon.Font = Enum.Font.GothamBold
-    EH.safeIcon(countHeader, "players", UDim2.fromOffset(9, 7), 20)
+    EH.safeIcon(countHeader, "players", UDim2.fromOffset(8, 6), 23)
 
     local listTitle = makeLabel(countHeader, "PLAYERS",
         UDim2.new(1, -56, 0, 18), UDim2.fromOffset(35, 8), 10)
@@ -5161,7 +5169,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.52 loaded successfully")
+print("Avatar Inspector v7.9.53 loaded successfully")
 
 end
 
@@ -5184,11 +5192,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.52 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.53 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.52 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.53 INITIALIZATION FINISHED")
 end
