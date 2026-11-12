@@ -1,8 +1,8 @@
 --[[
-    AVATAR INSPECTOR v7.9.43
+    AVATAR INSPECTOR v7.9.44
 
     CHANGES:
-    - Event Horizon Refined: structural design instead of color-only changes
+    - Event Horizon Refined 2.0: app-like section modules, panel symbols and cleaner edge geometry
     - Segmented spectrum header with stable single-gradient animation
     - Precision corner brackets, status modules, and unified panel framing
     - Rebuilt player/item cards with inlaid left rails and compact highlights
@@ -712,24 +712,25 @@ function EH.ehPanel(parent, kind)
         end
         return
     end
-    -- Geometric corner brackets and small signal mark (instead of four full rails).
-    for _, atRight in ipairs({false, true}) do
-        local x = atRight and UDim2.new(1, -16, 0, 0) or UDim2.fromOffset(0, 0)
-        local x2 = atRight and UDim2.new(1, -2, 0, 0) or UDim2.fromOffset(0, 0)
-        EH.accentRule(parent, x, UDim2.fromOffset(16, 2), 0.1)
-        EH.accentRule(parent, x2, UDim2.fromOffset(2, 17), 0.1)
-    end
-    EH.accentRule(parent, UDim2.new(0, 17, 1, -2),
-        UDim2.new(1, -34, 0, 2), 0.76)
+    -- Cleaner section geometry: smooth top segments, restrained bottom bar and one signal dot.
+    local leftSeg = EH.accentRule(parent, UDim2.fromOffset(14, 8), UDim2.fromOffset(34, 2), 0.12)
+    round(leftSeg, 2)
+    local rightSeg = EH.accentRule(parent, UDim2.new(1, -48, 0, 8), UDim2.fromOffset(34, 2), 0.12)
+    round(rightSeg, 2)
+    local topBridge = EH.accentRule(parent, UDim2.fromOffset(56, 8), UDim2.new(1, -112, 0, 2), 0.58, Color3.fromRGB(188, 126, 118))
+    round(topBridge, 2)
+    local bottomBridge = EH.accentRule(parent, UDim2.new(0, 14, 1, -10), UDim2.new(1, -28, 0, 1), 0.82, Color3.fromRGB(140, 88, 101))
+    bottomBridge.AnchorPoint = Vector2.new(0, 1)
     local signal = create("Frame", {
         Name = "EHSignalDot",
-        Position = UDim2.new(1, -12, 0, 13),
-        Size = UDim2.fromOffset(5, 5),
+        Position = UDim2.new(1, -16, 0, 13),
+        Size = UDim2.fromOffset(8, 8),
         BackgroundColor3 = Color3.fromRGB(234, 171, 124),
         BorderSizePixel = 0,
         Active = false
     }, parent)
-    round(signal, 5)
+    round(signal, 8)
+    create("UIStroke", {Color = Color3.fromRGB(255, 221, 178), Transparency = 0.45, Thickness = 1}, signal)
 end
 
 function EH.ehCard(card)
@@ -1132,7 +1133,7 @@ do
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.43",
+    Header, "AVATAR INSPECTOR v7.9.44",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1310,6 +1311,15 @@ create("UIGradient", {
         ColorSequenceKeypoint.new(1, Color3.fromRGB(37, 26, 37))
     })
 }, Search)
+create("UIPadding", {
+    PaddingLeft = UDim.new(0, 28),
+    PaddingRight = UDim.new(0, 8)
+}, Search)
+local SearchIcon = makeLabel(Search, "⌕",
+    UDim2.fromOffset(18, 18), UDim2.fromOffset(8, 8), 14)
+SearchIcon.TextColor3 = Color3.fromRGB(226, 170, 130)
+SearchIcon.Font = Enum.Font.GothamBold
+SearchIcon.ZIndex = 4
 
 local searchOutline = Search:FindFirstChildOfClass("UIStroke")
 if searchOutline then
@@ -1376,16 +1386,26 @@ addStroke(Viewport)
 EH.ehPanel(Viewport, "viewer")
 -- Viewport identification stays away from the avatar and the FREE LOOK control.
 do
-    local viewerInfo = makeLabel(Viewport, "3D VIEW / 360",
-        UDim2.fromOffset(99, 18), UDim2.new(1, -110, 0, 9), 9)
-    viewerInfo.TextColor3 = Color3.fromRGB(204, 155, 144)
-    viewerInfo.TextXAlignment = Enum.TextXAlignment.Right
-    viewerInfo.ZIndex = 3
+    local viewerIcon = makeLabel(Viewport, "⌖",
+        UDim2.fromOffset(16, 18), UDim2.fromOffset(14, 18), 12)
+    viewerIcon.TextColor3 = Color3.fromRGB(234, 181, 137)
+    viewerIcon.Font = Enum.Font.GothamBold
+    viewerIcon.ZIndex = 4
+    local viewerInfo = makeLabel(Viewport, "3D-PREVIEW",
+        UDim2.fromOffset(120, 18), UDim2.fromOffset(34, 18), 10)
+    viewerInfo.TextColor3 = Color3.fromRGB(238, 229, 224)
+    viewerInfo.Font = Enum.Font.GothamBold
+    viewerInfo.ZIndex = 4
+    local viewerMode = makeLabel(Viewport, "MODEL READY",
+        UDim2.fromOffset(120, 22), UDim2.fromOffset(14, 279), 10)
+    viewerMode.TextColor3 = Color3.fromRGB(216, 169, 145)
+    viewerMode.Font = Enum.Font.GothamBold
+    viewerMode.ZIndex = 4
 end
 
 local ViewModeBar = create("Frame", {
     Name = "ViewModeBar",
-    Position = UDim2.fromOffset(7, 7),
+    Position = UDim2.fromOffset(9, 40),
     Size = UDim2.fromOffset(114, 31),
     BackgroundColor3 = BG,
     BackgroundTransparency = 0.12,
@@ -1494,10 +1514,17 @@ round(ItemsPanel, 12)
 addStroke(ItemsPanel)
 EH.ehPanel(ItemsPanel, "viewer")
 
+local ItemsTitleIcon = makeLabel(
+    ItemsPanel, "≣",
+    UDim2.fromOffset(18, 18), UDim2.fromOffset(14, 8), 12
+)
+ItemsTitleIcon.TextColor3 = Color3.fromRGB(234, 181, 137)
+ItemsTitleIcon.Font = Enum.Font.GothamBold
+
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
     UDim2.new(1, -194, 0, 30),
-    UDim2.fromOffset(10, 4), 11
+    UDim2.fromOffset(34, 4), 11
 )
 
 EH.ehSectionLabel(ItemsTitle)
@@ -1514,9 +1541,16 @@ WornCountLabel.TextColor3 = ID_GREEN
 WornCountLabel.Font = Enum.Font.GothamBold
 WornCountLabel.TextXAlignment = Enum.TextXAlignment.Right
 
+local ItemsStatusChip = makeLabel(
+    ItemsPanel, "SCAN ACTIVE",
+    UDim2.fromOffset(106, 18), UDim2.fromOffset(14, 326), 10
+)
+ItemsStatusChip.TextColor3 = Color3.fromRGB(216, 169, 145)
+ItemsStatusChip.Font = Enum.Font.GothamBold
+
 local ItemList = create("ScrollingFrame", {
     Position = UDim2.fromOffset(6, 38),
-    Size = UDim2.new(1, -12, 1, -44),
+    Size = UDim2.new(1, -12, 1, -64),
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     ScrollBarThickness = 5,
@@ -1602,12 +1636,27 @@ local BrandPill = create("Frame", {
     Active = false
 }, StatusConsole)
 round(BrandPill, 8)
+local StatusIcon = makeLabel(
+    BrandPill, "☑",
+    UDim2.fromOffset(16, 16), UDim2.fromOffset(8, 5), 12
+)
+StatusIcon.TextColor3 = Color3.fromRGB(243, 184, 141)
+StatusIcon.Font = Enum.Font.GothamBold
+
 local BrandLabel = makeLabel(
     BrandPill, "SYSTEM STATUS",
-    UDim2.new(1, -8, 1, 0), UDim2.fromOffset(5, 0), 10
+    UDim2.new(1, -28, 1, 0), UDim2.fromOffset(25, 0), 10
 )
 BrandLabel.TextColor3 = Color3.fromRGB(243, 184, 141)
 BrandLabel.Font = Enum.Font.GothamBold
+
+local StatusActive = makeLabel(
+    StatusConsole, "ACTIVE",
+    UDim2.fromOffset(64, 20), UDim2.new(1, -84, 0, 10), 10
+)
+StatusActive.TextColor3 = Color3.fromRGB(243, 184, 141)
+StatusActive.TextXAlignment = Enum.TextXAlignment.Right
+StatusActive.Font = Enum.Font.GothamBold
 
 -- The right-hand indicator reflects that the GUI is alive, not whether scanning is active.
 do
@@ -3582,10 +3631,17 @@ local function addItem(name, assetId, category)
     create("UIStroke", {Color = OUTLINE, Transparency = 0.45,
         Thickness = 1}, image)
 
+    local itemMarker = makeLabel(
+        card, "◦",
+        UDim2.fromOffset(12, 14), UDim2.fromOffset(60, 8), 11
+    )
+    itemMarker.TextColor3 = Color3.fromRGB(235, 180, 136)
+    itemMarker.Font = Enum.Font.GothamBold
+
     local itemName = makeLabel(
         card, name,
         UDim2.new(1, -101, 0, 22),
-        UDim2.fromOffset(60, 5), 11
+        UDim2.fromOffset(72, 5), 11
     )
 
     itemName.Font = Enum.Font.GothamMedium
@@ -3593,7 +3649,7 @@ local function addItem(name, assetId, category)
     local itemId = makeLabel(
         card, tostring(assetId),
         UDim2.new(1, -101, 0, 24),
-        UDim2.fromOffset(60, 28), 13
+        UDim2.fromOffset(72, 28), 13
     )
 
     -- Обновлённое оформление идентификаторов.
@@ -3603,7 +3659,7 @@ local function addItem(name, assetId, category)
     local copyButton = makeButton(
         card, "⧉",
         UDim2.fromOffset(32, 28),
-        UDim2.new(1, -38, 0, 40),
+        UDim2.new(1, -42, 0, 37),
         ACCENT
     )
 
@@ -3818,23 +3874,31 @@ refreshPlayerList = function()
 
     local serverPlayerList = Players:GetPlayers()
     local serverPlayers = #serverPlayerList
-    local countHeader = create("TextLabel", {
+
+    local countHeader = create("Frame", {
         Name = "ServerPlayerCount",
-        Size = UDim2.new(1, -4, 0, 24),
-        BackgroundColor3 = PANEL,
-        BackgroundTransparency = 0.1,
+        Size = UDim2.new(1, -4, 0, 64),
+        BackgroundColor3 = LIGHT,
         BorderSizePixel = 0,
-        Text = string.format("PLAYERS ON SERVER: %d", serverPlayers),
-        TextColor3 = ID_GREEN,
-        TextSize = 11,
-        Font = Enum.Font.GothamBold,
-        TextXAlignment = Enum.TextXAlignment.Left,
         LayoutOrder = 0
     }, PlayerList)
-    create("UIPadding", {PaddingLeft = UDim.new(0, 6)}, countHeader)
-    countHeader.Text = "●  " .. countHeader.Text
-    create("UIStroke", {Color = Color3.fromRGB(115, 79, 91),
-        Transparency = 0.75, Thickness = 1}, countHeader)
+    EH.ehCard(countHeader)
+
+    local listIcon = makeLabel(countHeader, "◎",
+        UDim2.fromOffset(18, 18), UDim2.fromOffset(10, 8), 12)
+    listIcon.TextColor3 = Color3.fromRGB(234, 181, 137)
+    listIcon.Font = Enum.Font.GothamBold
+
+    local listTitle = makeLabel(countHeader, "PLAYERS",
+        UDim2.new(1, -56, 0, 18), UDim2.fromOffset(32, 8), 10)
+    listTitle.Font = Enum.Font.GothamBold
+    listTitle.TextColor3 = WHITE
+
+    local countText = makeLabel(countHeader,
+        string.format("%02d ONLINE", serverPlayers),
+        UDim2.new(1, -20, 0, 22), UDim2.fromOffset(10, 34), 10)
+    countText.Font = Enum.Font.GothamBold
+    countText.TextColor3 = Color3.fromRGB(216, 169, 145)
 
     local filter = string.lower(Search.Text)
 
@@ -4821,11 +4885,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.43 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.44 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.43 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.44 INITIALIZATION FINISHED")
 end
