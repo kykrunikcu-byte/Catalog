@@ -1,17 +1,36 @@
 --[[
-    AVATAR INSPECTOR v7.9.46
+    AVATAR INSPECTOR v7.9.47
 
     CHANGES:
-    - Fixed nil viewerIcon reference that stopped GUI initialization after floating icon appeared
-    - Preserved native icon visuals and existing systems without further UI changes
-    - Native Roblox vector pictograms for PLAYERS, 3D VIEW and ITEMS
-    - Native search, copy, and system-status icons (no font-dependent glyphs)
-    - One clean rounded top rule on module panels instead of broken corner strips
-    - Simplified card inlays and replaced redundant decorative segments
-    - Restored readable search text by removing gradient from the TextBox
-    - Fixed bottom status / ACTIVE text overlap and relative-positioned footer chips
-    - User-friendly accessory category labels in place of Enum.AccessoryType.*
-    - Preserve three-column layout, preview size, functions and all translations
+    - Startup recovery based directly on confirmed working v7.9.44
+    - Early floating-toggle binding, independent from late UI initialization
+    - Optional, exception-isolated native icons for Players/3D/Items/Search/Copy/Status
+    - No font-dependent pictograms for new icons
+    - Original scanning, 3D preview, poses, camera, languages and JSON saves unchanged
+    - No additional animated loops; decorative changes are optional
+    - Event Horizon Refined 2.0: app-like section modules, panel symbols and cleaner edge geometry
+    - Segmented spectrum header with stable single-gradient animation
+    - Precision corner brackets, status modules, and unified panel framing
+    - Rebuilt player/item cards with inlaid left rails and compact highlights
+    - Preserves preview size, input, scanning, saved outfits and all translations
+    - Replaced older decorative overlays rather than stacking duplicate effects
+    - Single FREE LOOK camera control; removed redundant ORBIT button
+    - Event Horizon black/copper/rose style using existing panels
+    - One animated spectrum rail and one static lower bridge
+    - Reused branded status console; removed redundant decorative layers
+    - Removed unreachable preview helper and write-only pose/bounds fields
+    - Branded close, rename and delete controls
+    - Updated graphite/navy styling and persistent selection indicators
+    - Fixed scaled-window dragging and confirmation dialog
+    - Replaced fixed camera with 360-degree orbit
+    - 12-language localization: added Simplified Chinese and Belarusian
+    - Language picker now shows flags and fits complete native language names
+    - Wider language button and larger worn-items counter
+    - Preserved v7.9.26 functionality
+    - Green, larger and bold asset IDs
+    - Separate AVATAR ITEMS and ANIMATIONS sections
+    - Walk, Run, Idle, Jump, Fall, Climb, Swim and Mood IDs
+    - Animation categories preserved in favorites
 
     PRESERVED:
     - Adaptive universal pose system
@@ -668,13 +687,13 @@ function EH.ehStroke(parent, tone, transparency, thickness)
 end
 
 function EH.ehPanel(parent, kind)
-    -- Keep one continuous stroke. Older versions layered short rails at every
-    -- corner, producing the fragmented / ripped appearance on small screens.
-    EH.ehStroke(parent, kind == "viewer" and Color3.fromRGB(190, 132, 114)
-        or Color3.fromRGB(130, 87, 104), 0.2, 1.25)
+    EH.ehStroke(parent, kind == "viewer" and Color3.fromRGB(200, 137, 119)
+        or Color3.fromRGB(130, 87, 104), 0.16, 1.3)
+    -- ScrollingFrame content is driven by UIListLayout and cleared dynamically:
+    -- avoid adding decorative Frame children that would be treated as list rows.
     if kind == "scroll" then return end
     if kind == "shell" then
-        local inner = create("Frame", {
+        local frame = create("Frame", {
             Name = "EHInsetShell",
             Position = UDim2.fromOffset(5, 5),
             Size = UDim2.new(1, -10, 1, -10),
@@ -682,89 +701,113 @@ function EH.ehPanel(parent, kind)
             BorderSizePixel = 0,
             Active = false
         }, parent)
-        round(inner, 14)
+        round(frame, 14)
         create("UIStroke", {
             Color = Color3.fromRGB(87, 53, 70),
-            Transparency = 0.65,
+            Transparency = 0.46,
             Thickness = 1
-        }, inner)
+        }, frame)
+        for _, x in ipairs({10, -40}) do
+            local atRight = x < 0
+            EH.accentRule(parent,
+                atRight and UDim2.new(1, x, 0, 7) or UDim2.fromOffset(x, 7),
+                UDim2.fromOffset(30, 2), 0.15)
+            EH.accentRule(parent,
+                atRight and UDim2.new(1, x, 1, -9) or UDim2.new(0, x, 1, -9),
+                UDim2.fromOffset(30, 2), 0.15)
+        end
         return
     end
-    -- One inset line from end to end, rounded, plus a non-interactive signal.
-    local top = EH.accentRule(parent, UDim2.fromOffset(13, 9),
-        UDim2.new(1, -26, 0, 2), 0.35,
-        Color3.fromRGB(210, 137, 117))
-    round(top, 2)
+    -- Cleaner section geometry: smooth top segments, restrained bottom bar and one signal dot.
+    local leftSeg = EH.accentRule(parent, UDim2.fromOffset(14, 8), UDim2.fromOffset(34, 2), 0.12)
+    round(leftSeg, 2)
+    local rightSeg = EH.accentRule(parent, UDim2.new(1, -48, 0, 8), UDim2.fromOffset(34, 2), 0.12)
+    round(rightSeg, 2)
+    local topBridge = EH.accentRule(parent, UDim2.fromOffset(56, 8), UDim2.new(1, -112, 0, 2), 0.58, Color3.fromRGB(188, 126, 118))
+    round(topBridge, 2)
+    local bottomBridge = EH.accentRule(parent, UDim2.new(0, 14, 1, -10), UDim2.new(1, -28, 0, 1), 0.82, Color3.fromRGB(140, 88, 101))
+    bottomBridge.AnchorPoint = Vector2.new(0, 1)
+    local signal = create("Frame", {
+        Name = "EHSignalDot",
+        Position = UDim2.new(1, -16, 0, 13),
+        Size = UDim2.fromOffset(8, 8),
+        BackgroundColor3 = Color3.fromRGB(234, 171, 124),
+        BorderSizePixel = 0,
+        Active = false
+    }, parent)
+    round(signal, 8)
+    create("UIStroke", {Color = Color3.fromRGB(255, 221, 178), Transparency = 0.45, Thickness = 1}, signal)
 end
 
--- Icons are built entirely from native Roblox Frames. Unicode pictograms
--- rendered as empty squares on some Android executors/fonts, so no asset IDs
--- or external image loading is required for these system symbols.
-function EH.icon(parent, style, position, pixels)
+-- Optional native UI icons. All calls are guarded with pcall so decoration
+-- can never abort startup or the avatar scan.
+function EH.icon(parent, kind, position, size)
+    local sz = size or 22
+    local unit = sz / 24
+    local z = parent.ZIndex + 2
+    local ink = Color3.fromRGB(231, 172, 133)
     local root = create("Frame", {
-        Name = "EHIcon_" .. style,
+        Name = "EHIcon_" .. tostring(kind),
+        Size = UDim2.fromOffset(sz, sz),
+        Position = position,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Position = position,
-        Size = UDim2.fromOffset(30, 30),
-        Active = false,
-        ZIndex = parent.ZIndex + 2
+        ZIndex = z,
+        Active = false
     }, parent)
-    create("UIScale", {Scale = (pixels or 30) / 30}, root)
-    local copper = Color3.fromRGB(233, 172, 130)
-    local bright = Color3.fromRGB(253, 205, 158)
-    local function part(x, y, w, h, radius, outline, rotation, color)
-        local node = create("Frame", {
-            Position = UDim2.fromOffset(x, y),
-            Size = UDim2.fromOffset(w, h),
-            BackgroundColor3 = color or copper,
+    local function piece(x, y, w, h, corner, outline)
+        local part = create("Frame", {
+            Position = UDim2.fromOffset(math.floor(x * unit + 0.5), math.floor(y * unit + 0.5)),
+            Size = UDim2.fromOffset(math.max(2, math.floor(w * unit + 0.5)), math.max(2, math.floor(h * unit + 0.5))),
+            BackgroundColor3 = ink,
             BackgroundTransparency = outline and 1 or 0,
             BorderSizePixel = 0,
-            Rotation = rotation or 0,
-            Active = false,
-            ZIndex = root.ZIndex + 1
+            ZIndex = z + 1,
+            Active = false
         }, root)
-        if radius then round(node, radius) end
+        if corner then round(part, math.max(2, math.floor(corner * unit + 0.5))) end
         if outline then
-            create("UIStroke", {Color = copper, Thickness = 2.1}, node)
+            create("UIStroke", {Color = ink, Thickness = math.max(1, 1.4 * unit), Transparency = 0.05}, part)
         end
-        return node
+        return part
     end
-    if style == "players" then
-        -- Two heads over shoulders, recognizable even at 20-24 px.
-        part(4, 4, 9, 9, 9, false)
-        part(18, 4, 9, 9, 9, false, nil, bright)
-        part(1, 16, 15, 12, 10, true)
-        part(15, 16, 14, 12, 10, true)
-    elseif style == "viewer" then
-        -- Four scan brackets and central target dot.
-        for _, x in ipairs({3, 20}) do
-            for _, y in ipairs({3, 20}) do
-                local stepX = x == 3 and 0 or 9
-                local stepY = y == 3 and 0 or 9
-                part(x, y, 9, 2, 1, false)
-                part(x + stepX, y + stepY, 2, 9, 1, false)
-            end
-        end
-        part(12, 12, 6, 6, 6, false, nil, bright)
-    elseif style == "items" then
-        -- Three outlined inventory layers.
-        part(5, 4, 20, 8, 3, true)
-        part(3, 12, 24, 8, 3, true)
-        part(7, 20, 16, 7, 3, true)
-    elseif style == "search" then
-        part(5, 4, 16, 16, 16, true)
-        part(20, 19, 10, 3, 2, false, 45)
-    elseif style == "copy" then
-        part(4, 4, 15, 16, 2, true)
-        part(11, 11, 15, 16, 2, true, nil, bright)
-    elseif style == "status" then
-        part(3, 3, 24, 24, 6, true)
-        part(7, 15, 6, 2, 1, false)
-        part(12, 13, 8, 2, 1, false, -45)
-        part(20, 9, 5, 2, 1, false)
+    if kind == "players" then
+        -- Two recognisable heads with shoulders (not a font glyph).
+        piece(3, 3, 7, 7, 7)
+        piece(14, 3, 7, 7, 7)
+        piece(2, 13, 10, 9, 5, true)
+        piece(12, 13, 10, 9, 5, true)
+    elseif kind == "viewer" then
+        piece(2, 2, 8, 2, 1); piece(2, 2, 2, 8, 1)
+        piece(14, 2, 8, 2, 1); piece(20, 2, 2, 8, 1)
+        piece(2, 20, 8, 2, 1); piece(2, 14, 2, 8, 1)
+        piece(14, 20, 8, 2, 1); piece(20, 14, 2, 8, 1)
+        piece(10, 10, 4, 4, 4)
+    elseif kind == "items" then
+        piece(3, 3, 18, 5, 2, true)
+        piece(3, 10, 18, 5, 2, true)
+        piece(3, 17, 18, 5, 2, true)
+    elseif kind == "search" then
+        piece(3, 2, 14, 14, 14, true)
+        piece(14, 15, 9, 3, 1)
+    elseif kind == "copy" then
+        piece(3, 3, 14, 15, 2, true)
+        piece(9, 9, 13, 13, 2, true)
+    elseif kind == "status" then
+        piece(3, 3, 18, 18, 4, true)
+        piece(6, 12, 5, 2, 1)
+        piece(10, 9, 5, 2, 1)
+        piece(15, 12, 4, 2, 1)
     end
     return root
+end
+
+function EH.safeIcon(parent, kind, position, size)
+    local ok, result = pcall(EH.icon, parent, kind, position, size)
+    if not ok then
+        warn("[Avatar Inspector] Decorative icon skipped: " .. tostring(result))
+    end
+    return ok and result or nil
 end
 
 function EH.ehCard(card)
@@ -775,10 +818,13 @@ function EH.ehCard(card)
         Thickness = 1,
         Transparency = 0.63
     }, card)
-    local inset = EH.accentRule(card, UDim2.fromOffset(5, 13),
-        UDim2.fromOffset(3, 19), 0.05,
+    EH.accentRule(card, UDim2.fromOffset(0, 10),
+        UDim2.fromOffset(2, 24), 0.15,
         Color3.fromRGB(224, 150, 120))
-    round(inset, 3)
+    local sheen = EH.accentRule(card, UDim2.fromOffset(10, 0),
+        UDim2.new(1, -20, 0, 1), 0.68,
+        Color3.fromRGB(223, 170, 140))
+    sheen.Name = "EHCardInlay"
 end
 
 function EH.ehSectionLabel(label, marker)
@@ -1127,6 +1173,22 @@ local UIScale = create("UIScale", {
     Scale = 1
 }, Main)
 
+-- Recovery-safe event binding. The full animated action is installed later;
+-- until then the floating button can still show the actual Main window.
+EH.mainOpenAction = nil
+Toggle.Activated:Connect(function()
+    if EH.mainOpenAction then
+        local ok, err = pcall(EH.mainOpenAction)
+        if not ok then
+            warn("[Avatar Inspector] Open animation failed: " .. tostring(err))
+            Main.Visible = not Main.Visible
+            UIScale.Scale = 1
+        end
+    else
+        Main.Visible = not Main.Visible
+    end
+end)
+
 local Header = create("Frame", {
     Size = UDim2.new(1, 0, 0, 48),
     BackgroundColor3 = PANEL,
@@ -1134,6 +1196,7 @@ local Header = create("Frame", {
 }, Main)
 
 round(Header, 15)
+EH.accentRule(Header, UDim2.fromOffset(0, 12), UDim2.fromOffset(4, 25), 0.02)
 create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(36, 25, 34)),
@@ -1145,12 +1208,16 @@ create("UIGradient", {
 addStroke(Header)
 -- Compact segmented spectrum bridge; the center is the only animated rail.
 do
+    EH.accentRule(Header, UDim2.fromOffset(18, 51),
+        UDim2.fromOffset(25, 4), 0.04)
+    EH.accentRule(Header, UDim2.new(1, -43, 1, 3),
+        UDim2.fromOffset(25, 4), 0.04)
     local headerRail = create("Frame", {
         Name = "EHSpectrumMain",
         BorderSizePixel = 0,
         BackgroundColor3 = Color3.fromRGB(239, 177, 128),
-        Size = UDim2.new(1, -38, 0, 3),
-        Position = UDim2.new(0, 19, 1, 3),
+        Size = UDim2.new(1, -100, 0, 4),
+        Position = UDim2.new(0, 50, 1, 3),
         ZIndex = 4,
         Active = false
     }, Header)
@@ -1159,7 +1226,7 @@ do
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.46",
+    Header, "AVATAR INSPECTOR v7.9.47",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1171,7 +1238,7 @@ HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
 HeaderTitle.Position = UDim2.fromOffset(18, 3)
 
 do
-    local subtitle = makeLabel(Header, "EVENT HORIZON / 046",
+    local subtitle = makeLabel(Header, "EVENT HORIZON / 047",
         UDim2.fromOffset(260, 14), UDim2.fromOffset(17, 29), 9)
     subtitle.Font = Enum.Font.GothamBold
     subtitle.TextColor3 = Color3.fromRGB(229, 163, 120)
@@ -1334,9 +1401,13 @@ create("UIPadding", {
     PaddingLeft = UDim.new(0, 28),
     PaddingRight = UDim.new(0, 8)
 }, Search)
-EH.icon(Search, "search", UDim2.fromOffset(5, 7), 20)
 Search.TextColor3 = Color3.fromRGB(249, 242, 236)
 Search.PlaceholderColor3 = Color3.fromRGB(172, 155, 167)
+local SearchIcon = makeLabel(Search, "",
+    UDim2.fromOffset(18, 18), UDim2.fromOffset(8, 8), 14)
+SearchIcon.TextColor3 = Color3.fromRGB(226, 170, 130)
+SearchIcon.Font = Enum.Font.GothamBold
+SearchIcon.ZIndex = 4
 
 local searchOutline = Search:FindFirstChildOfClass("UIStroke")
 if searchOutline then
@@ -1403,15 +1474,18 @@ addStroke(Viewport)
 EH.ehPanel(Viewport, "viewer")
 -- Viewport identification stays away from the avatar and the FREE LOOK control.
 do
-    local viewerIcon = EH.icon(Viewport, "viewer", UDim2.fromOffset(13, 12), 22)
+    local viewerIcon = makeLabel(Viewport, "",
+        UDim2.fromOffset(16, 18), UDim2.fromOffset(14, 18), 12)
+    viewerIcon.TextColor3 = Color3.fromRGB(234, 181, 137)
+    viewerIcon.Font = Enum.Font.GothamBold
     viewerIcon.ZIndex = 4
     local viewerInfo = makeLabel(Viewport, "3D-PREVIEW",
-        UDim2.fromOffset(120, 18), UDim2.fromOffset(45, 15), 10)
+        UDim2.fromOffset(120, 18), UDim2.fromOffset(34, 18), 10)
     viewerInfo.TextColor3 = Color3.fromRGB(238, 229, 224)
     viewerInfo.Font = Enum.Font.GothamBold
     viewerInfo.ZIndex = 4
     local viewerMode = makeLabel(Viewport, "MODEL READY",
-        UDim2.fromOffset(120, 22), UDim2.new(0, 14, 1, -29), 10)
+        UDim2.fromOffset(120, 22), UDim2.fromOffset(14, 279), 10)
     viewerMode.TextColor3 = Color3.fromRGB(216, 169, 145)
     viewerMode.Font = Enum.Font.GothamBold
     viewerMode.ZIndex = 4
@@ -1419,7 +1493,7 @@ end
 
 local ViewModeBar = create("Frame", {
     Name = "ViewModeBar",
-    Position = UDim2.fromOffset(9, 39),
+    Position = UDim2.fromOffset(9, 40),
     Size = UDim2.fromOffset(114, 31),
     BackgroundColor3 = BG,
     BackgroundTransparency = 0.12,
@@ -1528,12 +1602,17 @@ round(ItemsPanel, 12)
 addStroke(ItemsPanel)
 EH.ehPanel(ItemsPanel, "viewer")
 
-EH.icon(ItemsPanel, "items", UDim2.fromOffset(12, 8), 22)
+local ItemsTitleIcon = makeLabel(
+    ItemsPanel, "",
+    UDim2.fromOffset(18, 18), UDim2.fromOffset(14, 8), 12
+)
+ItemsTitleIcon.TextColor3 = Color3.fromRGB(234, 181, 137)
+ItemsTitleIcon.Font = Enum.Font.GothamBold
 
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
     UDim2.new(1, -194, 0, 30),
-    UDim2.fromOffset(42, 4), 11
+    UDim2.fromOffset(34, 4), 11
 )
 
 EH.ehSectionLabel(ItemsTitle)
@@ -1551,8 +1630,8 @@ WornCountLabel.Font = Enum.Font.GothamBold
 WornCountLabel.TextXAlignment = Enum.TextXAlignment.Right
 
 local ItemsStatusChip = makeLabel(
-    ItemsPanel, "SCAN READY",
-    UDim2.fromOffset(126, 18), UDim2.new(0, 14, 1, -25), 10
+    ItemsPanel, "SCAN ACTIVE",
+    UDim2.fromOffset(106, 18), UDim2.fromOffset(14, 326), 10
 )
 ItemsStatusChip.TextColor3 = Color3.fromRGB(216, 169, 145)
 ItemsStatusChip.Font = Enum.Font.GothamBold
@@ -1579,7 +1658,7 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- EVENT HORIZON / 046 lower structural belt: one smooth bridge + useful status console.
+-- EVENT HORIZON / 047 lower structural belt: a segmented bridge + useful status console.
 -- Explicitly replaces the older v7.9.42 bridge and brand pill; no stacking.
 local EHBridge = create("Frame", {
     Name = "EHLowerBridge",
@@ -1590,10 +1669,14 @@ local EHBridge = create("Frame", {
     Active = false
 }, Main)
 do
+    EH.accentRule(EHBridge, UDim2.fromOffset(0, 0),
+        UDim2.fromOffset(26, 3), 0.1)
+    EH.accentRule(EHBridge, UDim2.new(1, -26, 0, 0),
+        UDim2.fromOffset(26, 3), 0.1)
     local belt = create("Frame", {
         Name = "EHLowerBelt",
-        Position = UDim2.fromOffset(2, 0),
-        Size = UDim2.new(1, -4, 0, 2),
+        Position = UDim2.fromOffset(33, 0),
+        Size = UDim2.new(1, -66, 0, 3),
         BackgroundColor3 = Color3.fromRGB(185, 120, 113),
         BackgroundTransparency = 0.13,
         BorderSizePixel = 0,
@@ -1641,7 +1724,12 @@ local BrandPill = create("Frame", {
     Active = false
 }, StatusConsole)
 round(BrandPill, 8)
-EH.icon(BrandPill, "status", UDim2.fromOffset(6, 6), 16)
+local StatusIcon = makeLabel(
+    BrandPill, "",
+    UDim2.fromOffset(16, 16), UDim2.fromOffset(8, 5), 12
+)
+StatusIcon.TextColor3 = Color3.fromRGB(243, 184, 141)
+StatusIcon.Font = Enum.Font.GothamBold
 
 local BrandLabel = makeLabel(
     BrandPill, "SYSTEM STATUS",
@@ -1652,11 +1740,12 @@ BrandLabel.Font = Enum.Font.GothamBold
 
 local StatusActive = makeLabel(
     StatusConsole, "ACTIVE",
-    UDim2.fromOffset(64, 20), UDim2.new(1, -113, 0, 10), 10
+    UDim2.fromOffset(64, 20), UDim2.new(1, -84, 0, 10), 10
 )
 StatusActive.TextColor3 = Color3.fromRGB(243, 184, 141)
 StatusActive.TextXAlignment = Enum.TextXAlignment.Right
 StatusActive.Font = Enum.Font.GothamBold
+StatusActive.Visible = false
 
 -- The right-hand indicator reflects that the GUI is alive, not whether scanning is active.
 do
@@ -1675,7 +1764,7 @@ end
 
 local Status = makeLabel(
     Main, "Select a player",
-    UDim2.new(1, -300, 0, 30),
+    UDim2.new(1, -204, 0, 30),
     UDim2.new(0, 163, 1, -45), 12
 )
 Status.TextColor3 = MUTED
@@ -2020,7 +2109,7 @@ local function updateLayout()
         ItemsPanel.Size = UDim2.new(1, -24, 0, 150)
 
         Status.Position = UDim2.new(0, 145, 1, -45)
-        Status.Size = UDim2.new(1, -255, 0, 30)
+        Status.Size = UDim2.new(1, -204, 0, 30)
     else
         Search.Position = UDim2.fromOffset(12, 58)
         Search.Size = UDim2.new(1, -120, 0, 36)
@@ -2041,7 +2130,7 @@ local function updateLayout()
         ItemsPanel.Size = UDim2.fromOffset(262, 350)
 
         Status.Position = UDim2.new(0, 145, 1, -45)
-        Status.Size = UDim2.new(1, -300, 0, 30)
+        Status.Size = UDim2.new(1, -204, 0, 30)
     end
 end
 
@@ -3631,10 +3720,17 @@ local function addItem(name, assetId, category)
     create("UIStroke", {Color = OUTLINE, Transparency = 0.45,
         Thickness = 1}, image)
 
+    local itemMarker = makeLabel(
+        card, "◦",
+        UDim2.fromOffset(12, 14), UDim2.fromOffset(60, 8), 11
+    )
+    itemMarker.TextColor3 = Color3.fromRGB(235, 180, 136)
+    itemMarker.Font = Enum.Font.GothamBold
+
     local itemName = makeLabel(
         card, name,
         UDim2.new(1, -101, 0, 22),
-        UDim2.fromOffset(60, 5), 11
+        UDim2.fromOffset(72, 5), 11
     )
 
     itemName.Font = Enum.Font.GothamMedium
@@ -3642,7 +3738,7 @@ local function addItem(name, assetId, category)
     local itemId = makeLabel(
         card, tostring(assetId),
         UDim2.new(1, -101, 0, 24),
-        UDim2.fromOffset(60, 28), 13
+        UDim2.fromOffset(72, 28), 13
     )
 
     -- Обновлённое оформление идентификаторов.
@@ -3657,7 +3753,8 @@ local function addItem(name, assetId, category)
     )
 
     copyButton.Name = "CopyAssetIdButton"
-    EH.icon(copyButton, "copy", UDim2.fromOffset(7, 5), 19)
+    copyButton.TextSize = 17
+    EH.safeIcon(copyButton, "copy", UDim2.fromOffset(7, 4), 18)
     copyButton.Activated:Connect(function()
         copyID(assetId)
     end)
@@ -3877,10 +3974,14 @@ refreshPlayerList = function()
     }, PlayerList)
     EH.ehCard(countHeader)
 
-    EH.icon(countHeader, "players", UDim2.fromOffset(12, 9), 23)
+    local listIcon = makeLabel(countHeader, "",
+        UDim2.fromOffset(18, 18), UDim2.fromOffset(10, 8), 12)
+    listIcon.TextColor3 = Color3.fromRGB(234, 181, 137)
+    listIcon.Font = Enum.Font.GothamBold
+    EH.safeIcon(countHeader, "players", UDim2.fromOffset(9, 7), 20)
 
     local listTitle = makeLabel(countHeader, "PLAYERS",
-        UDim2.new(1, -56, 0, 18), UDim2.fromOffset(48, 11), 10)
+        UDim2.new(1, -56, 0, 18), UDim2.fromOffset(32, 8), 10)
     listTitle.Font = Enum.Font.GothamBold
     listTitle.TextColor3 = WHITE
 
@@ -4826,9 +4927,9 @@ end))
 -- MAIN BUTTONS
 --==================================================
 
-Toggle.Activated:Connect(function()
+EH.mainOpenAction = function()
     setMainWindowVisible(not Main.Visible)
-end)
+end
 
 Close.Activated:Connect(function()
     showExitConfirmation()
@@ -4842,6 +4943,15 @@ updatePoseButtons("N")
 local loadResult = table.pack(pcall(loadFavoritesFromFile))
 refreshPlayerList()
 
+-- Icons are presentation only and are built after the working GUI is initialized.
+task.defer(function()
+    if not Main or not Main.Parent then return end
+    EH.safeIcon(Search, "search", UDim2.fromOffset(6, 7), 20)
+    EH.safeIcon(Viewport, "viewer", UDim2.fromOffset(13, 12), 22)
+    EH.safeIcon(ItemsPanel, "items", UDim2.fromOffset(12, 8), 22)
+    EH.safeIcon(BrandPill, "status", UDim2.fromOffset(5, 5), 18)
+end)
+
 if loadResult[1] and loadResult[2] then
     Status.Text = loadResult[3]
 else
@@ -4852,7 +4962,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.46 loaded successfully")
+print("Avatar Inspector v7.9.47 loaded successfully")
 
 end
 
@@ -4875,11 +4985,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.46 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.47 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.46 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.47 INITIALIZATION FINISHED")
 end
