@@ -1,23 +1,23 @@
 --[[
-    AVATAR INSPECTOR v7.9.49
+    AVATAR INSPECTOR v7.9.50
 
     CHANGES:
-    - Event Horizon v7.9.49: matching copper line-art icons for all eight actions
+    - Event Horizon Signature: integrated frames, dark animated controls and empty-preview avatar
     - Players, 3D face-scan, item layers, search, copy, pencil, trash, save
     - No unsupported Unicode glyphs for rename, delete, save, or copy
-    - Built directly on working v7.9.48; unchanged startup and floating button
+    - Built on working v7.9.49; preserved startup and Cosmic Orbit floating button
     - All icon calls are optional and exception-isolated
     - Original scanning, 3D preview, poses, camera, languages and JSON saves unchanged
     - No additional animated loops; decorative changes are optional
     - Event Horizon Refined 2.0: app-like section modules, panel symbols and cleaner edge geometry
-    - Segmented spectrum header with stable single-gradient animation
-    - Precision corner brackets, status modules, and unified panel framing
-    - Rebuilt player/item cards with inlaid left rails and compact highlights
+    - One continuous gently animated header contour
+    - Unified rounded borders, no fragmented corner rails
+    - Recessed player and item cards with clean single outlines
     - Preserves preview size, input, scanning, saved outfits and all translations
     - Replaced older decorative overlays rather than stacking duplicate effects
     - Single FREE LOOK camera control; removed redundant ORBIT button
     - Event Horizon black/copper/rose style using existing panels
-    - One animated spectrum rail and one static lower bridge
+    - One animated header accent and one lower bridge
     - Reused branded status console; removed redundant decorative layers
     - Removed unreachable preview helper and write-only pose/bounds fields
     - Branded close, rename and delete controls
@@ -659,25 +659,6 @@ function EH.accentRule(parent, position, size, transparency, tone)
     }, parent)
 end
 
-function EH.animateLightRail(rail, seconds)
-    local gradient = create("UIGradient", {
-        Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(51, 32, 54)),
-            ColorSequenceKeypoint.new(0.25, Color3.fromRGB(143, 83, 104)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(246, 203, 149)),
-            ColorSequenceKeypoint.new(0.75, Color3.fromRGB(199, 122, 113)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(53, 32, 54))
-        }),
-        Offset = Vector2.new(-0.65, 0)
-    }, rail)
-    local animation = TweenService:Create(gradient,
-        TweenInfo.new(seconds or 9, Enum.EasingStyle.Sine,
-            Enum.EasingDirection.InOut, -1, true),
-        {Offset = Vector2.new(0.65, 0)})
-    animation:Play()
-    return animation
-end
-
 function EH.ehStroke(parent, tone, transparency, thickness)
     local edge = parent:FindFirstChildOfClass("UIStroke")
     if edge then
@@ -688,30 +669,19 @@ function EH.ehStroke(parent, tone, transparency, thickness)
 end
 
 function EH.ehPanel(parent, kind)
-    EH.ehStroke(parent, kind == "viewer" and Color3.fromRGB(200, 137, 119)
-        or Color3.fromRGB(130, 87, 104), 0.16, 1.3)
-    -- ScrollingFrame content is driven by UIListLayout and cleared dynamically:
-    -- avoid adding decorative Frame children that would be treated as list rows.
-    if kind == "scroll" then return end
-    -- Cleaner section geometry: smooth top segments, restrained bottom bar and one signal dot.
-    local leftSeg = EH.accentRule(parent, UDim2.fromOffset(14, 8), UDim2.fromOffset(34, 2), 0.12)
-    round(leftSeg, 2)
-    local rightSeg = EH.accentRule(parent, UDim2.new(1, -48, 0, 8), UDim2.fromOffset(34, 2), 0.12)
-    round(rightSeg, 2)
-    local topBridge = EH.accentRule(parent, UDim2.fromOffset(56, 8), UDim2.new(1, -112, 0, 2), 0.58, Color3.fromRGB(188, 126, 118))
-    round(topBridge, 2)
-    local bottomBridge = EH.accentRule(parent, UDim2.new(0, 14, 1, -10), UDim2.new(1, -28, 0, 1), 0.82, Color3.fromRGB(140, 88, 101))
-    bottomBridge.AnchorPoint = Vector2.new(0, 1)
-    local signal = create("Frame", {
-        Name = "EHSignalDot",
-        Position = UDim2.new(1, -16, 0, 13),
-        Size = UDim2.fromOffset(8, 8),
-        BackgroundColor3 = Color3.fromRGB(234, 171, 124),
-        BorderSizePixel = 0,
-        Active = false
-    }, parent)
-    round(signal, 8)
-    create("UIStroke", {Color = Color3.fromRGB(255, 221, 178), Transparency = 0.45, Thickness = 1}, signal)
+    EH.ehStroke(parent,
+        kind == "viewer" and Color3.fromRGB(193, 128, 115)
+            or Color3.fromRGB(135, 88, 104),
+        kind == "viewer" and 0.09 or 0.2,
+        kind == "viewer" and 1.55 or 1.25)
+    -- Rounded UICorner + UIStroke produce a single continuous border.
+    -- A single unobtrusive highlight belongs only to the large non-scroll panels.
+    if kind == "viewer" then
+        local highlight = EH.accentRule(parent,
+            UDim2.fromOffset(16, 0), UDim2.new(1, -32, 0, 2),
+            0.5, Color3.fromRGB(229, 163, 127))
+        round(highlight, 2)
+    end
 end
 
 -- Event Horizon line-icon system. One geometric renderer, no image IDs,
@@ -721,8 +691,7 @@ function EH.icon(parent, kind, position, size)
     local sz = size or 22
     local u = sz / 24
     local z = parent.ZIndex + 1
-    local ink = kind == "save" and Color3.fromRGB(255, 235, 210)
-        or Color3.fromRGB(236, 172, 129)
+    local ink = Color3.fromRGB(240, 181, 141)
     local root = create("Frame", {
         Name = "EHIcon_" .. tostring(kind),
         Size = UDim2.fromOffset(sz, sz),
@@ -790,17 +759,24 @@ function EH.icon(parent, kind, position, size)
     end
 
     if kind == "players" then
-        -- Two unfilled heads and open shoulder outlines, like the reference.
-        outline(3.3, 2, 7, 7, 7, 2)
-        outline(14.3, 4.5, 6, 6, 6, 2)
-        strokeLine(1.9, 20.5, 3.0, 16.6)
-        strokeLine(3.0, 16.6, 5.4, 14.4)
-        strokeLine(5.4, 14.4, 8.7, 14.4)
-        strokeLine(8.7, 14.4, 11.3, 16.6)
-        strokeLine(11.3, 16.6, 12.0, 20.5)
-        strokeLine(14.0, 15.0, 16.4, 14.0)
-        strokeLine(16.4, 14.0, 19.5, 15.3)
-        strokeLine(19.5, 15.3, 21.5, 19.6)
+        outline(3, 2.2, 7.2, 7.2, 7, 2.1)
+        outline(14.3, 4.2, 6.1, 6.1, 6, 2.1)
+        -- Shoulder arches use a soft rounded stroke masked at the bottom.
+        for _, a in ipairs({{x=1.5,y=13,w=13,h=12},{x=13.6,y=14,w=9.2,h=10}}) do
+            local shoulder = outline(a.x, a.y, a.w, a.h, 8, 2.2)
+            local border = shoulder:FindFirstChildOfClass("UIStroke")
+            if border then
+                create("UIGradient", {
+                    Transparency = NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 0),
+                        NumberSequenceKeypoint.new(0.54, 0),
+                        NumberSequenceKeypoint.new(0.60, 1),
+                        NumberSequenceKeypoint.new(1, 1)
+                    }),
+                    Rotation = 90
+                }, border)
+            end
+        end
     elseif kind == "viewer" then
         -- Four scanning corners, eyes and a small smile.
         strokeLine(2.5, 8.5, 2.5, 4)
@@ -857,6 +833,24 @@ function EH.icon(parent, kind, position, size)
         strokeLine(12.0, 17.4, 18.0, 21.0, 2.2)
         strokeLine(12, 7, 12, 14, 2.1)
         strokeLine(8.5, 10.5, 15.5, 10.5, 2.1)
+    elseif kind == "close" then
+        strokeLine(5, 5, 19, 19, 2.4)
+        strokeLine(19, 5, 5, 19, 2.4)
+    elseif kind == "folder" then
+        strokeLine(2.5, 7.5, 2.5, 20, 2)
+        strokeLine(2.5, 7.5, 9.5, 7.5, 2)
+        strokeLine(9.5, 7.5, 12, 10, 2)
+        strokeLine(12, 10, 21.5, 10, 2)
+        strokeLine(21.5, 10, 21.5, 20, 2)
+        strokeLine(2.5, 20, 21.5, 20, 2)
+    elseif kind == "placeholder" then
+        -- Clear single-user pictogram on an empty 3D viewport.
+        outline(8.1, 2, 7.8, 7.8, 8, 2)
+        strokeLine(4.0, 20, 4.0, 17.0, 2.2)
+        strokeLine(4.0, 17.0, 7.2, 13.1, 2.2)
+        strokeLine(7.2, 13.1, 16.8, 13.1, 2.2)
+        strokeLine(16.8, 13.1, 20.0, 17.0, 2.2)
+        strokeLine(20.0, 17.0, 20.0, 20.0, 2.2)
     elseif kind == "status" then
         outline(2.5, 3, 19, 18, 4, 2)
         strokeLine(5, 13, 8.5, 13, 1.7)
@@ -877,20 +871,39 @@ function EH.safeIcon(parent, kind, position, size)
 end
 
 function EH.ehCard(card)
-    -- Single reusable card treatment for player, saved outfit and asset rows.
-    round(card, 9)
+    -- Cards have one coherent rounded outline and a restrained recessed finish.
+    round(card, 10)
     create("UIStroke", {
-        Color = Color3.fromRGB(111, 75, 93),
-        Thickness = 1,
-        Transparency = 0.63
+        Color = Color3.fromRGB(128, 88, 100),
+        Thickness = 1.1,
+        Transparency = 0.48,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     }, card)
-    EH.accentRule(card, UDim2.fromOffset(0, 10),
-        UDim2.fromOffset(2, 24), 0.15,
-        Color3.fromRGB(224, 150, 120))
-    local sheen = EH.accentRule(card, UDim2.fromOffset(10, 0),
-        UDim2.new(1, -20, 0, 1), 0.68,
-        Color3.fromRGB(223, 170, 140))
-    sheen.Name = "EHCardInlay"
+    create("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(47, 36, 47)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(34, 27, 38))
+        }),
+        Rotation = 25
+    }, card)
+end
+
+function EH.styleIconAction(button)
+    button:SetAttribute("EHActionButton", true)
+    button.BackgroundColor3 = Color3.fromRGB(39, 29, 42)
+    button.TextColor3 = Color3.fromRGB(245, 209, 178)
+    local edge = button:FindFirstChildOfClass("UIStroke")
+    if edge then
+        edge.Color = Color3.fromRGB(194, 126, 114)
+        edge.Transparency = 0.12
+        edge.Thickness = 1.4
+    end
+end
+
+function EH.setModeButtonLabel(button, mode)
+    local base = mode == "Players" and "📁 OUTFITS" or "PLAYERS"
+    local localized = translateText(base)
+    button.Text = localized:gsub("^📁%s*", "")
 end
 
 function EH.ehSectionLabel(label, marker)
@@ -951,19 +964,33 @@ local function makeButton(parent, text, size, position, color)
     end)
     obj.MouseLeave:Connect(function()
         if not obj.Parent then return end
-        if not obj:GetAttribute("SelectedControl") then TweenService:Create(obj, hoverInfo, {BackgroundColor3 = baseColor}):Play() end
-        TweenService:Create(outline, hoverInfo, {Transparency = 0.28}):Play()
+        local chosen = obj:GetAttribute("SelectedControl")
+        if not chosen then
+            TweenService:Create(obj, hoverInfo, {BackgroundColor3 = baseColor}):Play()
+        end
+        TweenService:Create(outline, hoverInfo, {
+            Transparency = chosen and 0.02
+                or (obj:GetAttribute("EHActionButton") and 0.12 or 0.28)
+        }):Play()
     end)
     obj.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
             TweenService:Create(scale, pressInfo, {Scale = 0.975}):Play()
+            if obj:GetAttribute("EHActionButton") then
+                TweenService:Create(outline, pressInfo,
+                    {Transparency = 0, Thickness = 1.7}):Play()
+            end
         end
     end)
     obj.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
             TweenService:Create(scale, releaseInfo, {Scale = 1}):Play()
+            if obj:GetAttribute("EHActionButton") then
+                TweenService:Create(outline, releaseInfo,
+                    {Transparency = 0.12, Thickness = 1.4}):Play()
+            end
         end
     end)
     return obj
@@ -1188,6 +1215,20 @@ round(Main, 18)
 addStroke(Main)
 -- A single continuous border follows Main's UICorner, with no detached strips.
 EH.ehStroke(Main, Color3.fromRGB(180, 115, 116), 0.08, 1.65)
+do
+    local inset = create("Frame", {
+        Name = "EHContinuousInset",
+        Position = UDim2.fromOffset(5, 5),
+        Size = UDim2.new(1, -10, 1, -10),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Active = false,
+        ZIndex = Main.ZIndex
+    }, Main)
+    round(inset, 14)
+    create("UIStroke", {Color = Color3.fromRGB(110, 72, 91),
+        Thickness = 1, Transparency = 0.63}, inset)
+end
 create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(23, 16, 25)),
@@ -1246,10 +1287,17 @@ if HeaderContour then
             ColorSequenceKeypoint.new(1, Color3.fromRGB(118, 67, 104))
         })
     }, HeaderContour)
+    local glint = HeaderContour:FindFirstChildOfClass("UIGradient")
+    if glint then
+        TweenService:Create(glint,
+            TweenInfo.new(12, Enum.EasingStyle.Sine,
+                Enum.EasingDirection.InOut, -1, true),
+            {Offset = Vector2.new(0.38, 0)}):Play()
+    end
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.49",
+    Header, "AVATAR INSPECTOR v7.9.50",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1261,7 +1309,7 @@ HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
 HeaderTitle.Position = UDim2.fromOffset(18, 3)
 
 do
-    local subtitle = makeLabel(Header, "EVENT HORIZON / 049",
+    local subtitle = makeLabel(Header, "EVENT HORIZON / 050",
         UDim2.fromOffset(260, 14), UDim2.fromOffset(17, 29), 9)
     subtitle.Font = Enum.Font.GothamBold
     subtitle.TextColor3 = Color3.fromRGB(229, 163, 120)
@@ -1320,8 +1368,9 @@ local LangButton = makeButton(
     Header, currentLanguage:upper(),
     UDim2.fromOffset(64, 32),
     UDim2.new(1, -112, 0, 8),
-    ACCENT
+    Color3.fromRGB(43, 31, 43)
 )
+EH.styleIconAction(LangButton)
 LangButton.Name = "LanguageButton"
 LangButton.TextSize = 11
 
@@ -1329,8 +1378,9 @@ local Close = makeButton(
     Header, "×",
     UDim2.fromOffset(34, 32),
     UDim2.new(1, -44, 0, 8),
-    RED
+    Color3.fromRGB(44, 28, 42)
 )
+EH.styleIconAction(Close)
 
 -- Full shutdown confirmation. Tapping the floating profile button still only hides the window.
 local ExitOverlay = create("Frame", {
@@ -1426,12 +1476,6 @@ create("UIPadding", {
 }, Search)
 Search.TextColor3 = Color3.fromRGB(249, 242, 236)
 Search.PlaceholderColor3 = Color3.fromRGB(172, 155, 167)
-local SearchIcon = makeLabel(Search, "",
-    UDim2.fromOffset(18, 18), UDim2.fromOffset(8, 8), 14)
-SearchIcon.TextColor3 = Color3.fromRGB(226, 170, 130)
-SearchIcon.Font = Enum.Font.GothamBold
-SearchIcon.ZIndex = 4
-
 local searchOutline = Search:FindFirstChildOfClass("UIStroke")
 if searchOutline then
     Search.Focused:Connect(function()
@@ -1450,8 +1494,11 @@ local ModeButton = makeButton(
     Main, "📁 OUTFITS",
     UDim2.fromOffset(100, 36),
     UDim2.new(1, -112, 0, 58),
-    ACCENT
+    Color3.fromRGB(43, 31, 43)
 )
+EH.styleIconAction(ModeButton)
+ModeButton.TextXAlignment = Enum.TextXAlignment.Right
+create("UIPadding", {PaddingRight = UDim.new(0, 7)}, ModeButton)
 
 local PlayerList = create("ScrollingFrame", {
     Position = UDim2.fromOffset(12, 104),
@@ -1495,29 +1542,65 @@ local Viewport = create("ViewportFrame", {
 round(Viewport, 12)
 addStroke(Viewport)
 EH.ehPanel(Viewport, "viewer")
--- Viewport identification stays away from the avatar and the FREE LOOK control.
+-- Compact viewer header; the avatar owns the center of the viewport.
 do
-    local viewerIcon = makeLabel(Viewport, "",
-        UDim2.fromOffset(16, 18), UDim2.fromOffset(14, 18), 12)
-    viewerIcon.TextColor3 = Color3.fromRGB(234, 181, 137)
-    viewerIcon.Font = Enum.Font.GothamBold
-    viewerIcon.ZIndex = 4
     local viewerInfo = makeLabel(Viewport, "3D-PREVIEW",
-        UDim2.fromOffset(120, 18), UDim2.fromOffset(40, 18), 10)
-    viewerInfo.TextColor3 = Color3.fromRGB(238, 229, 224)
+        UDim2.fromOffset(116, 18), UDim2.fromOffset(37, 11), 10)
+    viewerInfo.TextColor3 = Color3.fromRGB(237, 217, 202)
     viewerInfo.Font = Enum.Font.GothamBold
     viewerInfo.ZIndex = 4
-    local viewerMode = makeLabel(Viewport, "MODEL READY",
-        UDim2.fromOffset(120, 22), UDim2.fromOffset(14, 279), 10)
-    viewerMode.TextColor3 = Color3.fromRGB(216, 169, 145)
-    viewerMode.Font = Enum.Font.GothamBold
-    viewerMode.ZIndex = 4
+end
+
+EH.emptyPreview = create("Frame", {
+    Name = "EHAvatarPlaceholder",
+    Size = UDim2.fromOffset(142, 128),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.fromScale(0.5, 0.52),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    Active = false,
+    Visible = true,
+    ZIndex = 8
+}, Viewport)
+do
+    local halo = create("Frame", {
+        Name = "EmptyHalo",
+        Size = UDim2.fromOffset(80, 80),
+        Position = UDim2.fromOffset(31, 3),
+        BackgroundColor3 = Color3.fromRGB(27, 20, 30),
+        BorderSizePixel = 0,
+        Active = false,
+        ZIndex = 9
+    }, EH.emptyPreview)
+    round(halo, 40)
+    create("UIStroke", {Color = Color3.fromRGB(178, 118, 115),
+        Thickness = 1.4, Transparency = 0.24}, halo)
+    create("UIGradient", {Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(39, 27, 42)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 11, 19))
+    }), Rotation = 60}, halo)
+    EH.safeIcon(halo, "placeholder", UDim2.fromOffset(16, 16), 48)
+    local caption = makeLabel(EH.emptyPreview, "Select a player",
+        UDim2.new(1, 0, 0, 20), UDim2.fromOffset(0, 97), 11)
+    caption.TextXAlignment = Enum.TextXAlignment.Center
+    caption.TextColor3 = Color3.fromRGB(213, 167, 145)
+    caption.Font = Enum.Font.GothamBold
+    caption.ZIndex = 9
+end
+EH.setPreviewReady = function(loaded)
+    if EH.emptyPreview and EH.emptyPreview.Parent then
+        EH.emptyPreview.Visible = not loaded
+    end
+    local label = Viewport:FindFirstChild("EHModelStateLabel")
+    if label then
+        label.Text = loaded and "MODEL READY" or "SELECT PLAYER"
+    end
 end
 
 local ViewModeBar = create("Frame", {
     Name = "ViewModeBar",
-    Position = UDim2.fromOffset(9, 40),
-    Size = UDim2.fromOffset(114, 31),
+    Position = UDim2.new(1, -116, 0, 8),
+    Size = UDim2.fromOffset(106, 29),
     BackgroundColor3 = BG,
     BackgroundTransparency = 0.12,
     BorderSizePixel = 0,
@@ -1530,10 +1613,20 @@ local FreeViewButton = makeButton(
     ViewModeBar, "FREE LOOK",
     UDim2.new(1, -4, 1, -4),
     UDim2.fromOffset(2, 2),
-    ACCENT
+    Color3.fromRGB(43, 31, 43)
 )
-FreeViewButton.TextSize = 10
+EH.styleIconAction(FreeViewButton)
+FreeViewButton.TextSize = 9
 FreeViewButton.ZIndex = 21
+
+do
+    local viewerState = makeLabel(Viewport, "SELECT PLAYER",
+        UDim2.fromOffset(130, 19), UDim2.new(0, 13, 1, -23), 9)
+    viewerState.Name = "EHModelStateLabel"
+    viewerState.TextColor3 = Color3.fromRGB(206, 156, 137)
+    viewerState.Font = Enum.Font.GothamBold
+    viewerState.ZIndex = 4
+end
 
 local ZoomBar = create("Frame", {
     Name = "ZoomBar",
@@ -1551,8 +1644,9 @@ local ZoomOutButton = makeButton(
     ZoomBar, "−",
     UDim2.fromOffset(34, 26),
     UDim2.fromOffset(2, 2),
-    LIGHT
+    Color3.fromRGB(43, 31, 43)
 )
+EH.styleIconAction(ZoomOutButton)
 ZoomOutButton.TextSize = 18
 ZoomOutButton.ZIndex = 21
 
@@ -1560,8 +1654,9 @@ local ZoomInButton = makeButton(
     ZoomBar, "+",
     UDim2.fromOffset(34, 26),
     UDim2.fromOffset(42, 2),
-    LIGHT
+    Color3.fromRGB(43, 31, 43)
 )
+EH.styleIconAction(ZoomInButton)
 ZoomInButton.TextSize = 18
 ZoomInButton.ZIndex = 21
 
@@ -1584,8 +1679,6 @@ local PoseBar = create("Frame", {
 round(PoseBar, 9)
 addStroke(PoseBar)
 EH.ehStroke(PoseBar, Color3.fromRGB(143, 94, 103), 0.33, 1.1)
-EH.accentRule(PoseBar, UDim2.fromOffset(15, 0),
-    UDim2.new(1, -30, 0, 2), 0.22)
 
 local TPoseButton = makeButton(
     PoseBar, "T-POSE",
@@ -1625,43 +1718,44 @@ round(ItemsPanel, 12)
 addStroke(ItemsPanel)
 EH.ehPanel(ItemsPanel, "viewer")
 
-local ItemsTitleIcon = makeLabel(
-    ItemsPanel, "",
-    UDim2.fromOffset(18, 18), UDim2.fromOffset(14, 8), 12
-)
-ItemsTitleIcon.TextColor3 = Color3.fromRGB(234, 181, 137)
-ItemsTitleIcon.Font = Enum.Font.GothamBold
-
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
-    UDim2.new(1, -194, 0, 30),
-    UDim2.fromOffset(41, 4), 11
+    UDim2.new(1, -70, 0, 24), UDim2.fromOffset(41, 8), 11
 )
-
 EH.ehSectionLabel(ItemsTitle)
-EH.accentRule(ItemsPanel, UDim2.fromOffset(10, 32),
-    UDim2.fromOffset(55, 2), 0.32)
+ItemsTitle.Font = Enum.Font.GothamBold
 
 local WornCountLabel = makeLabel(
     ItemsPanel, "WORN ITEMS: —",
-    UDim2.new(0, 180, 0, 30),
-    UDim2.new(1, -186, 0, 4), 12
+    UDim2.new(1, -28, 0, 20),
+    UDim2.fromOffset(14, 34), 11
 )
 WornCountLabel.Name = "WornItemsCounter"
 WornCountLabel.TextColor3 = ID_GREEN
 WornCountLabel.Font = Enum.Font.GothamBold
-WornCountLabel.TextXAlignment = Enum.TextXAlignment.Right
+WornCountLabel.TextXAlignment = Enum.TextXAlignment.Left
 
+do
+    local rule = create("Frame", {
+        Name = "EHItemsSectionDivider",
+        Position = UDim2.fromOffset(12, 57),
+        Size = UDim2.new(1, -24, 0, 1),
+        BackgroundColor3 = Color3.fromRGB(128, 87, 98),
+        BackgroundTransparency = 0.35,
+        BorderSizePixel = 0,
+        Active = false
+    }, ItemsPanel)
+end
 local ItemsStatusChip = makeLabel(
     ItemsPanel, "SCAN ACTIVE",
-    UDim2.fromOffset(106, 18), UDim2.fromOffset(14, 326), 10
+    UDim2.fromOffset(108, 18), UDim2.new(0, 14, 1, -25), 9
 )
 ItemsStatusChip.TextColor3 = Color3.fromRGB(216, 169, 145)
 ItemsStatusChip.Font = Enum.Font.GothamBold
 
 local ItemList = create("ScrollingFrame", {
-    Position = UDim2.fromOffset(6, 38),
-    Size = UDim2.new(1, -12, 1, -64),
+    Position = UDim2.fromOffset(6, 63),
+    Size = UDim2.new(1, -12, 1, -97),
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     ScrollBarThickness = 5,
@@ -1681,7 +1775,7 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- EVENT HORIZON / 049 lower structural belt: a segmented bridge + useful status console.
+-- EVENT HORIZON / 050 lower structural belt: a segmented bridge + useful status console.
 -- Explicitly replaces the older v7.9.42 bridge and brand pill; no stacking.
 local EHBridge = create("Frame", {
     Name = "EHLowerBridge",
@@ -1731,8 +1825,6 @@ create("UIStroke", {
     Thickness = 1.25,
     Transparency = 0.14
 }, StatusConsole)
-EH.accentRule(StatusConsole, UDim2.fromOffset(14, 0),
-    UDim2.new(1, -28, 0, 2), 0.43)
 local BrandPill = create("Frame", {
     Name = "EHStatusIdentity",
     Position = UDim2.fromOffset(10, 7),
@@ -2055,6 +2147,7 @@ for index, option in ipairs(languageOptions) do
         LangOverlay.Visible = false
         applyLocalization(ScreenGui)
         LangButton.Text = currentLanguage:upper()
+        EH.setModeButtonLabel(ModeButton, currentMode)
         local preferenceSaved = saveLanguagePreference()
         if not preferenceSaved then
             Status.Text = "Language changed, but this executor cannot save language settings"
@@ -2081,6 +2174,7 @@ end)
 LangButton.Text = currentLanguage:upper()
 applyLocalization(ScreenGui)
 LangButton.Text = currentLanguage:upper()
+EH.setModeButtonLabel(ModeButton, currentMode)
 
 --==================================================
 -- RESPONSIVE LAYOUT
@@ -2106,6 +2200,11 @@ local function updateLayout()
     windowBaseScale = UIScale.Scale
 
     EHBridge.Visible = not mobile
+    ItemsStatusChip.Visible = not mobile
+    if EH.emptyPreview then
+        EH.emptyPreview.Size = mobile and UDim2.fromOffset(110, 110)
+            or UDim2.fromOffset(142, 128)
+    end
 
     if mobile then
         Search.Position = UDim2.fromOffset(12, 58)
@@ -2125,6 +2224,8 @@ local function updateLayout()
 
         ItemsPanel.Position = UDim2.fromOffset(12, 388)
         ItemsPanel.Size = UDim2.new(1, -24, 0, 150)
+        ItemList.Position = UDim2.fromOffset(6, 60)
+        ItemList.Size = UDim2.new(1, -12, 1, -65)
 
         Status.Position = UDim2.new(0, 145, 1, -45)
         Status.Size = UDim2.new(1, -204, 0, 30)
@@ -2146,6 +2247,8 @@ local function updateLayout()
 
         ItemsPanel.Position = UDim2.fromOffset(526, 104)
         ItemsPanel.Size = UDim2.fromOffset(262, 350)
+        ItemList.Position = UDim2.fromOffset(6, 63)
+        ItemList.Size = UDim2.new(1, -12, 1, -97)
 
         Status.Position = UDim2.new(0, 145, 1, -45)
         Status.Size = UDim2.new(1, -204, 0, 30)
@@ -2443,6 +2546,7 @@ local function clearViewport()
     end
 
     currentModel = nil
+    if EH.setPreviewReady then EH.setPreviewReady(false) end
     rotating = false
     lastPointer = nil
     table.clear(jointBases)
@@ -2485,7 +2589,8 @@ end
 
 local function styleSelectedControl(button, selected)
     button:SetAttribute("SelectedControl", selected)
-    local color = selected and ACCENT or LIGHT
+    local color = selected and Color3.fromRGB(83, 54, 68)
+        or Color3.fromRGB(43, 31, 43)
     TweenService:Create(button, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
         BackgroundColor3 = color,
         TextColor3 = WHITE
@@ -2493,7 +2598,7 @@ local function styleSelectedControl(button, selected)
     local stroke = button:FindFirstChildOfClass("UIStroke")
     if stroke then
         TweenService:Create(stroke, TweenInfo.new(0.18), {
-            Color = selected and Color3.fromRGB(125, 204, 255) or OUTLINE,
+            Color = selected and Color3.fromRGB(236, 171, 128) or OUTLINE,
             Thickness = selected and 1.8 or 1,
             Transparency = selected and 0 or 0.28
         }):Play()
@@ -3559,6 +3664,7 @@ local function showPlayerModel(player)
 
     setViewportMode("Free")
     applyPose(clone, "N")
+    if EH.setPreviewReady then EH.setPreviewReady(true) end
     Status.Text = "Avatar loaded"
 
     return clone
@@ -3767,11 +3873,12 @@ local function addItem(name, assetId, category)
         card, "",
         UDim2.fromOffset(32, 28),
         UDim2.new(1, -42, 0, 37),
-        ACCENT
+        Color3.fromRGB(39, 29, 42)
     )
 
     copyButton.Name = "CopyAssetIdButton"
     copyButton.TextSize = 17
+    EH.styleIconAction(copyButton)
     EH.safeIcon(copyButton, "copy", UDim2.fromOffset(6, 4), 20)
     copyButton.Activated:Connect(function()
         copyID(assetId)
@@ -4090,11 +4197,12 @@ refreshPlayerList = function()
                 row, "＋",
                 UDim2.fromOffset(34, 30),
                 UDim2.new(1, -39, 0, 9),
-                GREEN
+                Color3.fromRGB(39, 29, 42)
             )
             rowSaveButton.Name = "SavePlayerOutfitButton"
             rowSaveButton.Text = ""
             rowSaveButton.TextSize = 19
+            EH.styleIconAction(rowSaveButton)
             rowSaveButton.ZIndex = 5
             EH.safeIcon(rowSaveButton, "save", UDim2.fromOffset(6, 3), 23)
 
@@ -4630,6 +4738,7 @@ local function showSavedAvatarAppearance(favorite)
 
     setViewportMode("Free")
     applyPose(model, "N")
+    if EH.setPreviewReady then EH.setPreviewReady(true) end
     Status.Text = "Saved 3D avatar loaded"
     return true
 end
@@ -4774,7 +4883,7 @@ refreshFavoritesList = function()
             row, "✎",
             UDim2.fromOffset(30, 30),
             UDim2.new(1, -72, 0, 10),
-            ACCENT
+            Color3.fromRGB(39, 29, 42)
         )
         renameButton.Name = "RenameOutfitButton"
         renameButton.Text = ""
@@ -4782,6 +4891,7 @@ refreshFavoritesList = function()
         renameButton.Font = Enum.Font.GothamBold
         renameButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         renameButton.ZIndex = 10
+        EH.styleIconAction(renameButton)
         EH.safeIcon(renameButton, "edit", UDim2.fromOffset(5, 5), 20)
         renameButton.Activated:Connect(function()
             openRenameDialog(favorite)
@@ -4791,11 +4901,12 @@ refreshFavoritesList = function()
             row, "×",
             UDim2.fromOffset(30, 30),
             UDim2.new(1, -38, 0, 10),
-            RED
+            Color3.fromRGB(39, 29, 42)
         )
         removeButton.Name = "DeleteOutfitButton"
         removeButton.Text = ""
         removeButton.ZIndex = 10
+        EH.styleIconAction(removeButton)
         EH.safeIcon(removeButton, "delete", UDim2.fromOffset(5, 5), 20)
 
         removeButton.Activated:Connect(function()
@@ -4861,12 +4972,12 @@ local function updateListMode()
     if currentMode == "Players" then
         currentMode = "Favorites"
         Search.Visible = false
-        ModeButton.Text = "PLAYERS"
+        EH.setModeButtonLabel(ModeButton, currentMode)
         refreshFavoritesList()
     else
         currentMode = "Players"
         Search.Visible = true
-        ModeButton.Text = "📁 OUTFITS"
+        EH.setModeButtonLabel(ModeButton, currentMode)
         refreshPlayerList()
     end
 end
@@ -4964,16 +5075,21 @@ end)
 --==================================================
 
 updatePoseButtons("N")
+styleSelectedControl(FreeViewButton, true)
 local loadResult = table.pack(pcall(loadFavoritesFromFile))
 refreshPlayerList()
 
--- Icons are presentation only and are built after the working GUI is initialized.
+-- Theme-only icons are deferred until after the working GUI is initialized.
 task.defer(function()
     if not Main or not Main.Parent then return end
-    EH.safeIcon(Search, "search", UDim2.fromOffset(6, 7), 20)
-    EH.safeIcon(Viewport, "viewer", UDim2.fromOffset(13, 12), 22)
-    EH.safeIcon(ItemsPanel, "items", UDim2.fromOffset(12, 8), 22)
+    EH.safeIcon(Search, "search", UDim2.fromOffset(12, 9), 16)
+    EH.safeIcon(Viewport, "viewer", UDim2.fromOffset(12, 9), 21)
+    EH.safeIcon(ItemsPanel, "items", UDim2.fromOffset(12, 9), 21)
     EH.safeIcon(BrandPill, "status", UDim2.fromOffset(5, 5), 18)
+    EH.safeIcon(ModeButton, "folder", UDim2.fromOffset(8, 9), 17)
+    if EH.safeIcon(Close, "close", UDim2.fromOffset(8, 7), 18) then
+        Close.Text = ""
+    end
 end)
 
 if loadResult[1] and loadResult[2] then
@@ -4986,7 +5102,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.49 loaded successfully")
+print("Avatar Inspector v7.9.50 loaded successfully")
 
 end
 
@@ -5009,11 +5125,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.49 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.50 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.49 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.50 INITIALIZATION FINISHED")
 end
