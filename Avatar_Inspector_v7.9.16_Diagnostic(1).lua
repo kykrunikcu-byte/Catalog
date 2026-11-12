@@ -1,5 +1,11 @@
 --[[
-    AVATAR INSPECTOR v7.9.53
+    AVATAR INSPECTOR v7.9.54
+
+    CHANGES IN v7.9.54:
+    - Animated copper/rose neon border on the players list and item panel
+    - Slightly brighter outlines for player and accessory cards
+    - Two shared lightweight border animations, no per-card loops
+    - No floating-button, camera, saved outfit or avatar logic changes
 
     CHANGES IN v7.9.53:
     - Two-person icon rebuilt with symmetrical curved shoulders and clean circular heads
@@ -683,6 +689,56 @@ function EH.ehPanel(parent, kind)
     -- A single UICorner + UIStroke gives continuous frames without detached rails.
 end
 
+-- List neon stays on existing panel strokes. No child Frames in ScrollingFrames,
+-- no extra fragmented side strips, and no per-item animation loops.
+function EH.listNeon(panel)
+    local ok, reason = pcall(function()
+        local stroke = panel:FindFirstChildOfClass("UIStroke")
+        if not stroke then return end
+        stroke.Color = Color3.fromRGB(247, 171, 143)
+        stroke.Thickness = 2.2
+        stroke.Transparency = 0.10
+        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+        local gradient = stroke:FindFirstChild("EHListNeonGradient")
+        if not gradient then
+            gradient = create("UIGradient", {
+                Name = "EHListNeonGradient",
+                Rotation = 15,
+                Offset = Vector2.new(-0.55, 0),
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(144, 91, 120)),
+                    ColorSequenceKeypoint.new(0.40, Color3.fromRGB(251, 183, 147)),
+                    ColorSequenceKeypoint.new(0.57, Color3.fromRGB(255, 218, 162)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(186, 108, 128))
+                })
+            }, stroke)
+        end
+
+        -- One slow sweep and one soft breathing effect per large list border.
+        TweenService:Create(gradient,
+            TweenInfo.new(5.6, Enum.EasingStyle.Sine,
+                Enum.EasingDirection.InOut, -1, true),
+            {Offset = Vector2.new(0.55, 0)}):Play()
+        TweenService:Create(stroke,
+            TweenInfo.new(2.8, Enum.EasingStyle.Sine,
+                Enum.EasingDirection.InOut, -1, true),
+            {Transparency = 0.23}):Play()
+    end)
+    if not ok then
+        warn("[Avatar Inspector] List neon was skipped: " .. tostring(reason))
+    end
+end
+
+function EH.listCardEdge(card)
+    local stroke = card:FindFirstChildOfClass("UIStroke")
+    if stroke then
+        stroke.Color = Color3.fromRGB(188, 122, 129)
+        stroke.Transparency = 0.31
+        stroke.Thickness = 1.25
+    end
+end
+
 
 -- Event Horizon Signature Labels: reusable rounded status chip.
 -- A real frame and one small dot, never Unicode or decorative loose strips.
@@ -1337,7 +1393,7 @@ if HeaderContour then
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.53",
+    Header, "AVATAR INSPECTOR v7.9.54",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1556,6 +1612,7 @@ local PlayerList = create("ScrollingFrame", {
 round(PlayerList, 12)
 addStroke(PlayerList)
 EH.ehPanel(PlayerList, "scroll")
+EH.listNeon(PlayerList)
 
 create("UIListLayout", {
     Padding = UDim.new(0, 5),
@@ -1767,6 +1824,7 @@ local ItemsPanel = create("Frame", {
 round(ItemsPanel, 12)
 addStroke(ItemsPanel)
 EH.ehPanel(ItemsPanel, "viewer")
+EH.listNeon(ItemsPanel)
 
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
@@ -3893,6 +3951,7 @@ local function addItem(name, assetId, category)
     }, ItemList)
 
     EH.ehCard(card)
+    EH.listCardEdge(card)
 
     local image = create("ImageLabel", {
         Size = UDim2.fromOffset(48, 48),
@@ -4208,6 +4267,7 @@ refreshPlayerList = function()
 
             row.LayoutOrder = 1 + #PlayerList:GetChildren()
             EH.ehCard(row)
+            EH.listCardEdge(row)
 
             local avatar = create("ImageLabel", {
                 Size = UDim2.fromOffset(38, 38),
@@ -4920,6 +4980,7 @@ refreshFavoritesList = function()
         }, PlayerList)
 
         EH.ehCard(row)
+        EH.listCardEdge(row)
 
         local nameLabel = makeLabel(
             row, favorite.name,
@@ -5169,7 +5230,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.53 loaded successfully")
+print("Avatar Inspector v7.9.54 loaded successfully")
 
 end
 
@@ -5192,11 +5253,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.53 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.54 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.53 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.54 INITIALIZATION FINISHED")
 end
