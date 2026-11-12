@@ -1,7 +1,13 @@
 --[[
-    AVATAR INSPECTOR v7.9.42
+    AVATAR INSPECTOR v7.9.43
 
     CHANGES:
+    - Event Horizon Refined: structural design instead of color-only changes
+    - Segmented spectrum header with stable single-gradient animation
+    - Precision corner brackets, status modules, and unified panel framing
+    - Rebuilt player/item cards with inlaid left rails and compact highlights
+    - Preserves preview size, input, scanning, saved outfits and all translations
+    - Replaced older decorative overlays rather than stacking duplicate effects
     - Single FREE LOOK camera control; removed redundant ORBIT button
     - Event Horizon black/copper/rose style using existing panels
     - One animated spectrum rail and one static lower bridge
@@ -51,13 +57,13 @@
     - Canonical account-avatar description lookup to avoid game morphs
     - Exact HumanoidDescription accessory count and live server player count
     - Larger saved outfit names
-    - New blue-purple visual theme and profile-style floating toggle
+    - Black/copper Event Horizon theme and profile-style floating toggle
     - Lightweight button press/hover animations
     - Smooth main-window open/close transitions
     - Small UI performance refinements without removing features
     - Close confirmation with explicit full shutdown
     - Smooth floating-button entrance and refined profile icon proportions
-    - v7.9.34 premium graphite interface pass
+    - v7.9.34 premium graphite interface baseline
     - Restrained cyan/blue/violet accent system and refined component borders
     - Rainbow top-hat floating icon with sparkle details, built from native Roblox UI
 ]]
@@ -97,7 +103,7 @@ if not PlayerGui then error("PlayerGui unavailable") end
 AI_DIAG_STAGE = "PLAYER_GUI_OK"
 AIDiag("07 PlayerGui OK")
 
--- Obsidian Violet: layered graphite surfaces with restrained violet accents.
+-- EVENT HORIZON REFINED: obsidian black / antique copper / muted rose.
 local BG = Color3.fromRGB(9, 8, 13)
 local PANEL = Color3.fromRGB(21, 18, 26)
 local LIGHT = Color3.fromRGB(39, 32, 42)
@@ -628,14 +634,17 @@ local function addStroke(obj)
     }, obj)
 end
 
--- Obsidian Violet architectural styling: real Roblox UI geometry, not a palette swap.
--- Decorative objects are non-interactive and do not alter camera or avatar logic.
-local function accentRule(parent, position, size, transparency)
+-- EVENT HORIZON REFINED.
+-- Shared presentation routines replace previous 7.9.38-7.9.42 decorative layers.
+-- No RenderStepped animation and no avatar or input logic lives here.
+local EH = {}
+
+function EH.accentRule(parent, position, size, transparency, tone)
     return create("Frame", {
-        Name = "ObsidianAccentRule",
+        Name = "EHAccent",
         Position = position,
         Size = size,
-        BackgroundColor3 = ACCENT_PURPLE,
+        BackgroundColor3 = tone or ACCENT_PURPLE,
         BackgroundTransparency = transparency or 0,
         BorderSizePixel = 0,
         Active = false,
@@ -643,80 +652,108 @@ local function accentRule(parent, position, size, transparency)
     }, parent)
 end
 
--- A moving glint is a single UIGradient tween; no per-frame Lua work.
-local function animateLightRail(rail, seconds)
+function EH.animateLightRail(rail, seconds)
     local gradient = create("UIGradient", {
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(49, 28, 52)),
-            ColorSequenceKeypoint.new(0.3, Color3.fromRGB(159, 88, 110)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 223, 173)),
-            ColorSequenceKeypoint.new(0.7, Color3.fromRGB(208, 134, 105)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 29, 53))
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(51, 32, 54)),
+            ColorSequenceKeypoint.new(0.25, Color3.fromRGB(143, 83, 104)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(246, 203, 149)),
+            ColorSequenceKeypoint.new(0.75, Color3.fromRGB(199, 122, 113)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(53, 32, 54))
         }),
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0.16),
-            NumberSequenceKeypoint.new(0.42, 0.06),
-            NumberSequenceKeypoint.new(0.5, 0),
-            NumberSequenceKeypoint.new(0.58, 0.06),
-            NumberSequenceKeypoint.new(1, 0.16)
-        }),
-        Offset = Vector2.new(-1, 0)
+        Offset = Vector2.new(-0.65, 0)
     }, rail)
-    local sweep = TweenService:Create(gradient,
-        TweenInfo.new(seconds or 7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-        {Offset = Vector2.new(1, 0)})
-    sweep:Play()
-    return sweep
+    local animation = TweenService:Create(gradient,
+        TweenInfo.new(seconds or 9, Enum.EasingStyle.Sine,
+            Enum.EasingDirection.InOut, -1, true),
+        {Offset = Vector2.new(0.65, 0)})
+    animation:Play()
+    return animation
 end
 
-local function decorateSurface(panel, variant)
-    local stroke = panel:FindFirstChildOfClass("UIStroke")
-    if stroke then
-        stroke.Color = Color3.fromRGB(123, 77, 92)
-        stroke.Transparency = 0.20
-        stroke.Thickness = 1.25
+function EH.ehStroke(parent, tone, transparency, thickness)
+    local edge = parent:FindFirstChildOfClass("UIStroke")
+    if edge then
+        edge.Color = tone or Color3.fromRGB(147, 97, 105)
+        edge.Transparency = transparency or 0.16
+        edge.Thickness = thickness or 1.25
     end
-    if variant == "main" then
-        -- Inset frame: double-layer border and thin left-hand illuminated rail.
-        local inset = create("Frame", {
-            Name = "ObsidianInsetBorder",
+end
+
+function EH.ehPanel(parent, kind)
+    EH.ehStroke(parent, kind == "viewer" and Color3.fromRGB(200, 137, 119)
+        or Color3.fromRGB(130, 87, 104), 0.16, 1.3)
+    -- ScrollingFrame content is driven by UIListLayout and cleared dynamically:
+    -- avoid adding decorative Frame children that would be treated as list rows.
+    if kind == "scroll" then return end
+    if kind == "shell" then
+        local frame = create("Frame", {
+            Name = "EHInsetShell",
             Position = UDim2.fromOffset(5, 5),
             Size = UDim2.new(1, -10, 1, -10),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             Active = false
-        }, panel)
-        round(inset, 12)
+        }, parent)
+        round(frame, 14)
         create("UIStroke", {
-            Color = Color3.fromRGB(72, 47, 59),
-            Thickness = 1,
-            Transparency = 0.45
-        }, inset)
-        accentRule(panel, UDim2.fromOffset(0, 65), UDim2.fromOffset(3, 72), 0.12)
-        accentRule(panel, UDim2.new(1, -3, 0, 65), UDim2.fromOffset(3, 72), 0.25)
-        accentRule(panel, UDim2.new(0, 22, 1, -3), UDim2.fromOffset(80, 2), 0.30)
-        accentRule(panel, UDim2.new(1, -102, 1, -3), UDim2.fromOffset(80, 2), 0.30)
-    else
-        -- Every column has its own architectural top line and corner marker.
-        accentRule(panel, UDim2.fromOffset(14, 0), UDim2.new(1, -28, 0, 2), 0.32)
-        accentRule(panel, UDim2.fromOffset(0, 13), UDim2.fromOffset(2, 30), 0.14)
-        accentRule(panel, UDim2.new(1, -2, 0, 13), UDim2.fromOffset(2, 30), 0.55)
-        local gleam = create("Frame", {
-            Name = "ObsidianPanelGleam",
-            Position = UDim2.fromOffset(2, 2),
-            Size = UDim2.new(1, -4, 0, 48),
-            BackgroundColor3 = Color3.fromRGB(58, 39, 51),
-            BackgroundTransparency = 0.58,
-            BorderSizePixel = 0,
-            Active = false
-        }, panel)
-        create("UIGradient", {
-            Transparency = NumberSequence.new({
-                NumberSequenceKeypoint.new(0, 0.1),
-                NumberSequenceKeypoint.new(1, 1)
-            }),
-            Rotation = 90
-        }, gleam)
+            Color = Color3.fromRGB(87, 53, 70),
+            Transparency = 0.46,
+            Thickness = 1
+        }, frame)
+        for _, x in ipairs({10, -40}) do
+            local atRight = x < 0
+            EH.accentRule(parent,
+                atRight and UDim2.new(1, x, 0, 7) or UDim2.fromOffset(x, 7),
+                UDim2.fromOffset(30, 2), 0.15)
+            EH.accentRule(parent,
+                atRight and UDim2.new(1, x, 1, -9) or UDim2.new(0, x, 1, -9),
+                UDim2.fromOffset(30, 2), 0.15)
+        end
+        return
+    end
+    -- Geometric corner brackets and small signal mark (instead of four full rails).
+    for _, atRight in ipairs({false, true}) do
+        local x = atRight and UDim2.new(1, -16, 0, 0) or UDim2.fromOffset(0, 0)
+        local x2 = atRight and UDim2.new(1, -2, 0, 0) or UDim2.fromOffset(0, 0)
+        EH.accentRule(parent, x, UDim2.fromOffset(16, 2), 0.1)
+        EH.accentRule(parent, x2, UDim2.fromOffset(2, 17), 0.1)
+    end
+    EH.accentRule(parent, UDim2.new(0, 17, 1, -2),
+        UDim2.new(1, -34, 0, 2), 0.76)
+    local signal = create("Frame", {
+        Name = "EHSignalDot",
+        Position = UDim2.new(1, -12, 0, 13),
+        Size = UDim2.fromOffset(5, 5),
+        BackgroundColor3 = Color3.fromRGB(234, 171, 124),
+        BorderSizePixel = 0,
+        Active = false
+    }, parent)
+    round(signal, 5)
+end
+
+function EH.ehCard(card)
+    -- Single reusable card treatment for player, saved outfit and asset rows.
+    round(card, 9)
+    create("UIStroke", {
+        Color = Color3.fromRGB(111, 75, 93),
+        Thickness = 1,
+        Transparency = 0.63
+    }, card)
+    EH.accentRule(card, UDim2.fromOffset(0, 10),
+        UDim2.fromOffset(2, 24), 0.15,
+        Color3.fromRGB(224, 150, 120))
+    local sheen = EH.accentRule(card, UDim2.fromOffset(10, 0),
+        UDim2.new(1, -20, 0, 1), 0.68,
+        Color3.fromRGB(223, 170, 140))
+    sheen.Name = "EHCardInlay"
+end
+
+function EH.ehSectionLabel(label, marker)
+    if not label then return end
+    label.Font = Enum.Font.GothamBold
+    if marker then
+        label.Text = marker .. "  " .. label.Text
     end
 end
 
@@ -1044,7 +1081,7 @@ local Main = create("Frame", {
 
 round(Main, 18)
 addStroke(Main)
-decorateSurface(Main, "main")
+EH.ehPanel(Main, "shell")
 create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(23, 16, 25)),
@@ -1065,7 +1102,7 @@ local Header = create("Frame", {
 }, Main)
 
 round(Header, 15)
-accentRule(Header, UDim2.fromOffset(0, 12), UDim2.fromOffset(4, 25), 0.02)
+EH.accentRule(Header, UDim2.fromOffset(0, 12), UDim2.fromOffset(4, 25), 0.02)
 create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(36, 25, 34)),
@@ -1075,34 +1112,52 @@ create("UIGradient", {
     Rotation = 0
 }, Header)
 addStroke(Header)
-local HeaderRail = create("Frame", {
-    Name = "EventHorizonSpectrum",
-    BorderSizePixel = 0,
-    BackgroundColor3 = ACCENT,
-    BackgroundTransparency = 0,
-    Size = UDim2.new(1, -44, 0, 5),
-    Position = UDim2.new(0, 22, 1, 3),
-    ZIndex = Header.ZIndex + 1
-}, Header)
-round(HeaderRail, 3)
-animateLightRail(HeaderRail, 9)
+-- Compact segmented spectrum bridge; the center is the only animated rail.
+do
+    EH.accentRule(Header, UDim2.fromOffset(18, 51),
+        UDim2.fromOffset(25, 4), 0.04)
+    EH.accentRule(Header, UDim2.new(1, -43, 1, 3),
+        UDim2.fromOffset(25, 4), 0.04)
+    local headerRail = create("Frame", {
+        Name = "EHSpectrumMain",
+        BorderSizePixel = 0,
+        BackgroundColor3 = Color3.fromRGB(239, 177, 128),
+        Size = UDim2.new(1, -100, 0, 4),
+        Position = UDim2.new(0, 50, 1, 3),
+        ZIndex = 4,
+        Active = false
+    }, Header)
+    round(headerRail, 3)
+    EH.animateLightRail(headerRail, 10)
+end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.42",
+    Header, "AVATAR INSPECTOR v7.9.43",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
 
 HeaderTitle.Font = Enum.Font.GothamBlack
 HeaderTitle.TextColor3 = Color3.fromRGB(250, 244, 239)
+HeaderTitle.TextSize = 17
 HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
-HeaderTitle.Position = UDim2.fromOffset(16, 3)
+HeaderTitle.Position = UDim2.fromOffset(18, 3)
 
 do
-    local subtitle = makeLabel(Header, "EVENT HORIZON EDITION",
+    local subtitle = makeLabel(Header, "EVENT HORIZON / 043",
         UDim2.fromOffset(260, 14), UDim2.fromOffset(17, 29), 9)
     subtitle.Font = Enum.Font.GothamBold
     subtitle.TextColor3 = Color3.fromRGB(229, 163, 120)
+    subtitle.TextSize = 9
+    subtitle.Position = UDim2.fromOffset(24, 29)
+    local marker = create("Frame", {
+        Size = UDim2.fromOffset(6, 6),
+        Position = UDim2.fromOffset(15, 33),
+        Rotation = 45,
+        BackgroundColor3 = Color3.fromRGB(225, 160, 121),
+        BorderSizePixel = 0,
+        Active = false
+    }, Header)
 
     local orbit = create("Frame", {
         Name = "EventHorizonOrbit",
@@ -1132,6 +1187,16 @@ do
         Active = false
     }, orbit)
     round(core, 4)
+    local orbitSatellite = create("Frame", {
+        Name = "OrbitSatellite",
+        Size = UDim2.fromOffset(5, 5),
+        Position = UDim2.fromOffset(23, 5),
+        BackgroundColor3 = Color3.fromRGB(247, 193, 147),
+        BorderSizePixel = 0
+    }, orbit)
+    round(orbitSatellite, 5)
+    create("UIStroke", {Color = Color3.fromRGB(190, 116, 112),
+        Thickness = 1, Transparency = 0.2}, orbit)
 end
 
 local LangButton = makeButton(
@@ -1238,6 +1303,14 @@ local Search = create("TextBox", {
 
 round(Search, 12)
 addStroke(Search)
+create("UIGradient", {
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(36, 26, 38)),
+        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(23, 19, 28)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(37, 26, 37))
+    })
+}, Search)
+
 local searchOutline = Search:FindFirstChildOfClass("UIStroke")
 if searchOutline then
     Search.Focused:Connect(function()
@@ -1274,7 +1347,7 @@ local PlayerList = create("ScrollingFrame", {
 
 round(PlayerList, 12)
 addStroke(PlayerList)
-decorateSurface(PlayerList, "column")
+EH.ehPanel(PlayerList, "scroll")
 
 create("UIListLayout", {
     Padding = UDim.new(0, 5),
@@ -1300,7 +1373,15 @@ local Viewport = create("ViewportFrame", {
 
 round(Viewport, 12)
 addStroke(Viewport)
-decorateSurface(Viewport, "viewport")
+EH.ehPanel(Viewport, "viewer")
+-- Viewport identification stays away from the avatar and the FREE LOOK control.
+do
+    local viewerInfo = makeLabel(Viewport, "3D VIEW / 360",
+        UDim2.fromOffset(99, 18), UDim2.new(1, -110, 0, 9), 9)
+    viewerInfo.TextColor3 = Color3.fromRGB(204, 155, 144)
+    viewerInfo.TextXAlignment = Enum.TextXAlignment.Right
+    viewerInfo.ZIndex = 3
+end
 
 local ViewModeBar = create("Frame", {
     Name = "ViewModeBar",
@@ -1371,6 +1452,9 @@ local PoseBar = create("Frame", {
 
 round(PoseBar, 9)
 addStroke(PoseBar)
+EH.ehStroke(PoseBar, Color3.fromRGB(143, 94, 103), 0.33, 1.1)
+EH.accentRule(PoseBar, UDim2.fromOffset(15, 0),
+    UDim2.new(1, -30, 0, 2), 0.22)
 
 local TPoseButton = makeButton(
     PoseBar, "T-POSE",
@@ -1408,7 +1492,7 @@ local ItemsPanel = create("Frame", {
 
 round(ItemsPanel, 12)
 addStroke(ItemsPanel)
-decorateSurface(ItemsPanel, "column")
+EH.ehPanel(ItemsPanel, "viewer")
 
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
@@ -1416,7 +1500,9 @@ local ItemsTitle = makeLabel(
     UDim2.fromOffset(10, 4), 11
 )
 
-ItemsTitle.Font = Enum.Font.GothamBold
+EH.ehSectionLabel(ItemsTitle)
+EH.accentRule(ItemsPanel, UDim2.fromOffset(10, 32),
+    UDim2.fromOffset(55, 2), 0.32)
 
 local WornCountLabel = makeLabel(
     ItemsPanel, "WORN ITEMS: —",
@@ -1450,74 +1536,97 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- One lightweight ornamental bridge fills the old empty gap above status.
--- It does not cover the camera, pose buttons, or scrolling lists.
-do
-    local bridge = create("Frame", {
-        Name = "EventHorizonBridge",
-        Position = UDim2.fromOffset(22, 461),
-        Size = UDim2.new(1, -44, 0, 5),
-        BackgroundColor3 = Color3.fromRGB(244, 179, 130),
-        BackgroundTransparency = 0.08,
-        BorderSizePixel = 0,
-        Active = false
-    }, Main)
-    round(bridge, 3)
-    create("UIGradient", {
-        Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(33, 21, 38)),
-            ColorSequenceKeypoint.new(0.27, Color3.fromRGB(159, 91, 109)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(250, 198, 142)),
-            ColorSequenceKeypoint.new(0.75, Color3.fromRGB(179, 100, 99)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(34, 21, 39))
-        })
-    }, bridge)
-end
-
--- The existing status panel replaces the previously vacant lower band.
-local StatusConsole = create("Frame", {
-    Name = "EventHorizonStatusConsole",
-    Position = UDim2.new(0, 13, 1, -51),
-    Size = UDim2.new(1, -26, 0, 41),
-    BackgroundColor3 = Color3.fromRGB(22, 17, 26),
-    BackgroundTransparency = 0.06,
+-- EVENT HORIZON / 043 lower structural belt: a segmented bridge + useful status console.
+-- Explicitly replaces the older v7.9.42 bridge and brand pill; no stacking.
+local EHBridge = create("Frame", {
+    Name = "EHLowerBridge",
+    Position = UDim2.fromOffset(18, 461),
+    Size = UDim2.new(1, -36, 0, 4),
+    BackgroundTransparency = 1,
     BorderSizePixel = 0,
     Active = false
 }, Main)
-round(StatusConsole, 10)
+do
+    EH.accentRule(EHBridge, UDim2.fromOffset(0, 0),
+        UDim2.fromOffset(26, 3), 0.1)
+    EH.accentRule(EHBridge, UDim2.new(1, -26, 0, 0),
+        UDim2.fromOffset(26, 3), 0.1)
+    local belt = create("Frame", {
+        Name = "EHLowerBelt",
+        Position = UDim2.fromOffset(33, 0),
+        Size = UDim2.new(1, -66, 0, 3),
+        BackgroundColor3 = Color3.fromRGB(185, 120, 113),
+        BackgroundTransparency = 0.13,
+        BorderSizePixel = 0,
+        Active = false
+    }, EHBridge)
+    round(belt, 2)
+    create("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(69, 41, 66)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(246, 191, 146)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(72, 42, 65))
+        })
+    }, belt)
+end
+
+local StatusConsole = create("Frame", {
+    Name = "EHSystemStatus",
+    Position = UDim2.new(0, 13, 1, -51),
+    Size = UDim2.new(1, -26, 0, 41),
+    BackgroundColor3 = Color3.fromRGB(31, 23, 31),
+    BorderSizePixel = 0,
+    Active = false
+}, Main)
+round(StatusConsole, 11)
 create("UIGradient", {
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(52, 32, 48)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(22, 17, 26)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(49, 31, 45))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(53, 34, 47)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(29, 22, 31)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(47, 32, 44))
     })
 }, StatusConsole)
 create("UIStroke", {
-    Color = Color3.fromRGB(130, 85, 96),
-    Thickness = 1,
-    Transparency = 0.4
+    Color = Color3.fromRGB(157, 100, 111),
+    Thickness = 1.25,
+    Transparency = 0.14
 }, StatusConsole)
-accentRule(StatusConsole, UDim2.fromOffset(12, 0),
-    UDim2.new(1, -24, 0, 2), 0.18)
+EH.accentRule(StatusConsole, UDim2.fromOffset(14, 0),
+    UDim2.new(1, -28, 0, 2), 0.43)
 local BrandPill = create("Frame", {
-    Name = "StatusBrand",
-    Position = UDim2.fromOffset(10, 8),
-    Size = UDim2.fromOffset(123, 25),
-    BackgroundColor3 = Color3.fromRGB(65, 40, 53),
+    Name = "EHStatusIdentity",
+    Position = UDim2.fromOffset(10, 7),
+    Size = UDim2.fromOffset(122, 27),
+    BackgroundColor3 = Color3.fromRGB(58, 39, 51),
     BorderSizePixel = 0,
     Active = false
 }, StatusConsole)
-round(BrandPill, 7)
+round(BrandPill, 8)
 local BrandLabel = makeLabel(
-    BrandPill, "EVENT HORIZON",
+    BrandPill, "SYSTEM STATUS",
     UDim2.new(1, -8, 1, 0), UDim2.fromOffset(5, 0), 10
 )
 BrandLabel.TextColor3 = Color3.fromRGB(243, 184, 141)
 BrandLabel.Font = Enum.Font.GothamBold
 
+-- The right-hand indicator reflects that the GUI is alive, not whether scanning is active.
+do
+    local signal = create("Frame", {
+        Name = "EHSystemIndicator",
+        Position = UDim2.new(1, -23, 0, 16),
+        Size = UDim2.fromOffset(8, 8),
+        BackgroundColor3 = Color3.fromRGB(235, 180, 131),
+        BorderSizePixel = 0,
+        Active = false
+    }, StatusConsole)
+    round(signal, 8)
+    create("UIStroke", {Color = Color3.fromRGB(254, 210, 155),
+        Transparency = 0.35, Thickness = 2}, signal)
+end
+
 local Status = makeLabel(
     Main, "Select a player",
-    UDim2.new(1, -179, 0, 30),
+    UDim2.new(1, -204, 0, 30),
     UDim2.new(0, 163, 1, -45), 12
 )
 Status.TextColor3 = MUTED
@@ -1840,6 +1949,8 @@ local function updateLayout()
     )
     windowBaseScale = UIScale.Scale
 
+    EHBridge.Visible = not mobile
+
     if mobile then
         Search.Position = UDim2.fromOffset(12, 58)
         Search.Size = UDim2.new(1, -120, 0, 34)
@@ -1860,7 +1971,7 @@ local function updateLayout()
         ItemsPanel.Size = UDim2.new(1, -24, 0, 150)
 
         Status.Position = UDim2.new(0, 145, 1, -45)
-        Status.Size = UDim2.new(1, -161, 0, 30)
+        Status.Size = UDim2.new(1, -204, 0, 30)
     else
         Search.Position = UDim2.fromOffset(12, 58)
         Search.Size = UDim2.new(1, -120, 0, 36)
@@ -1881,7 +1992,7 @@ local function updateLayout()
         ItemsPanel.Size = UDim2.fromOffset(262, 350)
 
         Status.Position = UDim2.new(0, 145, 1, -45)
-        Status.Size = UDim2.new(1, -161, 0, 30)
+        Status.Size = UDim2.new(1, -204, 0, 30)
     end
 end
 
@@ -3457,7 +3568,7 @@ local function addItem(name, assetId, category)
         BorderSizePixel = 0
     }, ItemList)
 
-    round(card, 8)
+    EH.ehCard(card)
 
     local image = create("ImageLabel", {
         Size = UDim2.fromOffset(48, 48),
@@ -3468,6 +3579,8 @@ local function addItem(name, assetId, category)
     }, card)
 
     round(image, 6)
+    create("UIStroke", {Color = OUTLINE, Transparency = 0.45,
+        Thickness = 1}, image)
 
     local itemName = makeLabel(
         card, name,
@@ -3719,6 +3832,9 @@ refreshPlayerList = function()
         LayoutOrder = 0
     }, PlayerList)
     create("UIPadding", {PaddingLeft = UDim.new(0, 6)}, countHeader)
+    countHeader.Text = "●  " .. countHeader.Text
+    create("UIStroke", {Color = Color3.fromRGB(115, 79, 91),
+        Transparency = 0.75, Thickness = 1}, countHeader)
 
     local filter = string.lower(Search.Text)
 
@@ -3745,7 +3861,7 @@ refreshPlayerList = function()
             }, PlayerList)
 
             row.LayoutOrder = 1 + #PlayerList:GetChildren()
-            round(row, 7)
+            EH.ehCard(row)
 
             local avatar = create("ImageLabel", {
                 Size = UDim2.fromOffset(38, 38),
@@ -4453,7 +4569,7 @@ refreshFavoritesList = function()
             BorderSizePixel = 0
         }, PlayerList)
 
-        round(row, 7)
+        EH.ehCard(row)
 
         local nameLabel = makeLabel(
             row, favorite.name,
@@ -4705,11 +4821,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.42 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.43 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.42 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.43 INITIALIZATION FINISHED")
 end
