@@ -1,7 +1,10 @@
 --[[
-    AVATAR INSPECTOR v7.9.34
+    AVATAR INSPECTOR v7.9.35
 
     CHANGES:
+    - Updated graphite/navy styling and persistent selection indicators
+    - Fixed scaled-window dragging and confirmation dialog
+    - Replaced fixed camera with 360-degree orbit
     - 12-language localization: added Simplified Chinese and Belarusian
     - Language picker now shows flags and fits complete native language names
     - Wider language button and larger worn-items counter
@@ -34,7 +37,7 @@
     - Mobile layout
     - Draggable interface
     - Protected initialization
-    - Fixed rotation and free orbit camera modes
+    - Orbit 360 and free-look camera modes
     - Bounded zoom controls and viewport clipping
     - Success notifications with precisely aligned checkmark
     - Delete confirmation dialog for saved outfits
@@ -89,15 +92,15 @@ AI_DIAG_STAGE = "PLAYER_GUI_OK"
 AIDiag("07 PlayerGui OK")
 
 -- Premium graphite palette: deep neutral surfaces with restrained cool accents.
-local BG = Color3.fromRGB(14, 16, 21)
-local PANEL = Color3.fromRGB(22, 25, 32)
-local LIGHT = Color3.fromRGB(30, 34, 43)
-local ACCENT = Color3.fromRGB(79, 143, 224)
+local BG = Color3.fromRGB(12, 16, 25)
+local PANEL = Color3.fromRGB(22, 29, 43)
+local LIGHT = Color3.fromRGB(34, 44, 62)
+local ACCENT = Color3.fromRGB(65, 119, 219)
 local ACCENT_PURPLE = Color3.fromRGB(119, 96, 181)
 local OUTLINE = Color3.fromRGB(57, 66, 82)
 local WHITE = Color3.fromRGB(235, 239, 246)
 local MUTED = Color3.fromRGB(145, 154, 169)
-local GREEN = Color3.fromRGB(48, 125, 91)
+local GREEN = Color3.fromRGB(35, 120, 104)
 local ID_GREEN = Color3.fromRGB(104, 218, 151)
 local RED = Color3.fromRGB(164, 69, 82)
 
@@ -111,7 +114,7 @@ local currentPose = "N"
 local currentMode = "Players"
 local rotating = false
 local lastPointer = nil
-local viewportMode = "Fixed"
+local viewportMode = "Orbit"
 local orbitYaw = 0
 local orbitPitch = 0
 local orbitDistance = 10
@@ -645,7 +648,8 @@ local function makeButton(parent, text, size, position, color)
         Text = text,
         TextColor3 = WHITE,
         TextSize = 12,
-        Font = Enum.Font.GothamMedium,
+        Font = Enum.Font.GothamBold,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         AutoButtonColor = false,
         Active = true,
         Selectable = true
@@ -665,12 +669,12 @@ local function makeButton(parent, text, size, position, color)
 
     obj.MouseEnter:Connect(function()
         if not obj.Parent then return end
-        TweenService:Create(obj, hoverInfo, {BackgroundColor3 = baseColor:Lerp(WHITE, 0.055)}):Play()
+        if not obj:GetAttribute("SelectedControl") then TweenService:Create(obj, hoverInfo, {BackgroundColor3 = obj.BackgroundColor3:Lerp(WHITE, 0.055)}):Play() end
         TweenService:Create(outline, hoverInfo, {Transparency = 0.08}):Play()
     end)
     obj.MouseLeave:Connect(function()
         if not obj.Parent then return end
-        TweenService:Create(obj, hoverInfo, {BackgroundColor3 = baseColor}):Play()
+        if not obj:GetAttribute("SelectedControl") then TweenService:Create(obj, hoverInfo, {BackgroundColor3 = baseColor}):Play() end
         TweenService:Create(outline, hoverInfo, {Transparency = 0.28}):Play()
     end)
     obj.InputBegan:Connect(function(input)
@@ -984,12 +988,12 @@ create("Frame", {
 }, Header)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.34",
+    Header, "AVATAR INSPECTOR v7.9.35",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
 
-HeaderTitle.Font = Enum.Font.GothamBold
+HeaderTitle.Font = Enum.Font.GothamBlack
 HeaderTitle.TextColor3 = Color3.fromRGB(250, 250, 255)
 
 local LangButton = makeButton(
@@ -1062,8 +1066,8 @@ ExitNo.TextSize = 13
 local exitPanelScale = create("UIScale", {Scale = 0.92}, ExitPanel)
 local function showExitConfirmation()
     ExitOverlay.Visible = true
-    ExitPanelScale.Scale = 0.92
-    TweenService:Create(ExitPanelScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    exitPanelScale.Scale = 0.92
+    TweenService:Create(exitPanelScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
 end
 
 local function hideExitConfirmation()
@@ -1147,7 +1151,7 @@ addStroke(Viewport)
 local ViewModeBar = create("Frame", {
     Name = "ViewModeBar",
     Position = UDim2.fromOffset(7, 7),
-    Size = UDim2.fromOffset(150, 27),
+    Size = UDim2.fromOffset(206, 31),
     BackgroundColor3 = BG,
     BackgroundTransparency = 0.12,
     BorderSizePixel = 0,
@@ -1156,7 +1160,7 @@ local ViewModeBar = create("Frame", {
 round(ViewModeBar, 7)
 
 local FixedViewButton = makeButton(
-    ViewModeBar, "FIXED",
+    ViewModeBar, "ORBIT 360°",
     UDim2.new(0.5, -3, 1, -4),
     UDim2.fromOffset(2, 2),
     ACCENT
@@ -1165,7 +1169,7 @@ FixedViewButton.TextSize = 10
 FixedViewButton.ZIndex = 21
 
 local FreeViewButton = makeButton(
-    ViewModeBar, "FREE",
+    ViewModeBar, "FREE LOOK",
     UDim2.new(0.5, -3, 1, -4),
     UDim2.new(0.5, 1, 0, 2),
     LIGHT
@@ -1243,7 +1247,7 @@ local NeutralButton = makeButton(
 for _, poseButton in ipairs({
     TPoseButton, APoseButton, NeutralButton
 }) do
-    poseButton.TextSize = 10
+    poseButton.TextSize = 11
     poseButton.ZIndex = 6
     poseButton.Active = true
 end
@@ -1701,46 +1705,39 @@ end))
 
 local function makeDraggable(guiObject, handle)
     local dragging = false
-    local startPosition
-    local startAbsolutePosition
-
+    local startPointer, startGuiPosition, activeTouch
     handle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-
-            dragging = true
-            startPosition = input.Position
-            startAbsolutePosition = guiObject.AbsolutePosition
-
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and input.UserInputType ~= Enum.UserInputType.Touch then return end
+        dragging = true
+        activeTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
+        startPointer = input.Position
+        startGuiPosition = guiObject.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+                activeTouch = nil
+            end
+        end)
     end)
-
     trackExternalConnection(UserInputService.InputChanged:Connect(function(input)
-        if not dragging then return end
-
-        if input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch then
-
-            local delta = input.Position - startPosition
-            local camera = workspace.CurrentCamera
-            local viewportSize = camera and camera.ViewportSize or Vector2.new(800, 600)
-            local objectSize = guiObject.AbsoluteSize
-            local anchor = guiObject.AnchorPoint
-            local left = startAbsolutePosition.X + delta.X
-            local top = startAbsolutePosition.Y + delta.Y
-            left = math.clamp(left, 4, math.max(4, viewportSize.X - objectSize.X - 4))
-            top = math.clamp(top, 4, math.max(4, viewportSize.Y - objectSize.Y - 4))
-
-            guiObject.Position = UDim2.fromOffset(
-                left + objectSize.X * anchor.X,
-                top + objectSize.Y * anchor.Y
-            )
+        if not dragging or not startPointer or not startGuiPosition then return end
+        if activeTouch then
+            if input ~= activeTouch then return end
+        elseif input.UserInputType ~= Enum.UserInputType.MouseMovement then
+            return
         end
+        local delta = input.Position - startPointer
+        local parentSize = guiObject.Parent.AbsoluteSize
+        local scaledSize = guiObject.AbsoluteSize
+        local anchor = guiObject.AnchorPoint
+        local currentX = startGuiPosition.X.Scale * parentSize.X + startGuiPosition.X.Offset + delta.X
+        local currentY = startGuiPosition.Y.Scale * parentSize.Y + startGuiPosition.Y.Offset + delta.Y
+        local minX, maxX = scaledSize.X * anchor.X + 4, parentSize.X - scaledSize.X * (1 - anchor.X) - 4
+        local minY, maxY = scaledSize.Y * anchor.Y + 4, parentSize.Y - scaledSize.Y * (1 - anchor.Y) - 4
+        if maxX >= minX then currentX = math.clamp(currentX, minX, maxX) end
+        if maxY >= minY then currentY = math.clamp(currentY, minY, maxY) end
+        guiObject.Position = UDim2.fromOffset(currentX, currentY)
     end))
 end
 
@@ -2015,25 +2012,29 @@ local function updateFreeOrbitCamera()
     Camera.CFrame = CFrame.lookAt(offset, Vector3.new(0, 0, 0), Vector3.yAxis)
 end
 
-local function setViewportMode(mode)
-    viewportMode = mode == "Free" and "Free" or "Fixed"
-    rotating = false
-
-    if viewportMode == "Free" then
-        FixedViewButton.BackgroundColor3 = LIGHT
-        FreeViewButton.BackgroundColor3 = ACCENT
-        orbitYaw = 0
-        orbitPitch = 0
-        orbitDistance = baseCameraDistance
-        updateFreeOrbitCamera()
-    else
-        FixedViewButton.BackgroundColor3 = ACCENT
-        FreeViewButton.BackgroundColor3 = LIGHT
-        Camera.CFrame = CFrame.lookAt(
-            Vector3.new(0, 0, baseCameraDistance),
-            Vector3.new(0, 0, 0)
-        )
+local function styleSelectedControl(button, selected)
+    button:SetAttribute("SelectedControl", selected)
+    local color = selected and ACCENT or LIGHT
+    TweenService:Create(button, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+        BackgroundColor3 = color,
+        TextColor3 = WHITE
+    }):Play()
+    local stroke = button:FindFirstChildOfClass("UIStroke")
+    if stroke then
+        TweenService:Create(stroke, TweenInfo.new(0.18), {
+            Color = selected and Color3.fromRGB(125, 204, 255) or OUTLINE,
+            Thickness = selected and 1.8 or 1,
+            Transparency = selected and 0 or 0.28
+        }):Play()
     end
+end
+
+local function setViewportMode(mode)
+    viewportMode = mode == "Free" and "Free" or "Orbit"
+    rotating = false
+    styleSelectedControl(FixedViewButton, viewportMode == "Orbit")
+    styleSelectedControl(FreeViewButton, viewportMode == "Free")
+    updateFreeOrbitCamera()
 end
 
 local function changeZoom(direction)
@@ -2247,20 +2248,8 @@ shutdownAvatarInspector = function()
 end
 
 local function updatePoseButtons(pose)
-    local buttons = {
-        T = TPoseButton,
-        A = APoseButton,
-        N = NeutralButton
-    }
-
-    for key, poseButton in pairs(buttons) do
-        if key == pose then
-            poseButton.BackgroundColor3 = ACCENT
-            poseButton.TextColor3 = Color3.new(1, 1, 1)
-        else
-            poseButton.BackgroundColor3 = LIGHT
-            poseButton.TextColor3 = WHITE
-        end
+    for key, button in pairs({T = TPoseButton, A = APoseButton, N = NeutralButton}) do
+        styleSelectedControl(button, key == pose)
     end
 end
 
@@ -3131,7 +3120,7 @@ local function showPlayerModel(player)
         return nil
     end
 
-    setViewportMode("Fixed")
+    setViewportMode("Orbit")
     applyPose(clone, "N")
     Status.Text = "Avatar loaded"
 
@@ -3143,7 +3132,7 @@ end
 --==================================================
 
 FixedViewButton.Activated:Connect(function()
-    setViewportMode("Fixed")
+    setViewportMode("Orbit")
 end)
 
 FreeViewButton.Activated:Connect(function()
@@ -3213,16 +3202,9 @@ trackExternalConnection(UserInputService.InputChanged:Connect(function(input)
         local delta = input.Position - lastPointer
         lastPointer = input.Position
 
-        if viewportMode == "Free" then
-            orbitYaw = orbitYaw - delta.X * 0.01
-            orbitPitch = orbitPitch + delta.Y * 0.01
-            updateFreeOrbitCamera()
-        else
-            currentModel:PivotTo(
-                currentModel:GetPivot()
-                * CFrame.Angles(0, -delta.X * 0.01, 0)
-            )
-        end
+        orbitYaw = orbitYaw - delta.X * (viewportMode == "Free" and 0.012 or 0.009)
+        orbitPitch = orbitPitch + delta.Y * (viewportMode == "Free" and 0.012 or 0.009)
+        updateFreeOrbitCamera()
     end
 end))
 
@@ -4186,7 +4168,7 @@ local function showSavedAvatarAppearance(favorite)
         return false
     end
 
-    setViewportMode("Fixed")
+    setViewportMode("Orbit")
     applyPose(model, "N")
     Status.Text = "Saved 3D avatar loaded"
     return true
@@ -4432,7 +4414,7 @@ ModeButton.Activated:Connect(updateListMode)
 --==================================================
 
 local windowAnimationToken = 0
-local windowBasePosition = UDim2.fromScale(0.5, 0.5)
+local windowBasePosition = Main.Position
 
 local function setMainWindowVisible(shouldShow)
     windowAnimationToken += 1
@@ -4442,7 +4424,8 @@ local function setMainWindowVisible(shouldShow)
 
     if shouldShow then
         Main.Visible = true
-        Main.Position = UDim2.new(0.5, 0, 0.5, 16)
+        windowBasePosition = Main.Position
+        Main.Position = windowBasePosition + UDim2.fromOffset(0, 12)
         UIScale.Scale = baseScale * 0.90
         local info = TweenInfo.new(0.26, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
         TweenService:Create(Main, info, {Position = windowBasePosition}):Play()
@@ -4450,7 +4433,7 @@ local function setMainWindowVisible(shouldShow)
     else
         if not Main.Visible then return end
         local info = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-        local move = TweenService:Create(Main, info, {Position = UDim2.new(0.5, 0, 0.5, 12)})
+        local move = TweenService:Create(Main, info, {Position = windowBasePosition + UDim2.fromOffset(0, 12)})
         local shrink = TweenService:Create(UIScale, info, {Scale = baseScale * 0.92})
         move:Play()
         shrink:Play()
@@ -4553,11 +4536,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.34 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.35 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.34 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.35 INITIALIZATION FINISHED")
 end
