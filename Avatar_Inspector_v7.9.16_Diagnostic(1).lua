@@ -1,30 +1,15 @@
 --[[
-    AVATAR INSPECTOR v7.9.44
+    AVATAR INSPECTOR v7.9.45
 
     CHANGES:
-    - Event Horizon Refined 2.0: app-like section modules, panel symbols and cleaner edge geometry
-    - Segmented spectrum header with stable single-gradient animation
-    - Precision corner brackets, status modules, and unified panel framing
-    - Rebuilt player/item cards with inlaid left rails and compact highlights
-    - Preserves preview size, input, scanning, saved outfits and all translations
-    - Replaced older decorative overlays rather than stacking duplicate effects
-    - Single FREE LOOK camera control; removed redundant ORBIT button
-    - Event Horizon black/copper/rose style using existing panels
-    - One animated spectrum rail and one static lower bridge
-    - Reused branded status console; removed redundant decorative layers
-    - Removed unreachable preview helper and write-only pose/bounds fields
-    - Branded close, rename and delete controls
-    - Updated graphite/navy styling and persistent selection indicators
-    - Fixed scaled-window dragging and confirmation dialog
-    - Replaced fixed camera with 360-degree orbit
-    - 12-language localization: added Simplified Chinese and Belarusian
-    - Language picker now shows flags and fits complete native language names
-    - Wider language button and larger worn-items counter
-    - Preserved v7.9.26 functionality
-    - Green, larger and bold asset IDs
-    - Separate AVATAR ITEMS and ANIMATIONS sections
-    - Walk, Run, Idle, Jump, Fall, Climb, Swim and Mood IDs
-    - Animation categories preserved in favorites
+    - Native Roblox vector pictograms for PLAYERS, 3D VIEW and ITEMS
+    - Native search, copy, and system-status icons (no font-dependent glyphs)
+    - One clean rounded top rule on module panels instead of broken corner strips
+    - Simplified card inlays and replaced redundant decorative segments
+    - Restored readable search text by removing gradient from the TextBox
+    - Fixed bottom status / ACTIVE text overlap and relative-positioned footer chips
+    - User-friendly accessory category labels in place of Enum.AccessoryType.*
+    - Preserve three-column layout, preview size, functions and all translations
 
     PRESERVED:
     - Adaptive universal pose system
@@ -681,13 +666,13 @@ function EH.ehStroke(parent, tone, transparency, thickness)
 end
 
 function EH.ehPanel(parent, kind)
-    EH.ehStroke(parent, kind == "viewer" and Color3.fromRGB(200, 137, 119)
-        or Color3.fromRGB(130, 87, 104), 0.16, 1.3)
-    -- ScrollingFrame content is driven by UIListLayout and cleared dynamically:
-    -- avoid adding decorative Frame children that would be treated as list rows.
+    -- Keep one continuous stroke. Older versions layered short rails at every
+    -- corner, producing the fragmented / ripped appearance on small screens.
+    EH.ehStroke(parent, kind == "viewer" and Color3.fromRGB(190, 132, 114)
+        or Color3.fromRGB(130, 87, 104), 0.2, 1.25)
     if kind == "scroll" then return end
     if kind == "shell" then
-        local frame = create("Frame", {
+        local inner = create("Frame", {
             Name = "EHInsetShell",
             Position = UDim2.fromOffset(5, 5),
             Size = UDim2.new(1, -10, 1, -10),
@@ -695,42 +680,89 @@ function EH.ehPanel(parent, kind)
             BorderSizePixel = 0,
             Active = false
         }, parent)
-        round(frame, 14)
+        round(inner, 14)
         create("UIStroke", {
             Color = Color3.fromRGB(87, 53, 70),
-            Transparency = 0.46,
+            Transparency = 0.65,
             Thickness = 1
-        }, frame)
-        for _, x in ipairs({10, -40}) do
-            local atRight = x < 0
-            EH.accentRule(parent,
-                atRight and UDim2.new(1, x, 0, 7) or UDim2.fromOffset(x, 7),
-                UDim2.fromOffset(30, 2), 0.15)
-            EH.accentRule(parent,
-                atRight and UDim2.new(1, x, 1, -9) or UDim2.new(0, x, 1, -9),
-                UDim2.fromOffset(30, 2), 0.15)
-        end
+        }, inner)
         return
     end
-    -- Cleaner section geometry: smooth top segments, restrained bottom bar and one signal dot.
-    local leftSeg = EH.accentRule(parent, UDim2.fromOffset(14, 8), UDim2.fromOffset(34, 2), 0.12)
-    round(leftSeg, 2)
-    local rightSeg = EH.accentRule(parent, UDim2.new(1, -48, 0, 8), UDim2.fromOffset(34, 2), 0.12)
-    round(rightSeg, 2)
-    local topBridge = EH.accentRule(parent, UDim2.fromOffset(56, 8), UDim2.new(1, -112, 0, 2), 0.58, Color3.fromRGB(188, 126, 118))
-    round(topBridge, 2)
-    local bottomBridge = EH.accentRule(parent, UDim2.new(0, 14, 1, -10), UDim2.new(1, -28, 0, 1), 0.82, Color3.fromRGB(140, 88, 101))
-    bottomBridge.AnchorPoint = Vector2.new(0, 1)
-    local signal = create("Frame", {
-        Name = "EHSignalDot",
-        Position = UDim2.new(1, -16, 0, 13),
-        Size = UDim2.fromOffset(8, 8),
-        BackgroundColor3 = Color3.fromRGB(234, 171, 124),
+    -- One inset line from end to end, rounded, plus a non-interactive signal.
+    local top = EH.accentRule(parent, UDim2.fromOffset(13, 9),
+        UDim2.new(1, -26, 0, 2), 0.35,
+        Color3.fromRGB(210, 137, 117))
+    round(top, 2)
+end
+
+-- Icons are built entirely from native Roblox Frames. Unicode pictograms
+-- rendered as empty squares on some Android executors/fonts, so no asset IDs
+-- or external image loading is required for these system symbols.
+function EH.icon(parent, style, position, pixels)
+    local root = create("Frame", {
+        Name = "EHIcon_" .. style,
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Active = false
+        Position = position,
+        Size = UDim2.fromOffset(30, 30),
+        Active = false,
+        ZIndex = parent.ZIndex + 2
     }, parent)
-    round(signal, 8)
-    create("UIStroke", {Color = Color3.fromRGB(255, 221, 178), Transparency = 0.45, Thickness = 1}, signal)
+    create("UIScale", {Scale = (pixels or 30) / 30}, root)
+    local copper = Color3.fromRGB(233, 172, 130)
+    local bright = Color3.fromRGB(253, 205, 158)
+    local function part(x, y, w, h, radius, outline, rotation, color)
+        local node = create("Frame", {
+            Position = UDim2.fromOffset(x, y),
+            Size = UDim2.fromOffset(w, h),
+            BackgroundColor3 = color or copper,
+            BackgroundTransparency = outline and 1 or 0,
+            BorderSizePixel = 0,
+            Rotation = rotation or 0,
+            Active = false,
+            ZIndex = root.ZIndex + 1
+        }, root)
+        if radius then round(node, radius) end
+        if outline then
+            create("UIStroke", {Color = copper, Thickness = 2.1}, node)
+        end
+        return node
+    end
+    if style == "players" then
+        -- Two heads over shoulders, recognizable even at 20-24 px.
+        part(4, 4, 9, 9, 9, false)
+        part(18, 4, 9, 9, 9, false, nil, bright)
+        part(1, 16, 15, 12, 10, true)
+        part(15, 16, 14, 12, 10, true)
+    elseif style == "viewer" then
+        -- Four scan brackets and central target dot.
+        for _, x in ipairs({3, 20}) do
+            for _, y in ipairs({3, 20}) do
+                local stepX = x == 3 and 0 or 9
+                local stepY = y == 3 and 0 or 9
+                part(x, y, 9, 2, 1, false)
+                part(x + stepX, y + stepY, 2, 9, 1, false)
+            end
+        end
+        part(12, 12, 6, 6, 6, false, nil, bright)
+    elseif style == "items" then
+        -- Three outlined inventory layers.
+        part(5, 4, 20, 8, 3, true)
+        part(3, 12, 24, 8, 3, true)
+        part(7, 20, 16, 7, 3, true)
+    elseif style == "search" then
+        part(5, 4, 16, 16, 16, true)
+        part(20, 19, 10, 3, 2, false, 45)
+    elseif style == "copy" then
+        part(4, 4, 15, 16, 2, true)
+        part(11, 11, 15, 16, 2, true, nil, bright)
+    elseif style == "status" then
+        part(3, 3, 24, 24, 6, true)
+        part(7, 15, 6, 2, 1, false)
+        part(12, 13, 8, 2, 1, false, -45)
+        part(20, 9, 5, 2, 1, false)
+    end
+    return root
 end
 
 function EH.ehCard(card)
@@ -741,13 +773,10 @@ function EH.ehCard(card)
         Thickness = 1,
         Transparency = 0.63
     }, card)
-    EH.accentRule(card, UDim2.fromOffset(0, 10),
-        UDim2.fromOffset(2, 24), 0.15,
+    local inset = EH.accentRule(card, UDim2.fromOffset(5, 13),
+        UDim2.fromOffset(3, 19), 0.05,
         Color3.fromRGB(224, 150, 120))
-    local sheen = EH.accentRule(card, UDim2.fromOffset(10, 0),
-        UDim2.new(1, -20, 0, 1), 0.68,
-        Color3.fromRGB(223, 170, 140))
-    sheen.Name = "EHCardInlay"
+    round(inset, 3)
 end
 
 function EH.ehSectionLabel(label, marker)
@@ -1103,7 +1132,6 @@ local Header = create("Frame", {
 }, Main)
 
 round(Header, 15)
-EH.accentRule(Header, UDim2.fromOffset(0, 12), UDim2.fromOffset(4, 25), 0.02)
 create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(36, 25, 34)),
@@ -1115,16 +1143,12 @@ create("UIGradient", {
 addStroke(Header)
 -- Compact segmented spectrum bridge; the center is the only animated rail.
 do
-    EH.accentRule(Header, UDim2.fromOffset(18, 51),
-        UDim2.fromOffset(25, 4), 0.04)
-    EH.accentRule(Header, UDim2.new(1, -43, 1, 3),
-        UDim2.fromOffset(25, 4), 0.04)
     local headerRail = create("Frame", {
         Name = "EHSpectrumMain",
         BorderSizePixel = 0,
         BackgroundColor3 = Color3.fromRGB(239, 177, 128),
-        Size = UDim2.new(1, -100, 0, 4),
-        Position = UDim2.new(0, 50, 1, 3),
+        Size = UDim2.new(1, -38, 0, 3),
+        Position = UDim2.new(0, 19, 1, 3),
         ZIndex = 4,
         Active = false
     }, Header)
@@ -1133,7 +1157,7 @@ do
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.44",
+    Header, "AVATAR INSPECTOR v7.9.45",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1145,7 +1169,7 @@ HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
 HeaderTitle.Position = UDim2.fromOffset(18, 3)
 
 do
-    local subtitle = makeLabel(Header, "EVENT HORIZON / 043",
+    local subtitle = makeLabel(Header, "EVENT HORIZON / 045",
         UDim2.fromOffset(260, 14), UDim2.fromOffset(17, 29), 9)
     subtitle.Font = Enum.Font.GothamBold
     subtitle.TextColor3 = Color3.fromRGB(229, 163, 120)
@@ -1304,22 +1328,13 @@ local Search = create("TextBox", {
 
 round(Search, 12)
 addStroke(Search)
-create("UIGradient", {
-    Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(36, 26, 38)),
-        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(23, 19, 28)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(37, 26, 37))
-    })
-}, Search)
 create("UIPadding", {
     PaddingLeft = UDim.new(0, 28),
     PaddingRight = UDim.new(0, 8)
 }, Search)
-local SearchIcon = makeLabel(Search, "⌕",
-    UDim2.fromOffset(18, 18), UDim2.fromOffset(8, 8), 14)
-SearchIcon.TextColor3 = Color3.fromRGB(226, 170, 130)
-SearchIcon.Font = Enum.Font.GothamBold
-SearchIcon.ZIndex = 4
+EH.icon(Search, "search", UDim2.fromOffset(5, 7), 20)
+Search.TextColor3 = Color3.fromRGB(249, 242, 236)
+Search.PlaceholderColor3 = Color3.fromRGB(172, 155, 167)
 
 local searchOutline = Search:FindFirstChildOfClass("UIStroke")
 if searchOutline then
@@ -1386,18 +1401,15 @@ addStroke(Viewport)
 EH.ehPanel(Viewport, "viewer")
 -- Viewport identification stays away from the avatar and the FREE LOOK control.
 do
-    local viewerIcon = makeLabel(Viewport, "⌖",
-        UDim2.fromOffset(16, 18), UDim2.fromOffset(14, 18), 12)
-    viewerIcon.TextColor3 = Color3.fromRGB(234, 181, 137)
-    viewerIcon.Font = Enum.Font.GothamBold
+    EH.icon(Viewport, "viewer", UDim2.fromOffset(13, 12), 22)
     viewerIcon.ZIndex = 4
     local viewerInfo = makeLabel(Viewport, "3D-PREVIEW",
-        UDim2.fromOffset(120, 18), UDim2.fromOffset(34, 18), 10)
+        UDim2.fromOffset(120, 18), UDim2.fromOffset(45, 15), 10)
     viewerInfo.TextColor3 = Color3.fromRGB(238, 229, 224)
     viewerInfo.Font = Enum.Font.GothamBold
     viewerInfo.ZIndex = 4
     local viewerMode = makeLabel(Viewport, "MODEL READY",
-        UDim2.fromOffset(120, 22), UDim2.fromOffset(14, 279), 10)
+        UDim2.fromOffset(120, 22), UDim2.new(0, 14, 1, -29), 10)
     viewerMode.TextColor3 = Color3.fromRGB(216, 169, 145)
     viewerMode.Font = Enum.Font.GothamBold
     viewerMode.ZIndex = 4
@@ -1405,7 +1417,7 @@ end
 
 local ViewModeBar = create("Frame", {
     Name = "ViewModeBar",
-    Position = UDim2.fromOffset(9, 40),
+    Position = UDim2.fromOffset(9, 39),
     Size = UDim2.fromOffset(114, 31),
     BackgroundColor3 = BG,
     BackgroundTransparency = 0.12,
@@ -1416,7 +1428,7 @@ round(ViewModeBar, 7)
 
 -- One camera control: touch-drag to orbit freely around the avatar.
 local FreeViewButton = makeButton(
-    ViewModeBar, "⟳ FREE LOOK",
+    ViewModeBar, "FREE LOOK",
     UDim2.new(1, -4, 1, -4),
     UDim2.fromOffset(2, 2),
     ACCENT
@@ -1514,17 +1526,12 @@ round(ItemsPanel, 12)
 addStroke(ItemsPanel)
 EH.ehPanel(ItemsPanel, "viewer")
 
-local ItemsTitleIcon = makeLabel(
-    ItemsPanel, "≣",
-    UDim2.fromOffset(18, 18), UDim2.fromOffset(14, 8), 12
-)
-ItemsTitleIcon.TextColor3 = Color3.fromRGB(234, 181, 137)
-ItemsTitleIcon.Font = Enum.Font.GothamBold
+EH.icon(ItemsPanel, "items", UDim2.fromOffset(12, 8), 22)
 
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
     UDim2.new(1, -194, 0, 30),
-    UDim2.fromOffset(34, 4), 11
+    UDim2.fromOffset(42, 4), 11
 )
 
 EH.ehSectionLabel(ItemsTitle)
@@ -1542,8 +1549,8 @@ WornCountLabel.Font = Enum.Font.GothamBold
 WornCountLabel.TextXAlignment = Enum.TextXAlignment.Right
 
 local ItemsStatusChip = makeLabel(
-    ItemsPanel, "SCAN ACTIVE",
-    UDim2.fromOffset(106, 18), UDim2.fromOffset(14, 326), 10
+    ItemsPanel, "SCAN READY",
+    UDim2.fromOffset(126, 18), UDim2.new(0, 14, 1, -25), 10
 )
 ItemsStatusChip.TextColor3 = Color3.fromRGB(216, 169, 145)
 ItemsStatusChip.Font = Enum.Font.GothamBold
@@ -1570,7 +1577,7 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- EVENT HORIZON / 043 lower structural belt: a segmented bridge + useful status console.
+-- EVENT HORIZON / 045 lower structural belt: one smooth bridge + useful status console.
 -- Explicitly replaces the older v7.9.42 bridge and brand pill; no stacking.
 local EHBridge = create("Frame", {
     Name = "EHLowerBridge",
@@ -1581,14 +1588,10 @@ local EHBridge = create("Frame", {
     Active = false
 }, Main)
 do
-    EH.accentRule(EHBridge, UDim2.fromOffset(0, 0),
-        UDim2.fromOffset(26, 3), 0.1)
-    EH.accentRule(EHBridge, UDim2.new(1, -26, 0, 0),
-        UDim2.fromOffset(26, 3), 0.1)
     local belt = create("Frame", {
         Name = "EHLowerBelt",
-        Position = UDim2.fromOffset(33, 0),
-        Size = UDim2.new(1, -66, 0, 3),
+        Position = UDim2.fromOffset(2, 0),
+        Size = UDim2.new(1, -4, 0, 2),
         BackgroundColor3 = Color3.fromRGB(185, 120, 113),
         BackgroundTransparency = 0.13,
         BorderSizePixel = 0,
@@ -1636,12 +1639,7 @@ local BrandPill = create("Frame", {
     Active = false
 }, StatusConsole)
 round(BrandPill, 8)
-local StatusIcon = makeLabel(
-    BrandPill, "☑",
-    UDim2.fromOffset(16, 16), UDim2.fromOffset(8, 5), 12
-)
-StatusIcon.TextColor3 = Color3.fromRGB(243, 184, 141)
-StatusIcon.Font = Enum.Font.GothamBold
+EH.icon(BrandPill, "status", UDim2.fromOffset(6, 6), 16)
 
 local BrandLabel = makeLabel(
     BrandPill, "SYSTEM STATUS",
@@ -1652,7 +1650,7 @@ BrandLabel.Font = Enum.Font.GothamBold
 
 local StatusActive = makeLabel(
     StatusConsole, "ACTIVE",
-    UDim2.fromOffset(64, 20), UDim2.new(1, -84, 0, 10), 10
+    UDim2.fromOffset(64, 20), UDim2.new(1, -113, 0, 10), 10
 )
 StatusActive.TextColor3 = Color3.fromRGB(243, 184, 141)
 StatusActive.TextXAlignment = Enum.TextXAlignment.Right
@@ -1675,7 +1673,7 @@ end
 
 local Status = makeLabel(
     Main, "Select a player",
-    UDim2.new(1, -204, 0, 30),
+    UDim2.new(1, -300, 0, 30),
     UDim2.new(0, 163, 1, -45), 12
 )
 Status.TextColor3 = MUTED
@@ -2020,7 +2018,7 @@ local function updateLayout()
         ItemsPanel.Size = UDim2.new(1, -24, 0, 150)
 
         Status.Position = UDim2.new(0, 145, 1, -45)
-        Status.Size = UDim2.new(1, -204, 0, 30)
+        Status.Size = UDim2.new(1, -255, 0, 30)
     else
         Search.Position = UDim2.fromOffset(12, 58)
         Search.Size = UDim2.new(1, -120, 0, 36)
@@ -2041,7 +2039,7 @@ local function updateLayout()
         ItemsPanel.Size = UDim2.fromOffset(262, 350)
 
         Status.Position = UDim2.new(0, 145, 1, -45)
-        Status.Size = UDim2.new(1, -204, 0, 30)
+        Status.Size = UDim2.new(1, -300, 0, 30)
     end
 end
 
@@ -3631,17 +3629,10 @@ local function addItem(name, assetId, category)
     create("UIStroke", {Color = OUTLINE, Transparency = 0.45,
         Thickness = 1}, image)
 
-    local itemMarker = makeLabel(
-        card, "◦",
-        UDim2.fromOffset(12, 14), UDim2.fromOffset(60, 8), 11
-    )
-    itemMarker.TextColor3 = Color3.fromRGB(235, 180, 136)
-    itemMarker.Font = Enum.Font.GothamBold
-
     local itemName = makeLabel(
         card, name,
         UDim2.new(1, -101, 0, 22),
-        UDim2.fromOffset(72, 5), 11
+        UDim2.fromOffset(60, 5), 11
     )
 
     itemName.Font = Enum.Font.GothamMedium
@@ -3649,7 +3640,7 @@ local function addItem(name, assetId, category)
     local itemId = makeLabel(
         card, tostring(assetId),
         UDim2.new(1, -101, 0, 24),
-        UDim2.fromOffset(72, 28), 13
+        UDim2.fromOffset(60, 28), 13
     )
 
     -- Обновлённое оформление идентификаторов.
@@ -3657,14 +3648,14 @@ local function addItem(name, assetId, category)
     itemId.Font = Enum.Font.GothamBold
 
     local copyButton = makeButton(
-        card, "⧉",
+        card, "",
         UDim2.fromOffset(32, 28),
         UDim2.new(1, -42, 0, 37),
         ACCENT
     )
 
     copyButton.Name = "CopyAssetIdButton"
-    copyButton.TextSize = 17
+    EH.icon(copyButton, "copy", UDim2.fromOffset(7, 5), 19)
     copyButton.Activated:Connect(function()
         copyID(assetId)
     end)
@@ -3784,7 +3775,7 @@ local function scanPlayer(player)
         wornItemCount = #accessories
         for _, accessory in ipairs(accessories) do
             add(
-                tostring(accessory.AccessoryType or "Accessory"),
+                (accessory.AccessoryType and accessory.AccessoryType.Name) or "Accessory",
                 accessory.AssetId,
                 "Items"
             )
@@ -3884,13 +3875,10 @@ refreshPlayerList = function()
     }, PlayerList)
     EH.ehCard(countHeader)
 
-    local listIcon = makeLabel(countHeader, "◎",
-        UDim2.fromOffset(18, 18), UDim2.fromOffset(10, 8), 12)
-    listIcon.TextColor3 = Color3.fromRGB(234, 181, 137)
-    listIcon.Font = Enum.Font.GothamBold
+    EH.icon(countHeader, "players", UDim2.fromOffset(12, 9), 23)
 
     local listTitle = makeLabel(countHeader, "PLAYERS",
-        UDim2.new(1, -56, 0, 18), UDim2.fromOffset(32, 8), 10)
+        UDim2.new(1, -56, 0, 18), UDim2.fromOffset(48, 11), 10)
     listTitle.Font = Enum.Font.GothamBold
     listTitle.TextColor3 = WHITE
 
