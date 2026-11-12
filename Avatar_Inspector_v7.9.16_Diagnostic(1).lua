@@ -1,7 +1,9 @@
 --[[
-    AVATAR INSPECTOR v7.9.45
+    AVATAR INSPECTOR v7.9.46
 
     CHANGES:
+    - Fixed nil viewerIcon reference that stopped GUI initialization after floating icon appeared
+    - Preserved native icon visuals and existing systems without further UI changes
     - Native Roblox vector pictograms for PLAYERS, 3D VIEW and ITEMS
     - Native search, copy, and system-status icons (no font-dependent glyphs)
     - One clean rounded top rule on module panels instead of broken corner strips
@@ -1157,7 +1159,7 @@ do
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.45",
+    Header, "AVATAR INSPECTOR v7.9.46",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1169,7 +1171,7 @@ HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
 HeaderTitle.Position = UDim2.fromOffset(18, 3)
 
 do
-    local subtitle = makeLabel(Header, "EVENT HORIZON / 045",
+    local subtitle = makeLabel(Header, "EVENT HORIZON / 046",
         UDim2.fromOffset(260, 14), UDim2.fromOffset(17, 29), 9)
     subtitle.Font = Enum.Font.GothamBold
     subtitle.TextColor3 = Color3.fromRGB(229, 163, 120)
@@ -1401,7 +1403,7 @@ addStroke(Viewport)
 EH.ehPanel(Viewport, "viewer")
 -- Viewport identification stays away from the avatar and the FREE LOOK control.
 do
-    EH.icon(Viewport, "viewer", UDim2.fromOffset(13, 12), 22)
+    local viewerIcon = EH.icon(Viewport, "viewer", UDim2.fromOffset(13, 12), 22)
     viewerIcon.ZIndex = 4
     local viewerInfo = makeLabel(Viewport, "3D-PREVIEW",
         UDim2.fromOffset(120, 18), UDim2.fromOffset(45, 15), 10)
@@ -1577,7 +1579,7 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- EVENT HORIZON / 045 lower structural belt: one smooth bridge + useful status console.
+-- EVENT HORIZON / 046 lower structural belt: one smooth bridge + useful status console.
 -- Explicitly replaces the older v7.9.42 bridge and brand pill; no stacking.
 local EHBridge = create("Frame", {
     Name = "EHLowerBridge",
@@ -4850,7 +4852,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.42 loaded successfully")
+print("Avatar Inspector v7.9.46 loaded successfully")
 
 end
 
@@ -4873,11 +4875,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.44 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.46 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.44 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.46 INITIALIZATION FINISHED")
 end
