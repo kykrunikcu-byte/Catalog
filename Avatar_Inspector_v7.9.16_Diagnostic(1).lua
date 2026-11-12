@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.40
+    AVATAR INSPECTOR v7.9.41
 
     CHANGES:
     - Single FREE LOOK camera control; removed redundant ORBIT button
@@ -97,14 +97,14 @@ AI_DIAG_STAGE = "PLAYER_GUI_OK"
 AIDiag("07 PlayerGui OK")
 
 -- Obsidian Violet: layered graphite surfaces with restrained violet accents.
-local BG = Color3.fromRGB(12, 10, 17)
-local PANEL = Color3.fromRGB(25, 22, 34)
-local LIGHT = Color3.fromRGB(39, 34, 52)
-local ACCENT = Color3.fromRGB(119, 86, 207)
-local ACCENT_PURPLE = Color3.fromRGB(164, 132, 242)
-local OUTLINE = Color3.fromRGB(65, 55, 84)
+local BG = Color3.fromRGB(9, 8, 13)
+local PANEL = Color3.fromRGB(21, 18, 26)
+local LIGHT = Color3.fromRGB(39, 32, 42)
+local ACCENT = Color3.fromRGB(205, 131, 108)
+local ACCENT_PURPLE = Color3.fromRGB(240, 177, 120)
+local OUTLINE = Color3.fromRGB(83, 59, 75)
 local WHITE = Color3.fromRGB(245, 241, 252)
-local MUTED = Color3.fromRGB(154, 144, 171)
+local MUTED = Color3.fromRGB(175, 153, 158)
 local GREEN = Color3.fromRGB(39, 132, 108)
 local ID_GREEN = Color3.fromRGB(104, 218, 151)
 local RED = Color3.fromRGB(137, 61, 85)
@@ -672,7 +672,7 @@ end
 local function decorateSurface(panel, variant)
     local stroke = panel:FindFirstChildOfClass("UIStroke")
     if stroke then
-        stroke.Color = Color3.fromRGB(88, 70, 119)
+        stroke.Color = Color3.fromRGB(155, 101, 109)
         stroke.Transparency = 0.20
         stroke.Thickness = 1.25
     end
@@ -688,7 +688,7 @@ local function decorateSurface(panel, variant)
         }, panel)
         round(inset, 12)
         create("UIStroke", {
-            Color = Color3.fromRGB(57, 45, 79),
+            Color = Color3.fromRGB(95, 61, 76),
             Thickness = 1,
             Transparency = 0.45
         }, inset)
@@ -895,7 +895,7 @@ table.insert(hatStrokes, crownStroke)
 
 local HatTop = create("Frame", {
     Name = "RainbowHatTop",
-    BackgroundColor3 = Color3.fromRGB(22, 18, 31),
+    BackgroundColor3 = Color3.fromRGB(21, 17, 25),
     BackgroundTransparency = 0.05,
     BorderSizePixel = 0,
     Size = UDim2.fromOffset(29, 8),
@@ -1048,7 +1048,7 @@ decorateSurface(Main, "main")
 create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(19, 15, 27)),
-        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(12, 10, 17)),
+        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(9, 8, 13)),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(24, 17, 35))
     }),
     Rotation = 25
@@ -1069,7 +1069,7 @@ accentRule(Header, UDim2.fromOffset(0, 12), UDim2.fromOffset(4, 25), 0.02)
 create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(31, 25, 42)),
-        ColorSequenceKeypoint.new(0.58, Color3.fromRGB(22, 18, 31)),
+        ColorSequenceKeypoint.new(0.58, Color3.fromRGB(21, 17, 25)),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(36, 27, 51))
     }),
     Rotation = 0
@@ -1100,7 +1100,7 @@ local TopSpineBase = create("Frame", {
     Name = "SpineTrack",
     Size = UDim2.new(1, 0, 0, 3),
     Position = UDim2.fromOffset(0, 1),
-    BackgroundColor3 = Color3.fromRGB(51, 37, 75),
+    BackgroundColor3 = Color3.fromRGB(77, 48, 64),
     BorderSizePixel = 0,
     Active = false
 }, TopSpine)
@@ -1109,7 +1109,7 @@ local TopSpineGlow = create("Frame", {
     Name = "MovingSpineGlow",
     Size = UDim2.new(0.24, 0, 0, 3),
     Position = UDim2.new(0, 0, 0, 1),
-    BackgroundColor3 = Color3.fromRGB(182, 142, 255),
+    BackgroundColor3 = Color3.fromRGB(252, 202, 143),
     BorderSizePixel = 0,
     Active = false
 }, TopSpine)
@@ -1135,8 +1135,63 @@ for i = 1, 9 do
     }, TopSpine)
 end
 
+-- Event Horizon: signature accretion spectrum, positioned in the top gutter.
+local EventHorizonBand = create("Frame", {
+    Name = "EventHorizonSpectrum",
+    Position = UDim2.fromOffset(28, 51),
+    Size = UDim2.new(1, -56, 0, 5),
+    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+    BorderSizePixel = 0,
+    Active = false,
+    ZIndex = 3
+}, Main)
+round(EventHorizonBand, 3)
+local SpectrumGradient = create("UIGradient", {
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(32, 18, 40)),
+        ColorSequenceKeypoint.new(0.18, Color3.fromRGB(102, 58, 99)),
+        ColorSequenceKeypoint.new(0.40, Color3.fromRGB(220, 140, 112)),
+        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(255, 226, 173)),
+        ColorSequenceKeypoint.new(0.72, Color3.fromRGB(200, 117, 139)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(37, 21, 43))
+    }),
+    Rotation = 0
+}, EventHorizonBand)
+TweenService:Create(SpectrumGradient, TweenInfo.new(11, Enum.EasingStyle.Sine,
+    Enum.EasingDirection.InOut, -1, true), {Offset = Vector2.new(0.14, 0)}):Play()
+
+-- Quiet orbit glyph: native GUI shapes only, no external image IDs.
+local OrbitMark = create("Frame", {
+    Name = "EventHorizonOrbitMark",
+    Position = UDim2.new(1, -190, 0, 8),
+    Size = UDim2.fromOffset(33, 33),
+    BackgroundColor3 = Color3.fromRGB(43, 29, 37),
+    BorderSizePixel = 0,
+    Active = false,
+    ZIndex = 5
+}, Header)
+round(OrbitMark, 10)
+local OrbitRing = create("Frame", {
+    Name = "OrbitRing",
+    Position = UDim2.fromOffset(8, 8),
+    Size = UDim2.fromOffset(17, 17),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 6
+}, OrbitMark)
+round(OrbitRing, 10)
+create("UIStroke", {Color = Color3.fromRGB(233, 169, 116), Thickness = 2}, OrbitRing)
+local OrbitCore = create("Frame", {
+    Position = UDim2.fromOffset(14, 14),
+    Size = UDim2.fromOffset(5, 5),
+    BackgroundColor3 = Color3.fromRGB(255, 217, 161),
+    BorderSizePixel = 0,
+    ZIndex = 7
+}, OrbitMark)
+round(OrbitCore, 5)
+
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.40",
+    Header, "AVATAR INSPECTOR v7.9.41",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1275,7 +1330,7 @@ local PlayerList = create("ScrollingFrame", {
     BackgroundColor3 = PANEL,
     BorderSizePixel = 0,
     ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(129, 101, 195),
+    ScrollBarImageColor3 = Color3.fromRGB(190, 125, 115),
     AutomaticCanvasSize = Enum.AutomaticSize.Y,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -1444,7 +1499,7 @@ local ItemList = create("ScrollingFrame", {
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(129, 101, 195),
+    ScrollBarImageColor3 = Color3.fromRGB(190, 125, 115),
     AutomaticCanvasSize = Enum.AutomaticSize.Y,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -1460,53 +1515,39 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- Lower connection strip: fills the old black gutter with a visible segmented
--- circuit rail. Kept entirely below the viewport and pose controls.
-local LowerSpine = create("Frame", {
-    Name = "ObsidianLowerSpine",
-    Position = UDim2.fromOffset(16, 457),
-    Size = UDim2.new(1, -32, 0, 9),
-    BackgroundTransparency = 1,
+-- Event Horizon lower console bridge: fills the empty 454..468 band.
+local HorizonBridge = create("Frame", {
+    Name = "EventHorizonBridge",
+    Position = UDim2.fromOffset(18, 455),
+    Size = UDim2.new(1, -36, 0, 12),
+    BackgroundColor3 = Color3.fromRGB(34, 23, 34),
+    BackgroundTransparency = 0.05,
     BorderSizePixel = 0,
-    Active = false
+    Active = false,
+    ZIndex = 2
 }, Main)
-local LowerSpineTrack = create("Frame", {
-    Name = "LowerTrack",
-    Position = UDim2.fromOffset(0, 4),
-    Size = UDim2.new(1, 0, 0, 2),
-    BackgroundColor3 = Color3.fromRGB(68, 50, 99),
-    BackgroundTransparency = 0.12,
-    BorderSizePixel = 0,
-    Active = false
-}, LowerSpine)
-local LowerPulse = create("Frame", {
-    Name = "LowerMovingPulse",
-    Position = UDim2.fromOffset(0, 3),
-    Size = UDim2.new(0.19, 0, 0, 4),
-    BackgroundColor3 = Color3.fromRGB(198, 164, 255),
-    BorderSizePixel = 0,
-    Active = false
-}, LowerSpine)
-round(LowerPulse, 3)
+round(HorizonBridge, 5)
 create("UIGradient", {
-    Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 1),
-        NumberSequenceKeypoint.new(0.5, 0.02),
-        NumberSequenceKeypoint.new(1, 1)
-    })
-}, LowerPulse)
-TweenService:Create(LowerPulse, TweenInfo.new(7.5, Enum.EasingStyle.Sine,
-    Enum.EasingDirection.InOut, -1, true), {Position = UDim2.new(0.81, 0, 0, 3)}):Play()
-for i = 0, 4 do
-    local segment = create("Frame", {
-        Name = "CircuitNode",
-        Position = UDim2.new(i / 4, i == 4 and -8 or 0, 0, 1),
-        Size = UDim2.fromOffset(8, 8),
-        BackgroundColor3 = Color3.fromRGB(133, 97, 202),
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 21, 38)),
+        ColorSequenceKeypoint.new(0.45, Color3.fromRGB(118, 70, 78)),
+        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(190, 119, 95)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(36, 21, 40))
+    }),
+    Rotation = 0
+}, HorizonBridge)
+for i = 0, 10 do
+    local star = create("Frame", {
+        Name = "OrbitTick",
+        Position = UDim2.new(i / 10, i == 10 and -3 or 0, 0, 4),
+        Size = UDim2.fromOffset(3, 4),
+        BackgroundColor3 = Color3.fromRGB(255, 207, 155),
+        BackgroundTransparency = (i % 2 == 0) and 0.12 or 0.55,
         BorderSizePixel = 0,
-        Active = false
-    }, LowerSpine)
-    round(segment, 2)
+        Active = false,
+        ZIndex = 3
+    }, HorizonBridge)
+    round(star, 2)
 end
 
 -- The redundant bottom SCAN PLAYER / SAVE OUTFIT buttons are removed.
@@ -1518,7 +1559,7 @@ local StatusConsole = create("Frame", {
     Name = "ObsidianStatusConsole",
     Position = UDim2.new(0, 13, 1, -51),
     Size = UDim2.new(1, -26, 0, 41),
-    BackgroundColor3 = Color3.fromRGB(22, 18, 31),
+    BackgroundColor3 = Color3.fromRGB(21, 17, 25),
     BackgroundTransparency = 0.12,
     BorderSizePixel = 0,
     Active = false
@@ -1526,14 +1567,14 @@ local StatusConsole = create("Frame", {
 round(StatusConsole, 10)
 create("UIGradient", {
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(45, 31, 67)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(26, 21, 38)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(43, 30, 63))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(61, 38, 53)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(27, 20, 29)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(62, 40, 52))
     }),
     Rotation = 0
 }, StatusConsole)
 create("UIStroke", {
-    Color = Color3.fromRGB(73, 55, 104),
+    Color = Color3.fromRGB(132, 84, 98),
     Thickness = 1,
     Transparency = 0.4
 }, StatusConsole)
@@ -1544,7 +1585,7 @@ local BrandPill = create("Frame", {
     Name = "StatusBrand",
     Position = UDim2.fromOffset(10, 8),
     Size = UDim2.fromOffset(106, 25),
-    BackgroundColor3 = Color3.fromRGB(43, 31, 66),
+    BackgroundColor3 = Color3.fromRGB(61, 38, 50),
     BorderSizePixel = 0,
     Active = false
 }, StatusConsole)
@@ -4816,11 +4857,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.40 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.41 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.40 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.41 INITIALIZATION FINISHED")
 end
