@@ -1,7 +1,13 @@
 --[[
-    AVATAR INSPECTOR v7.9.51
+    AVATAR INSPECTOR v7.9.52
 
-    CHANGES:
+    CHANGES IN v7.9.52:
+    - Signature Labels: real framed ONLINE, MODEL READY, worn-item and scan chips
+    - Model-ready indicator changes with preview selection state
+    - Search icon moved back to the left, slightly inset
+    - Previous brightness polish and removal of detached top bars retained
+
+    PRESERVED FEATURES:
     - Event Horizon Signature: integrated frames, dark animated controls and empty-preview avatar
     - Players, 3D face-scan, item layers, search, copy, pencil, trash, save
     - No unsupported Unicode glyphs for rename, delete, save, or copy
@@ -674,13 +680,40 @@ function EH.ehPanel(parent, kind)
             or Color3.fromRGB(135, 88, 104),
         kind == "viewer" and 0.09 or 0.2,
         kind == "viewer" and 1.55 or 1.25)
-    -- Rounded UICorner + UIStroke produce a single continuous border.
-    -- A single unobtrusive highlight belongs only to the large non-scroll panels.
-    -- v7.9.51 polish: large panels keep a clean uninterrupted top edge.
-    -- Decorative top stripes were removed because they looked detached.
-    if kind == "viewer" then
-        -- intentionally no extra highlight stripe
-    end
+    -- A single UICorner + UIStroke gives continuous frames without detached rails.
+end
+
+
+-- Event Horizon Signature Labels: reusable rounded status chip.
+-- A real frame and one small dot, never Unicode or decorative loose strips.
+function EH.statusChip(parent, name, position, size, indicatorColor)
+    local chip = create("Frame", {
+        Name = name,
+        Position = position,
+        Size = size,
+        BackgroundColor3 = Color3.fromRGB(45, 35, 49),
+        BorderSizePixel = 0,
+        Active = false,
+        ZIndex = parent.ZIndex + 1
+    }, parent)
+    round(chip, 8)
+    create("UIStroke", {
+        Color = Color3.fromRGB(177, 119, 119),
+        Transparency = 0.35,
+        Thickness = 1,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    }, chip)
+    local dot = create("Frame", {
+        Name = "EHStatusDot",
+        Position = UDim2.new(0, 9, 0.5, -3),
+        Size = UDim2.fromOffset(6, 6),
+        BackgroundColor3 = indicatorColor or Color3.fromRGB(145, 225, 179),
+        BorderSizePixel = 0,
+        Active = false,
+        ZIndex = chip.ZIndex + 1
+    }, chip)
+    round(dot, 6)
+    return chip
 end
 
 -- Event Horizon line-icon system. One geometric renderer, no image IDs,
@@ -1296,7 +1329,7 @@ if HeaderContour then
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.51",
+    Header, "AVATAR INSPECTOR v7.9.52",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1308,7 +1341,7 @@ HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
 HeaderTitle.Position = UDim2.fromOffset(18, 3)
 
 do
-    local subtitle = makeLabel(Header, "EVENT HORIZON / 051",
+    local subtitle = makeLabel(Header, "EVENT HORIZON / 052",
         UDim2.fromOffset(260, 14), UDim2.fromOffset(17, 29), 9)
     subtitle.Font = Enum.Font.GothamBold
     subtitle.TextColor3 = Color3.fromRGB(244, 184, 136)
@@ -1470,8 +1503,8 @@ local Search = create("TextBox", {
 round(Search, 12)
 addStroke(Search)
 create("UIPadding", {
-    PaddingLeft = UDim.new(0, 12),
-    PaddingRight = UDim.new(0, 34)
+    PaddingLeft = UDim.new(0, 30),
+    PaddingRight = UDim.new(0, 8)
 }, Search)
 Search.TextColor3 = Color3.fromRGB(249, 242, 236)
 Search.PlaceholderColor3 = Color3.fromRGB(188, 170, 181)
@@ -1594,6 +1627,12 @@ EH.setPreviewReady = function(loaded)
     if label then
         label.Text = loaded and "MODEL READY" or "SELECT PLAYER"
     end
+    local pill = Viewport:FindFirstChild("EHModelReadyPill")
+    local dot = pill and pill:FindFirstChild("EHStatusDot")
+    if dot then
+        dot.BackgroundColor3 = loaded and Color3.fromRGB(142, 222, 175)
+            or Color3.fromRGB(189, 143, 139)
+    end
 end
 
 local ViewModeBar = create("Frame", {
@@ -1619,10 +1658,14 @@ FreeViewButton.TextSize = 9
 FreeViewButton.ZIndex = 21
 
 do
+    EH.statusChip(Viewport, "EHModelReadyPill",
+        UDim2.new(0, 12, 1, -31), UDim2.fromOffset(132, 24),
+        Color3.fromRGB(189, 143, 139))
     local viewerState = makeLabel(Viewport, "SELECT PLAYER",
-        UDim2.fromOffset(130, 19), UDim2.new(0, 13, 1, -23), 9)
+        UDim2.fromOffset(107, 22), UDim2.new(0, 35, 1, -30), 9)
     viewerState.Name = "EHModelStateLabel"
-    viewerState.TextColor3 = Color3.fromRGB(228, 181, 157)
+    viewerState.ZIndex = Viewport.ZIndex + 3
+    viewerState.TextColor3 = Color3.fromRGB(249, 193, 150)
     viewerState.Font = Enum.Font.GothamBold
     viewerState.ZIndex = 4
 end
@@ -1724,12 +1767,16 @@ local ItemsTitle = makeLabel(
 EH.ehSectionLabel(ItemsTitle)
 ItemsTitle.Font = Enum.Font.GothamBold
 
+EH.statusChip(ItemsPanel, "EHWornCountPill",
+    UDim2.fromOffset(13, 30), UDim2.new(1, -26, 0, 26),
+    Color3.fromRGB(142, 222, 175))
 local WornCountLabel = makeLabel(
     ItemsPanel, "WORN ITEMS: —",
-    UDim2.new(1, -28, 0, 20),
-    UDim2.fromOffset(14, 34), 12
+    UDim2.new(1, -54, 0, 22),
+    UDim2.fromOffset(34, 32), 11
 )
 WornCountLabel.Name = "WornItemsCounter"
+WornCountLabel.ZIndex = ItemsPanel.ZIndex + 3
 WornCountLabel.TextColor3 = ID_GREEN
 WornCountLabel.Font = Enum.Font.GothamBold
 WornCountLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -1737,7 +1784,7 @@ WornCountLabel.TextXAlignment = Enum.TextXAlignment.Left
 do
     local rule = create("Frame", {
         Name = "EHItemsSectionDivider",
-        Position = UDim2.fromOffset(12, 57),
+        Position = UDim2.fromOffset(12, 59),
         Size = UDim2.new(1, -24, 0, 1),
         BackgroundColor3 = Color3.fromRGB(128, 87, 98),
         BackgroundTransparency = 0.35,
@@ -1745,10 +1792,14 @@ do
         Active = false
     }, ItemsPanel)
 end
+EH.statusChip(ItemsPanel, "EHScanStatusPill",
+    UDim2.new(0, 12, 1, -31), UDim2.fromOffset(128, 24),
+    Color3.fromRGB(142, 222, 175))
 local ItemsStatusChip = makeLabel(
     ItemsPanel, "SCAN ACTIVE",
-    UDim2.fromOffset(108, 18), UDim2.new(0, 14, 1, -25), 9
+    UDim2.fromOffset(99, 22), UDim2.new(0, 34, 1, -30), 9
 )
+ItemsStatusChip.ZIndex = ItemsPanel.ZIndex + 3
 ItemsStatusChip.TextColor3 = Color3.fromRGB(233, 188, 160)
 ItemsStatusChip.Font = Enum.Font.GothamBold
 
@@ -1774,7 +1825,7 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- EVENT HORIZON / 051 lower structural belt: a segmented bridge + useful status console.
+-- EVENT HORIZON / 052 lower structural belt: a segmented bridge + useful status console.
 -- Explicitly replaces the older v7.9.42 bridge and brand pill; no stacking.
 local EHBridge = create("Frame", {
     Name = "EHLowerBridge",
@@ -1871,11 +1922,15 @@ do
         Transparency = 0.35, Thickness = 2}, signal)
 end
 
+EH.statusChip(StatusConsole, "EHMessagePill",
+    UDim2.new(0, 136, 0, 7), UDim2.new(1, -181, 0, 27),
+    Color3.fromRGB(231, 172, 128))
 local Status = makeLabel(
     Main, "Select a player",
-    UDim2.new(1, -204, 0, 30),
-    UDim2.new(0, 163, 1, -45), 12
+    UDim2.new(1, -234, 0, 30),
+    UDim2.new(0, 181, 1, -45), 11
 )
+Status.ZIndex = StatusConsole.ZIndex + 3
 Status.TextColor3 = MUTED
 Status.TextTruncate = Enum.TextTruncate.AtEnd
 
@@ -4109,11 +4164,15 @@ refreshPlayerList = function()
     listTitle.Font = Enum.Font.GothamBold
     listTitle.TextColor3 = WHITE
 
+    EH.statusChip(countHeader, "EHOnlinePill",
+        UDim2.fromOffset(9, 30), UDim2.fromOffset(115, 27),
+        Color3.fromRGB(142, 222, 175))
     local countText = makeLabel(countHeader,
         string.format("%02d ONLINE", serverPlayers),
-        UDim2.new(1, -20, 0, 22), UDim2.fromOffset(10, 34), 10)
+        UDim2.fromOffset(92, 22), UDim2.fromOffset(28, 32), 10)
+    countText.ZIndex = countHeader.ZIndex + 3
     countText.Font = Enum.Font.GothamBold
-    countText.TextColor3 = Color3.fromRGB(216, 169, 145)
+    countText.TextColor3 = Color3.fromRGB(249, 193, 150)
 
     local filter = string.lower(Search.Text)
 
@@ -5081,10 +5140,8 @@ refreshPlayerList()
 -- Theme-only icons are deferred until after the working GUI is initialized.
 task.defer(function()
     if not Main or not Main.Parent then return end
-    local searchIcon = EH.safeIcon(Search, "search", UDim2.new(1, -31, 0, 8), 15)
-    if searchIcon then
-        searchIcon.AnchorPoint = Vector2.new(0, 0)
-    end
+    -- Slightly inset from the left edge, never at the far-right end.
+    EH.safeIcon(Search, "search", UDim2.fromOffset(23, 9), 16)
     EH.safeIcon(Viewport, "viewer", UDim2.fromOffset(12, 9), 21)
     EH.safeIcon(ItemsPanel, "items", UDim2.fromOffset(12, 9), 21)
     EH.safeIcon(BrandPill, "status", UDim2.fromOffset(5, 5), 18)
@@ -5104,7 +5161,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.50 loaded successfully")
+print("Avatar Inspector v7.9.52 loaded successfully")
 
 end
 
@@ -5127,11 +5184,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.51 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.52 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.51 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.52 INITIALIZATION FINISHED")
 end
