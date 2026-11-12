@@ -1,10 +1,16 @@
 --[[
-    AVATAR INSPECTOR v7.9.55
+    AVATAR INSPECTOR v7.9.56
 
-    CHANGES IN v7.9.55:
-    - Refined signature icon pack integration using cleaner vector geometry
-    - Rebuilt players, 3D-scan, items, search and placeholder icons closer to the approved set
-    - Preserved the working neon lists and current Event Horizon layout
+    CHANGES IN v7.9.56:
+    - Two real PNG icons are embedded in this Lua file: players and save
+    - Safe local asset resolver via writefile + getcustomasset / getsynasset
+    - Original icons remain fallback for unsupported executors
+    - All other graphics and original functionality remain from v7.9.54
+
+    CHANGES IN v7.9.54:
+    - Animated copper/rose neon border on the players list and item panel
+    - Slightly brighter outlines for player and accessory cards
+    - Two shared lightweight border animations, no per-card loops
     - No floating-button, camera, saved outfit or avatar logic changes
 
     CHANGES IN v7.9.53:
@@ -775,7 +781,413 @@ end
 -- Event Horizon line-icon system. One geometric renderer, no image IDs,
 -- unicode pictograms or external assets. Every piece is decorative and
 -- does not intercept pointer/touch input. The icon's parent remains the button.
+--[[
+    AVATAR INSPECTOR v7.9.56 - TWO REAL PNG ICONS TEST
+    - Embeds exact user-provided PLAYER and SAVE silhouettes as PNG/Base64
+    - Decodes once, writes to executor workspace, loads with getcustomasset/getsynasset
+    - Displays them as ImageLabel; falls back to original native renderer when unsupported
+    - Preserves v7.9.54 code and startup (except this isolated icon resolver)
+]]
+local EH_EMBEDDED_BASE64 = {
+    players = (
+        "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAA2I0lEQVR42u1913Jj2ZXlgiFokp4JkulNVWV5J5Vcj+kY9zDzwtf5Fn4AvqcRM90RI7Wkbqml" ..
+        "lqsqlcky6ZNJD5JJ70AA83DW1tm4CRD3giAAAntF3AA9cc89e21ztgEMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAY" ..
+        "DAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAw" ..
+        "GAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMhguEmC1B45DLZnoBJAAkAaQA9ALo49cAoMSrACAP4AjAIYCj9Mzssa2gwQjg4gn9AIABAEMABinwKQA9" ..
+        "fA0SQAHACa9DAPsAtgDsAjgAcJiemT2ylTUYAbSnwItwDwDoBzACYBzAFIArJII+ZQn0AIhzrYsU/AI/PgSwDWAZwBqADX6uyeDAVt1gBNB6034UwLC6Rin8" ..
+        "QgBpAJMkAHEF4kr4Y8oCEAI4ArAHIBcggB2+vgSwAmA9PTO7ZU/CYATQfOHvA3AdwD0AdwBco8AP0woYpNBf4tVHrZ9QayzCL25AkdcxYwF7vET7H9MCWAXw" ..
+        "DYD7AB6nZ2bX7YkYjACaI/gi2FcBvAngHQBvALgJYIzCL8IuAp9Qmj8MThQhFMTsV9aBEMBfAXwPYJEksQcXONy3J2UwAmi8uT8N4DaAu9T6N0kEVwBMwAf7" ..
+        "ehr87yVGcEIrYAvAAoA5APPiDtA1WAXwPD0zu2BPzVAvkrYEr+AqgHcB/ADABwBu0d+XI71eZd4XI2j7KBCroJcuxwStkE3GCXIAHgMYzGUzhfTM7LI9NoNZ" ..
+        "AGfT/BLJfxvAxySAN2kNpCiQer3i6vNYBQGOusZx5RbIVVQuhbgFO3ABw6cAvgLwOd2DhfTM7F6HPIseFTtBYA3y6ZnZvO1YswAatdlS1LB3KPzv8/UOgMvU" ..
+        "wskmP5M4SSdIDpfgjx97GaOYYEziDwAeXGC3q4f31MM1EKFPqqsA4DCXzRwjkExlpGAWQD0bbwTu6O41mv3vUetfV2Z/XF3tgkO4QOABgCUAfwbwCwB/uCju" ..
+        "AIk3RUIbgDtVGYIPrkomZb+KtxR5zwcU/gO4oOgmPz5i7OSQHxfSM7OHJuZGAJU23zj9+3twEf534AJ/V7kRe9pM6DUKKk6wDeA7AL8G8C8A7qdnZlfafP0H" ..
+        "4PImdE7FNC0uIYFLihQukQxiSuvvw+dKvIQ/HdlRcZIduGPV7fTM7I6JuxGA+JeTNPE/4PU2hX+cmy/e5rdRDMQMVgB8CeC3JIEv2vGIMJfN9FOgrwC4QYEf" ..
+        "53WFz0XyKQZJDH3KIoipexYraJcWwC4Ffgsus3KBJCAnJosANs0iMAKYhjvP/wAu0PcWhf9ywO9uR6FHhbiAuAQrAL4A8I8Afglgrl38YuZUTFDLX4U72bhG" ..
+        "K2ACPqNS0qglzjEQ4s+LK7DPSwhhjQSQIwEskwSWAcxbvUWXEQA1/xj9/R9S+N/jRhwNudnaGQUAzxkL+D9wyUOrrSYBCv8Nkq5kU05T+Md49cMF/WJ8lXqL" ..
+        "KOSYh8+sFDdhBy5vYoOvLwB8zbV5YRWY3XUKMKbM/g/hgn436WemAlq2HhdA0ntLVf5GKXBpTR6Hzy2IKvRQgjPN+1uCryfIt0jwe+AzKd9ijEVbWyPwqdOJ" ..
+        "QGwjqdZUYh0xtY5yzzpAK6c1JfWzeboVEhcYU8SSymUzC+mZ2W0jgM7X/hPceB/CnfG/jfJIP84o+CfUOHm1iWMBC+tEkURRCW0SPsEoGZEIYoH3PEAL5yf0" ..
+        "fYUIWhlneQP+WPUGvz5C4g3uv0QVNycWINJYleeVqPB5D4kmqciwn3GHz3PZzINuJoFkFwj/KLXQ69yIr1P4RwLCXw8kZfdQXXJMdYTyaP2J2rzSMETO9Qf5" ..
+        "fQl2hX0ulQhrnNp2FcDzXDazDWCjya6AZC5+yPdyV2n9AZTnVoSxuuolZrGsJK4wxo8neCUBlHLZzNP0zOyGxQA60++/Q3P/ffr8b8Ad/w3XaXYLdOBpn0Sw" ..
+        "Bx+FXuPXT6h5imozjnAzXlbBr36UJ/qkqmzo09yBhHpv3wD4ZwD/CpcglGuGpstlM2mu9w8BfML1nuZ99aC8T4I282M42+mLXp9KpBLMH1jjunzK6+turLbs" ..
+        "dAtggNr+TWr+SfhCnrMI/z5cpPklfcstav9duKjzc7jinW1+XSyBFInnMtyx1zSJYITva0QFxkYiBsI0mffT5fkZn/EIgK9z2cx8emZ2s5EEqy0LulpvA/gR" ..
+        "hV+CrJdO2WuNOnKN1/ib/byO+fz7+SwkCHmSy2buN3J9jABaj2EK2m3lfw7WKfza19+moC/BHy1twkebxQLYU66AmP4i6PPwkXA5D58iKUiq6yWSRiqCoIgm" ..
+        "HIGLuosfHKe5e9ios3ARfqbyXmaQT4Rf4izDLd4DQWsgRTKWVOoBfn4C4FIum3nKZ7fbDenFHUsATPOdpuBfh2/kUcm8Rg3TWieeiNZfphDPUeMvwJ3F74up" ..
+        "WemsOZfN7JA85uCz3aSd2E3+/U2Slfiqw/BpybU0YFw927QiD2lBtkHiaiSu09//EVyQ9R58Uk8jhDdqHKTW93XsR/ZCD/fLV3CZlQ/5nCwGcEF9/6vclP8F" ..
+        "wE8ZiBqBj7RX86mDXz+haS91+JJQImb+Il+X6m3blctmpkgCV7kJp0hYN+Gi+pKeLJ2FajUdCfrDq3BVg78E8HMA3zfiDJxn/JMAPgLwd/T776E8qapYQyDP" ..
+        "cvR61liBfsa6wvIzrtdjWgIdmzTUqRZAH4XoJgVqFD76XEtzlCpYAGvU2KvU9I/BEly6AzvpmdndM7zfDWrnNQBPqLlvMbbQQ6tFE7YUyIT1jYcoqNdIJqu0" ..
+        "Vs4q/BLp/5iBv7uonFEZP8W6kvhIHI1vsBLWIkhyj9ygy3bCtR4A8CyXzSx2atJQpxKAzjeXRp31pvlKb74nJIEXNA8fAnjZCD+Rf2MLwBatlxVaG3ll+ksw" ..
+        "rQ+1jy8rRcOHVDwkl8tm9s9YIJOmxv9PcEd9aQpRMoKJLk1Si00S/tOsghjXd5oEkFLEu8m4jBHABTH/xf+XFl79EU1M6dF3TK28TJP/W5qJi+mZ2dXzeP9C" ..
+        "BrlsRmfB7VLD3uY9hXXdxJpJUDhvUmuvkdR26lzjUbjj1XfgIv238Wr6bpRuSTF1r7pparGCRVatCYuc+SciPmf9+31wQVmJDZRonT0jCXQc4h14T5LzL8ds" ..
+        "4/ClpGEheeRLFPhnfP0ewMNm1NxTOz8F8CcAv4Gr+Z+DCzIWQ25unVs/Bl/+fAfABMkyqvAP8+9IUtUV5WLpEup4SOFLqJiMBFlXaGk9BfCoyvWYz2WeZLZF" ..
+        "ay2YcVmssf/jyv2QasXLtLhuiRXJEmazAC6I/z9K0z8Nf+xXCvn70p13kwG+JzT3HwNYPu+6cn22zuO6F7ls5ohCPMH7GqvDqhHLaJKXnCxEdWHG4ZJ73mI8" ..
+        "YSCwdmETeoJNVvapbWU+wgbJIEh4MbV3+7kWEjhN1LEulWSin/tF5j2kSQz7RgAXkwBKVQigkpl6SG2yQo37EK4v/6P0zOxaEzR/vsLXVnPZzEMSwDjvT+rm" ..
+        "o1h3khc/TDLoo3sRRftLYtUb8C3ToLR5vdimxn9C7b/A180qWlzcmtvwhUZCKoNn2Ns6FVusgasAphsQNzECaAJSapNf4qYPG8AR7S+FNM+5IZ81Q/hrYA3u" ..
+        "fFoShtKIfs5eUhpuGK6r8FaEQOawMo0nqf3rOUqWGIsEAXfg0nK/pJv1DL4V+mEgnqEtgQEStdRh7FBYp0hw/Sgf0hLFNZa07TRjJ5LcZQTQ5gFA3UsuVSVg" ..
+        "VE34Jdlng9pH/MyWF4qkZ2Z3mKU2wA15mxqwP4RVozd2isJxmZt7i4RXa20H+TuT8DUM9ZjbBfiaiR1eC3B1+ve53ktwBUy1uhwfMlh6xL/xLcnpNbgjySn4" ..
+        "bL+ozV2T/N1rtDA24Yqrcp10JNhpQUAJ5AQDUtX8Un1cJuO4pNGkWADLaOERkA7UMU/9Ga2SRQpPMcKfS1AQhinIUwCGawUD+X0JjE2p+EHU8mXADzx5Dpdw" ..
+        "8wu4Lka/AvAXAA/SM7MvwrY455o8hguW/gLAP/Fv/ZlWxQIJLuozTNLCukp35zVaX6lOEphOcwGk0k6afETJn9dlvRKQWgaw1eKc8KD1sgMX9c6RqMYiEnmC" ..
+        "G1sI4Bm/pot6egL33AMX7ZdS6sE6TP+iMtMlHfkhfMbdCipk3Z1GToFg6SGAzVw2s0kSP4bvEhwPEFYi5PtN0AqQwa9l911hnYwAWowhZaIORHABxIwUC2CP" ..
+        "Jt9GGzTXLFV4r1KMtFXBAiiFIABJ4b1CwkzUIJ1LFHzp6DNEoYpysnIE36tvGT634jHciLO904Q8oqv0TK1FQrmDJd5LGNdF51D0cc2GO80C6BgXgB1nx6jV" ..
+        "LlfwjWsRwAl8q+lNaqqWd5CtIACSGLRK0/awDgK4pGIAlRqjBAlgFL5ScYLkmohIYmL6lwk+gJVGTzRi34M5uIDid/xfS/z/+ZDEVVLkmoSvLJ0Uq6QTqgU7" ..
+        "KQbQy815TVkAekPHAkIUfNgn1Pw5mqOb1FrthgJ8ssxLlJ/jF2ts7hjNeTFrpU4iFRCgIzFxc9nMGMqPHqVhSZS5CeJi7TB28S1cY86H59WEg7GBJ3AnC1/A" ..
+        "HTFuKbcgXyN+ouNGkkr9Blzm4x0GRc0CaLMA4BB8M42o7b6KyvdfpSVQarebpHBuw1UnbkUMbknG2wDXaLyaWUst1wvfr2AgsNa9NawAyfGXjr2S5TdPzfzg" ..
+        "vCcbs83XY/jTBSEAIYFSDUtJpx0P0g16By6T0gigzSANN/QoqSi/G6MVIMMlwqbctgL7fJ/1vEed9ioTeFIVhF/WchC+ZZkE0GRWX5h0XxH+Nfj03uf8vBmE" ..
+        "KZWc8yTNXfjWYIUQ+0JeU/CzGMfhcij6jADaB6JtJBssFpEAxBWQoZMn7WgBEHn4+XdRCUDqA3p4VWpCKmSqZ/P18pKfj5JbsUUf/DEJoNlNSjfpMkkyzy4t" ..
+        "gLBrFyS8pHKFLjQ66RQghrM1ONHFKck2XxvJpDsJocWqkZ005qwmzJoE+vBq6/Iway2BVUmtnqcQNnuM+TG1/zzc6YfcTykiAehx5b3ogBOBTrIAdO+7oAUQ" ..
+        "DylQJWUe97bx+oilUqiDAIKuQLyC2SzaMcZ10CPJw56llwIWwDq178tm59OnZ2YP+P+ln8MmKp8GFAMf6+9LfwA5UuwI2ekkAojXaf5rApAHrafRtisBlOqM" ..
+        "UehJO4lT/k5R+b4S/e9TVkPYdZUYgEzvbdXJSjCBqlYQsJIVIENLe+AbxBoBtJFZLIGdIHsXQwpUPOAXt3vPxKi99HWTDT2w5OQUqyql3IAUwp//i0smR4DH" ..
+        "CBd4O083YJeXtP0qRiQAaSeeNAJoP8gAjpM6Hq4Ikg6OJdr4XrVgRjntKKm1kQGaIpiV9obEQ1JqTaISgLawWn2qUgy4e6UQ9xBcd5k/eEzX4kKjk4KAsqnz" ..
+        "igj0Zi6eQnzBgFdvRG3XbAzCJeaMIFogSltJYpofnqKV46gdLKzlkiGksDVL4cXOsL9k3aT2AEYA7eUXS875kSKBZMiNIcEu8Xd723F9ctlMCu4c+gpfo1oA" ..
+        "kgEn0412qxBAUGOfVYhjbSD8YsHUO2vwkPGD7U4hgHiHEUBwTnwh5L2KfydBHikkasf1SZxCAGE0XInCn+O1WSUGID6uaLs8aqca13Kv4i1cU3GZeiNYM6XA" ..
+        "x5LNuNUJ/n+nEoA+HitF2KRy/CettmqluqKFG3kEvpAnFfF5x0gAy3DHYhuVNjMTdSQ1+iU3fz0BvJjSvCm0rv13H3xzkGQFAT9N+FHBajoxAmgviPkfjPSG" ..
+        "1ao9ygoYgsuRb8dOsCL8l+HLcsOa2vKze3BJMU9oBVSrJxCNJ62womTP6bXV7lU/Kzeb6TZJ/cME/IjwMHtfk4CcIpyFDI0AzhEnZOcluKyzLdSu+KrkBkhB" ..
+        "0SSAq7lsZryN/P9JuFZXN+F7AsYiEIDESbao/R/DjQ2vZs7qM/xt5QpE2V9iWcnk41bU1MtQVt3htydiXEKqGU+LmxgBtArsCrMO31BSTNuSMuFOQ7AvvPTQ" ..
+        "v8luuK0W/lG4tlTvwZWlpqnV4hGeaQl+QOgLAHM1mp2WuIb7yrI6DmlZ6UxC6UGom7U0e5+PwPU0mFKuUyLC2klG4yaA/UZNWDYCaCx24fvK78MHAsMW9kjb" ..
+        "7Em4ks97JILhNri3CRLAm3xvadSXriym7DpqdLhlSrDOFxDhrzVwQ5v/ulHLFRLAYD1DSc64zys1QYmydkIAG+igzsCdRgA6s+1IXWETg+LcsGm4iTC3+TqV" ..
+        "y2aGWqT5UzT9r/O93IAfeVZPz4M8XDnsYUhNruvnC4iWaCXttEbhJx5PkxCaaQWIZSf9IocixAEkviTDYl7WOwXaCOD8IZluh/D9/SQnoBRCOEDTULrmXiUJ" ..
+        "vAbgRotIYIQa/w0Kf5oCFGb4RVBI9xnEklZixZAEsMdLr2cxxN6SyL+0FJeBrTfhWmtdOu/FY82+TEUeg+8JGCbPo6Rej+HbxcEIoD2R50OSqLXWdFHzvi9R" ..
+        "2O4CeJ++961mtoIi4VyDm8P3Dt0RGXYaFUdcl+dwJwBbYdaE6a5Szbeu4gBR8gFSKrZyk67V67Sses5x/QZInD+g6yT9DOU4MhaSAGR46T465Py/IwmAPqt0" ..
+        "gHkBdxoQtvIruBa9yu/+GMCPAHxAEhiosNl6Grx5Byks7wD4kK83UaGHX0jTX3rxfwc3XHMtQiBrA66//hz8JJ6o6CMB3Oa9fEASmDgn4e+n5fQzuBHm76u4" ..
+        "iaQ2R3EBxBLS7dMvfD+AjhsNlp6ZPcxlM0twjScvw2XLTdRxrxI4mqbAxeBnByCXzazCRYP3+H/zDdy8MoPvLfio/w3ex6UaG1dPBpLXY5r9iySBxYiBrD24" ..
+        "49U5EuIdRM8IlHbkV/geD/geNjndZx9A/pQjyaiW03VF3O9x/YYi7APJYCzCH//toX3bxBkBKBJYyWUzf4Wf7HKTD1Ty28Pkg+t+8nEVPCtQCy8DWMplM3Nn" ..
+        "7WyrGnDKUeS0Ev53uJl1A88wcw701KNdau4lcJR2lEq29MxsPpfN5GhVSXvtKbV/khEINaZcNWm9PkTLbSuXzZwpyEbL6TUAPwTwY67fNMknjOuk28qVuHaL" ..
+        "tIC20CHn/x1NAIS0n36b/t8YfNQ8yvhqORkYo/maojZZhcuk689lM4+4mQtR58bRVB2Fj06P8/+I5r8GHzUPW6Go708ana7DZf3JEWlUbHNN5yms1xAtkq5J" ..
+        "dZhCecK/cU0J2Xwum4nDTQnKR1hHCd7eouD/FMC78PkSYdO69f2IS/mIV1kb9k6YERjrYAJALpu5CuC/A/hfDARNweeCR5llL2OmJCFGcuSfk2S+p2YUrbYD" ..
+        "4KDKmCtpOJLiexmGT+2VEVR36B9P8/t66GkUnPD9yhy+3wD4NwDz9SSy8Djy7wD8T77epmYtRiQC6RO4C3+2Pg+XxCXXIoB19vevRaCSu/EGff2PSPpT8A08" ..
+        "ovZ5zPN9fQ/g3wH8HsBn6ZnZebMALg624QZEpuGjvlfruG/ZPGIJnMBPIJqCOylYpFsgpvbLXDZzrExGqa3X9QYyw2BKXdP0k9MoL1ypJ2B7BD9EZJHva/0M" ..
+        "WWwSSHwAP4BlsI54gAxvHYcfyCIjz6/ybz8H8IyxFjl5KCiykcaeQ1yzNwF8QsvpOr8etWGKdgOO6ffPw80wfIoOOwLsBgI4pt/6KfxADKn1j1LpFwyqiTYW" ..
+        "DT5F83qV1xqFRZptlOCr4vr4e4PwufFSpCI95+sZbKIh/1PSo59yE8/Xaf6LyXuUy2aW4QZtXFNWSkJZHGFLfkUw9Sj3AZLKNIX4FtdzFz6XQwigV7kTU3wv" ..
+        "79Mq6W/A2sm8SLFOVtIzs7tGABcrGHjM4JVMiB2EL/cdUWxfj4aVqHYPX2Us2SF8PwJJnS0ol0tXHvYrQpBBHX04WxmyjDnPw3fC/QpuCu/zBkTZ1+GOEqfh" ..
+        "jvJu8H1LxmU96cnybGQa7yQDt9vqXoooH9Sh11FiJ+kzCr8IvXT9kcSp1U7U/h0fA6gQD/gpYwL/gxojKgFUaitWCFzBphy6C4+suWxgcQviFTRnvcQkQzjX" ..
+        "GaT8C4Bf0X/dadBa9sMdsf1vAP8N/pRFMv+izAwMNm/VPR1Kak0rWRZ6LWUdi8riirp2BbojuxT4hwD+GcA/pWdmn+hYTicMBu0GF0BjDW5Q5DjcMdEErQDZ" ..
+        "aIk6N02URplRtWIx4uaVtl3i+vyJAawHjezFn56ZPchlM88B/FFp/+twpxnxOshLdw1q1LrVQ5wntDiEPL8gCbwM3H++U4Qi3i3SzyObRfqv92kab6O8WKhW" ..
+        "r/14CB9XT+05UdqsWOM66/MR83Vb3ecfAXyenpldOocl3aBb8WsSTTC+UAq5/07LyShWsLBOKnytgNObvoYN+kk16TO46cV/hjv+2+tUueh4AuCIa5nnvk/N" ..
+        "+Fe4Y7HHNPXEZ4/SQKTRqOf/BucY7lBj/Q7uuO9+emY2d06EekAS/RTAb0k2jyksWpsXGrQeYfL26312YjXl4E44/sL7+hYu+HfcqfLR8S5ABXNtjaadDHd4" ..
+        "D+7oaUAFlZKn+PytIlXtL4vJLNmJ4iu/oMn/c7jA39o5r+0uXYET+HZhfXSxegOaOap7FT+nNQz+bSkd36DZ/2deD+C6JR10snx0TRAwYBVIVt9P4AKDb8JF" ..
+        "nofRmpZV9eIAvkttDsDXDFr9Lj0zu9pMKwvuNOCncAHWH8OdiAiptivytJo2aDl9Cpfw8wWFP9/pstCVBMBNOwqXJ/5juMyxe7QELqP6UdxZ/Mx6NFXpFO0p" ..
+        "x30r1Faf0hf/shXZarlsphfu3P4TuOq7H8Nl5g21aB21xRR8ljJFao/xkseMZ3wOFyhe6gbh72oC4KaV2vT34fLGb8L3jBuFP5tuNXRUWybuSnOKFzRZfwng" ..
+        "i/TM7EYL17OXmv9HtAT+I9e0F/6kpdWQo74tuPP9R9T4n5JIlxpRkWgxgIuBdT70PbhClCvwqaivwaX4jiJa7fh5QP73Id/rOnx57nfUXN9o4W/FWTUzBV/Q" ..
+        "7B+hC3BA90oyMFs1ck2P9Nqi5n/AWMl9uJz/1U4O+JkFUF1ryQhs6Qd4D66c9GP4pqDyc832aU8CGv8lXM3BU7go9dcAnp5XtL/ONR2ie/UDvr5By2ocfjhH" ..
+        "b4P+XZicA+mHsMZ13OD6fUntPwdXI5Hvtv3f9QRQYfP2wyW1fFghNjCB8iCh3nzFClo7mJASxvctBjT+EtwZ+wJNVtnICzRfnzUyyaeB6yjpvK9xDW/DNzS9" ..
+        "DFf7kDxna0CaoK7DD0JZ4TqK9fSklW6TEUD7ksA0tf9r1GB3+fkkXu0skwi8xgIfC/SAzZIigpjSVMfq+ytwOQvin67DJdscgKW07Sj8ah1HKew34Bub3qWL" ..
+        "NQk/h1GyKWNqHYOZgYXAesYr+PaSzyHJVVIOvUgT/xu4JJ9lkuhqrXJjI4DuJoIRaiwhgdv8XHeXlUsPntQ95+IVtJJknkkW4rEKTu3BR/ifw0X2/0gzf+sC" ..
+        "rmGKcRTpsHyHFtY0XYJR+GIocbN0485EDQ0vA0z1INNDtZYvqf0f8HoO1w9xx3a4EUDYGEGaG1b3GJygFpumfyu1BUIItXIJdpVJvwHfHGMbPkI9R7P18UVP" ..
+        "SGGfwwnlSukGKKNc1zF+LGt5Ce5Ithr0lGNp/iol0CvwHZBW4Hs1dKWvbwTQGCJIcUOOUPBvKq2mG2RIWW9KWQOCE27cdfrxL/i6Dj+Db4VfXwdw2Ekbln36" ..
+        "pYvPBPy8vkn4pigy+EQHDHW1n5j70u3oOfyY8yP45qcLcIk+u3ANXI9tJxsBNNK/lWk315WFMKg2rZBAQvn1MnZ7DS7At8QN+5Jm/z6AjW4ITJFUR3mNKctg" ..
+        "UlkAAyhvzlpSbtOOWr8d+B4MqxT+TRN6I4Dz3MADSpsN8hKhD8YCimrzSn9BqT2XISZFACedMngywjpq/78f5TkDup+fJtKCWssDFQc4orY3H98IoCUaTSLY" ..
+        "MfUqk2V0eSsAFE1DhV7bnsB6xpRFIAR7bP69wWAwGAwGg7kAzTFNYwBi9RSRVJop2G1mrFrDSvuyBKBkpr0RQDtv3jMJbZAEunmz67UwoTcCMBhqEaZOpbag" ..
+        "qhFAW23US3BHWQW4UWGm0epfSxkEIklBsn9l3Foc7ghQaiSMCIwAGroBU3i1538soIn09N4k/CQiGX8lffPkHFtq1I9RXigEpdGOumRtExX2ZgI+HXgAfqhL" ..
+        "Sv2MJFzFuZYyCi3HzxFY21K35VkYAUQ3L2ViTx98kY9sUklI0RVsMvLrEnzyj8wSlEk1UvwjjTKPFQEcqO8VFEkcww8k3YNLC97rkHWWsWrDXDed7hsPEKg8" ..
+        "B51iLXkAKfV7R3BJVS95yUgxSRrSa74Ll3G5ZQRgkE05CJeCKoUpMrxTb1JdE6BJIak2onwtpX5GkoGkH10e5e3Ij9UlMwUkZXgZLr11g0RwQJdi54Ku8xBc" ..
+        "GvUNuBLrKbi8f+nILEM9dTZgIvAaR/mEJaC8JDhPQpA1FaE/gCu2WoIrtKraTKWTJgAZAZyu8cW8HIPLRZd89DT84M4hpYlSykKQDRrMUNMWglgFOhtQNqjO" ..
+        "DjwObOBdRQAr8ENHd+E7BG0B2Gt3MqCZ38N1TsOPQL8HPwa9L0Cuem31nq3UJFXM/FgFQpB0YRntvk0CeEQSWKbFsANgl/MjzALoEo0/Bl+FNk7hH1VEIBN8" ..
+        "+5Vmkjz/lLriFTYpUL0ffkGZp0B5fvtJQGvtwFcK7lDoxcxd5mZegGtwkW83TcYKwAGur260Ik1WJuBHofcEiDYeiI2UTtm3pQARFxWpHimL4IDruEbLSjoG" ..
+        "zcF1CH7eiZOAjQDwt2hyH1zhzhRcJd8NuKq+cQq7+KdSkdYP35xC+/0yobYH9TUNDU4ORiBAmEf5qLEjtXmDfQMewPW5W1cuwmGbrHm/0vr34DsDXefXB5Sm" ..
+        "j+PVKsp6cYLqI9rEHTuAbw/+EK5J6LckVokhHMAVaeWNAC628I9T6K/C1Zzf4MfT3IhDKO9MozW+7u6j21KdZahlcNqP/E29WeMBEzevtNkhySBH4Z8jISzz" ..
+        "4yft4BqQdG/CNVn9IYC3qPllzRMBq6kHjekVWED5yLBSBStBiGCTbtYTWgM5dS1wTTtuUlA3jQcfo/Z5kxvwNjWQdKqV46WewIasZ2LweUNv7CL88dcGN/I8" ..
+        "/My+B632aekCvAHgPwP4D3wG15Rr1Q7QPQZ24cesz8H1ZfyKMYOFTio1Tna40PfS1B+hsL8F4G2+3mCg75IKNtWLWhOFG42gduyjMF1hkGuaP5MHMJDLZlYl" ..
+        "ltCiY8R++FZfcsIyiNPbpoUZ9Bmv8nvxOmVBjh6n+LUjrqX0fBgGMJHLZqQF2X56ZnbbLID2FP5hCvhtmp+3SALX+Pll+Mh+J+GYm1Pahj+hFpuD64g718xO" ..
+        "uNT+03Bt1v8ebn7g6/Btwdsdh4wPzHE9n9HNWqWl9fQid29KdrDwX6PJ/y58b385zhuhfx+jlowHgnBoU9M/qB2Dbcbl6lUm9i34rrhjAPo4vWe7SdZAkms+" ..
+        "Ct8xKdgnMcxwj/Nez2C7dvk4SYtgEL678QoJdhhAIZfNFC9qe/FkBwr/CDX8+3Cjv99RASd91JRQpnQ8oulZrzsQBWGEIVaBuMRF6BeTFb79tjThfATgeS6b" ..
+        "WQLw8pzTjePwR6Y6uFcMCJ8m3HrX8CzkHatiFUtWovQlHKb1qJVIP0l1/aIFCZMdJvwy9vtduGjz2/xcmnX2Nkjwav1+sQn/IywkvtFHIpikFvuWVsHTXDZz" ..
+        "ntHtAvyJhRxrxlA+OSl4tl9ralKxyjrH6lzfeMifkWGxKUUMKeVKxriWh0YAzRf+CZr6H1H7v0WfXwZTNnOmX7u5Dn0kQSmmGYEPjo7SGliGy41vdBXdCXyf" ..
+        "/k3wTP2Mghpv0TqLJaDXtV/FkWQa0dJFkZt4hwj/OIX/Zww0/ZiBpstnFP5i4Kr2MzrZJIz5WkB5c9Ba76EQ4n3Ues6iqSbhsvA+Uuv1M7pKlxv9bOhebDAO" ..
+        "8YLCsUoyKNb5TMK4CZXWq971C5LAAOMpV+hu3gPwAa9bzDC9EIhdYKGXib6jfAgfAvg7buwp+Jn0YgKfR6CpoAhAzuYrJZ4E17pSzUAc5YUtjQxw6fvOw8/M" ..
+        "24BLcHkMN2X4c8YHGj4mmxbaxwA+YWzmdfgxa7oSsJIAB9e50j1KCXZwPmOjkoqqkfIuyWyBLtW/A/gd3OlA2/ckSF5Q4R+geX+Xwn+XWu1duPP9gYDPGFbw" ..
+        "a50h66GTeZTn7ety35PABtYZaDqFOKl8yQR8taEuIuqNINxhrLweFZTrVxaSvK8BAN/mspmFBm/gHZLMJi2B9/ncrsIHKgdRnu2oKyfz6nMReCmZlpkKumRY" ..
+        "z21MqXWtti5RFEQ8sK+kbDnF973Hffq83eMByQso/P3UHG9Tm9wjGUwof79eF6faz+uS3cMK1x5f9+ELTsTEzysCEGEPlrqKUOoKwz5l4QxV0WL1WAtFZW30" ..
+        "w4/QBnyp7Qnc8dZqozYwyWQ5l828hEuvFa0pqdhX4CLsksB0gPJSXv0MhEwL8ANWTrimI/Al3JLhOaBegyPbEme0DHtQnj16pOIcR3B5A+YCNEDwhd0naT7+" ..
+        "gNdr8NVkwsKNCFxpDS+sLgU4UlYq5t8mPxcCkC4/+QABiID1Ki3ci/JpuBKxlypFCWT2K8GV302cgQD0vR7wHubgCmLuw50SfA9g/jy0WC6buQFfeTlKC2BE" ..
+        "WTyVeiTkFVlpAtjlx3L0KaQpY9qk6jMNP5xUyo91A5ez4pjk9h2APwP4PVwK8XK7WgLJCyL8PdwcV+Eqyt7hdZ0Pu6+B9yImpXTh2eMm22Twao1EsAdfUvq3" ..
+        "Cjz42X/5QFCwhPLiISGDfm5W6XJT5KZNK/dG3+cA10IKl6KSQLzCHrjEj/dIYAkKTYxfO4+o9jLXLanIT9wSqa48UcKv4wElvFruK/EeOenQ3ZyGSDDXuaaS" ..
+        "Bj6sCGKwAcojRYJ5HeX9HpDLZtqSBGIXhADG4ZJ53oDP53+dpuMAyvvwRSnN1UkoonX2KOxrSrhfonzktMzy26NFsKV81kidaRnM7IdvGFLgph3j/V0n8U0q" ..
+        "N+cK/ADNXpQnNZ0lOLjOexE//Q8A/gXAt80sKCLhJ1FnT0SmHyeUyyUTnSdRPsxVphKLCzKCcLkitSwrIc2v4IqyPqdltQpXP5A3Agj/MEf50N5hkO9Nmv1S" ..
+        "yafbbcVCCII+BtJ+umh+aSq5DHd0tUShX1MCsqd90nMykQeUdTBKEpBx5LfV/V9C+UBNsTLqKYo5UO7OAnxF4WdwTTIubDNNrmefsgbSXNPbVCaiUHRnokRg" ..
+        "v8RDEoAEPZ8D+IYu1XdgLUE71Q4k2/yhXaJJdZva/x5N4ukzsHU8QABH1HhS+y3CL6O7lwOCf9CMTr3UuPsA1mklrCprZI0Cehm+i1FaEUKqzqBWSgW18hSK" ..
+        "LeXezF1UAlDrucEU6GGuoVh1qyRYsa7S3GPxCPtKk0A//86xcvWKfIZtQwCxNhb+Hm7se3Bn/B/R9L8Jf3Yc9mivGnsfU5ieMOj1CL4ZxLoK+O2iDSbP8ixd" ..
+        "8vq1SXubsZFb8GfrZ0GRAp+DO9v+A4BfA7hfrYHmBbYKxuFrJK4qN/M9rutZqkUPVezoIVx+wM/TM7P3jQDC+XGvw+X0f8wHckf5/WfBkTL3X8CdT39GEpij" ..
+        "wO+3ayIH1yZOQb9Nl0gandxjkGsIZ08qOqKG/AzAL+GSXB5e9Br4Ksqmh2QgJ0w/5b67ooKkUXFCEtjmvvotgP8L4NN2ae/ezgQwROH/r3y9C3csNoz6M7vk" ..
+        "2Ggdvl7+IbXcI7ha+fULtnkvw5+OvE1r6R1uXKl+TJ5hzY7gMgV/C+Df4LrjLMB1Iu646TtcT7E6P4FLWLpDi6unir9/2n6Tk4xVAH8C8P+4jkvt0H24nWsB" ..
+        "einwEvSaIhOfRfi3aeLfB/AbAFkA/8DN/ZDfv2i+7RpcP8Av4c6e/wgXdf6O97rJDRjVBSiq5zBN0/hdkswtAKOVJhtfdHA97wP4FYB/BPCvcPkQL1Ge8h1W" ..
+        "wUqG5zB8V6q3cA51F/WgnYOA0rX3KvzgiHrfb175tI/hott/oim20gGbdieXzeikmUPGL+4xZqKHaoQh/WB5rjyLu3CBUDmPlwy9TiOBLQBbuWxGWoOPKOUT" ..
+        "tWOxkIB0Rr4LF1hezmUzK60e/daWBKDaSE8xQBMU/ih529JXfwe+YOMzAF92gvCrTXvEXnVCdocor10vwnc8jtd49kHXUGb0pan95ahw4yJaTRGwStfwAeMD" ..
+        "Me5H7Q6EgTyHYe5pCdT2cS3NBQgI/02UR/yTFd53vIbpCmrDDfi++d/Bnct+l56Zne9AzXWcnpmVTSvpvI94/4uMfUiWYq1GpvGARSANReTU4QaAyzyq7Ujw" ..
+        "1CdH9/AbruUKfB5IGPlKKBKQ5qiSjtzysuF2jAFchqur/glcZHsY4VtF6TFbR9ROq/SRv6Jv/A1Uamsum+nhOXsnbdxNuCSUrxkb+JafSxHOAcL1ItAWgaQn" ..
+        "SybdNWqzkU6LBQTuZ4tu430SwQr3lW5sEsUKKJtGxUQ3cwG48ENwEddPAPwI7nhrOMKf0KW4+/BTc6TA5TFccctOgOU7ES9p9cg0XB3AisEXwtRCEeVjuuPU" ..
+        "gJKDsAZfK9FJml8+3me/vyR8P8AxEmJcvVZbO/09qfIchQus3gCwnctmjlt1IhBvI+HvpW/0JnykeRyn13AHF1sq27Zp+i/CJfl8T/P/KdooC6sJm1iSnL7j" ..
+        "GjwnKe6GcAOqaTAZmyaJM1fpE3fyWso04UW8Oqm5UOcaSjrySCsVcTu5AFLm+zrNo3qSfaQn/hof2HNqwQfU/OudeHZdgwQkBqIn4W7VYcLqTTxATSgzFScY" ..
+        "u+lk7Kl9tQjf4zAfUd564MuWpRox0dUEQNN/msJ/C9FysIMWwD59Xa355tDZ0erTSOAYLvg3RwtoXmkwGYEVdY/00Ay+RhK4jPYZ8XVeyMM3MXkBP1L84BRL" ..
+        "Kl6FQCUYmIY/DehOAqDpL3ntV+AHRiYjmKhSey3z4Fcp/F+RCDY72NcPQwJCii9oFc1Rk60zPhAk0lqQ/gxX4AKCHU8APK9/qQhgiZ/vRrACpJVZP9fsOq+x" ..
+        "VgVS28ECGIaf1iuTe6Q5Q5jovwzH3OPDWIdrwyQlmC1PtmiTDbxNrfUEPvV5kWt2EoEEpL5+WJH2FDdxqsOXcQu+TFxXie5HiAUIAUzS2r1JpdfXdQTAopYJ" ..
+        "mpLT8F1vovpEBbhEn0Vu7G+50Ve6WfNXwDa11/dwJyLL/FrUQJb4sSPUZNPwdRqdbgVswveG2IRvDlMIKW9JFQMY4/6XOZVdZwFIvv8t+pJRynyDBPASvhfb" ..
+        "VwAWTfhf2cCHNF0fkQDm4ZODwu4LmTEgHXfHacFdh0sM6u3wNdyl1n/JSwKqYfeaNH/t5esg13C8FUlV7UAA49Qgk2TBqL6Q9IXbgDvv/xKu68quiXxVEpAg" ..
+        "6WNaTbo0NUyhS1JtZqkTuEZTtrcLllGOmrUFIE1gw4yFk5qMOMpHp3cdAci0mjH4Tq5RLYA8H8IKff8FntsaqpPAHny7qifKCqhnck4/N+80/CSmTscRNb/U" ..
+        "QkgrteMI7pQcCUqT11EAl5odR2kHC0ASS6SPe6VOt5Umxggkwi1ns6b5w5HAS7hjwYeMC2zABVNrjTcrBb4vffakW9FwJ5YJB3CsCECCgEcRSUCqBPvU/u9H" ..
+        "k5OCWkYAZDppyax7uEfpZ6e1/xJNsiP1P3pM1F9Zd70mm7SaJB4QNSAoG1k2sVhy3XAkuKvM/0NFAPmQbpTUrMRVLKAXTU4KaqUFkET5hNqRkASgK9WOGYiZ" ..
+        "57UVyOO2IOCrmzcf8GXn4YKm38HlT5zUWP9Y4Pvix44oK2CwC8hXz44QEhDtHySAShaVWLJCADLCLNktBCB50dLSWhYgCgNKdpZ08N03EY9MBuvwtRJCAPW4" ..
+        "ciPwDUtbmt7aJEjymeSfSGp1qQ4Z1LMiu8YCkDNROQ6RcVm13lMx8BC2lQuwbWIdmQTW4I4Fv4fLC6iV1FLp+Ug+hxS39HYBAUgCmpwGSEagTH6utWYJpfET" ..
+        "gaurLAA9JTcMdBBKGHgTwG43Ffo0GGJFLcMFto4jCAH4DGWAySAaO6qtna2nYwr+NnwANer+70X5PIaucQH6ET3opzeeTPIRE+zI5LjuzXwIn+e+ABfZjnoc" ..
+        "KEdaEtDthgCs7MF9EkAxggsgx4B6lHkKjRlu294EwIynIV59Ed9HCb7uX0ZDR8nFNlTGFtxx4DPGBU4ChFus8iwEOsV1GN2RECRWgIyJO4lAnHpuocTAervF" ..
+        "ApDzT+lKk4hIANLlZge+pNUI4Gw4pAvwggRwrIS/FPK5pLqMAOQoTwjyJPB5WBJIKTe42A0EIMG/fuUvRokBFKj5ZUx3vtkL16EEsApf5homDhAL7KW+LrQA" ..
+        "juCPAIvqCpsLcILyPpZH3UAAWlP0ob4YwBFN/6gNLg2V4wCynjsob3UVZQhGUsV2kl2wbAX4hKAjrkGU8fQx+CY22/DHiR1PAINwdeTT8K2Rw2pwiQEEmdfQ" ..
+        "OI0mGW1ay8dDPJcYfCAr2enJQGy0sg7fZ1GUWyIQOylWiaeUuNZr8B2G9rqBAC6BbZHhK6DCCrH4WnlEH9VkqB2bias4S5Q9UlI+bdMTWlqIDfjmIEeKNCVj" ..
+        "Ml5B5nQm6ybdrgW4zlWHHU0AbB55CS5hpJ7qv2Ig0FIwEmjIc5GW1f18HuKfBn39sAQQ74Z1U+XV0iVoC6+mU5cqKLhDav7nvJbQgkK2VjyklPIRExG1hRb6" ..
+        "E3XlLe+/IdpfTmZi8MdbUfaJjmonumjtNinE38NVWG6i9jGqVGM+gDt6XWu2/99KAtCBvxiiDa0UNtVnsBYEPDvkOcS4nlHXNR4g9Fi3LBybzyzATWL6gkKd" ..
+        "U+sXzPAr0HV4DtePYaECaTQFTY3UMiikz/+DedBhrQDJA5BKLCOAs0NiKzoIKK5WPOReCkvknQgZKy6RfQlOX6mwJltw9SsL8H0stlthxTb7qEa0f0ppiTiq" ..
+        "D/usZgWcKAI4NAJoCEpK82vrKkpsJdati5eemd3KZTOaSIVAC/CThaV/xQu4RizztBS2W1XH0mwCkMq/BHwP/2LETSYJE/sMmuy3wnTqQEhuegI+1VrINRGw" ..
+        "FOKKNKCeYUF9XOpSEigoC0COCa9xbSXZ6hEvGTZ62Kr3nGzB/0vAn38eRRBeHf3Pwyet7CN89Zrh9GcjJdkF+AKXQkiNL4R+jPrq4jsmHpDLZubhp1MvwHVN" ..
+        "7iepLtHvX2QcYKeVVazNJoACXs2fDvag0xpGfyw/J2esx3QBdowAGh4LOEblJKtq1prudJvvdlLmRGFpULMCPznpiBbACtqkfL3ZBKDTd/PK5xSfSQu71i75" ..
+        "Cu6CNGbcSs/MHpjcnhkn8KXVUl4drLHQpzAIkIFYdjKZeb/Lx7EdA8jlspk9Cr1YVnutGgXecgKgedRPvyiH8gGVRVSvIZfI6hE1vqRfrqHJqZMdvGEPctnM" ..
+        "Ftd1Cr7hZT4g5NVOBbbhzrOly/COrerf0oXbtlVdKwo29ugXSTbgGFwrqYka7zPGTfUM7rhFWliZ9m8cdrmmaRK0tLzWA1uCwn8IF81+BOBTuMlMD40ALgaa" ..
+        "fmZLRlyEG0rxBQV5Aa+WoBaULyoR/wX+zp9IAquWAdjQZ7NH62oRboLwHHyw6rhCjGAbLqD1ewD/ACDLj59wGKmhzdGyc1vmnt8E8Amvd8FRyfBtkXTrrxW4" ..
+        "9tW/p6Z5wQ1raPyzuQrgHoAPAHwE4E0+m0G6AVLEskgi/iM1/zOLx1wstKxmOz0ze8xI6V+4meYAvK5IoJcEtUdff46b7Wu48V8m/OeHdZrxYoXt8hnI/LpD" ..
+        "av6/AvicP7tqwm8WQD3apgeuMcgNAHcB3IYbFDrM97dLTfOMm26OY60M5/9sJvlM7sIP/xwiATwQf99mMRoBNGKzyZjkKfh56XH42X8rANbMt2z6c5mgRTZM" ..
+        "7d8HdyKToxtmwm8E0FBrQIhAUoYP6SJsN7tZgqHsuaTgazdKAI7ZRsxgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPB" ..
+        "YDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaD" ..
+        "wWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBiag/8PVfWXWNBvEqEAAAAASUVORK5CYII="
+    ),
+    save = (
+        "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAs0UlEQVR42u19WXMiW9bdYhBolkolSjXdulPfHm63/UX42X6yHfYb/4cfwP/hl9iOsDu6v75T" ..
+        "3ZqVmgeQQIAfztp1NqcSiSERymSviAwkJCHIc/baw9kDYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8Fg" ..
+        "MBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGBJAzm7BIKJGfRVAGUARwBKAPL8v8TkA6AHo8/4t8fmcuqfydT+4FnEd9Gfrj/nZ+2M+1wPQ" ..
+        "BXDDxx6AKwAdAK1KtXZmO9wIYJjglwGsAljntcKrDGAZwBq/BjdXH0CBz5X5dY6EIY+yIWUzDrvnuQyvXUgA/eBnoxJAfwgByGvKPb7m1SERtACcAzjhdVap" ..
+        "1q5txxsBaOFfA7DN6xGvDQCbJIMN/mxNCXaPmn+FBFHglVcbW2ukpC0AIwAPuccdAE0AlySBJoX/CMBHAPsADkkE15VqrW0EsNiCv0nhfgRgJyABeX6LlxBA" ..
+        "MdDyJV5a8PNqs/eUy2AEMDsC6NDcFwKQ6wzAMYX/E78+AnAK4ALAZaVaaxoBLJbgL1G77wF4BuAJgF0+t8FrTRGAPC8uwVJAAvlb7mm4cZO65/2UEsBt39/2" ..
+        "GXO3/E4PQJsE0KLgCxGc8zrmdUoCOCQpRAAOFjU+kFtA4V+ntt8D8BWAVwCekwTWaM7LJfGAtUD4i+Y4PTiIC3BNEhAXQJNCi1pfLIJ3AN7SPTgkObQXyTXI" ..
+        "LZjwbwF4AeBrAN+QAF7SCqhQyIu8JMBXgj8VKJicPXiIO3BDq+BGkcMNCeGYmv8drw90DyISwWGlWjs3Asie8D8H8GcAPwL4Tmn+HQCPqfURmPQm9OkmgzD+" ..
+        "0FZxgYiC/4kk8IYWwa8A9ivVWssIIBv+/jqF/XsAfwPwF1oAT+njy7HfKOiN6L8a7h/5EX+vQ5fghPEAsQZ+o/D/RCI4rlRrl0YA6RX+MlwA7wWAHwD8EcCf" ..
+        "KPzPqPXX6dePg57JWmqFX1sHTfr9QgCv1SWuwX6lWrswAkif8Jfgju5eUPD/ShJ4BRfxl+O9ZZOdhcUNBvME3vHxI4X/NYBfAHzIamAwl1HhX6LwfwXgDxT+" ..
+        "H+GCf0/gMv4k068Af06vj+pyE2oWw8NCL4gB6FyNLtxpwSVc8C9ibOCQJPATgL8D+BnASaVa62Tt5mT1OGsj0Px/hgv6PSExlOAz97SQ90zoM+sa9JTgCwrw" ..
+        "WZyS1LUNl/+xTsJowh0f9kgMC+03pUH7r9O3fwEX9PtBaf5Nav0S4qP7eRP+TBNBfsjzZSqNx9wne3AB4pfcO68APIka9Q2zAB6+6b/FxXtFF+A53Bn/ljL5" ..
+        "JzUjk8a02Xx2CpGcgivxfha5LtfcR5dwuQPXAJpRo97NUupw1rTdMoVdMvye0qSTY77iAxL+20hhlMuQPArwZeCrdAVe0n38hvtpg4rGLIAHiHWa/rJgT+CP" ..
+        "+XIxQj0KAZpLsJiWwwqVRw7utOAY7pRgH+7osGME8LDM/xJcRt/XcMG/7+GO+9aVeWcwjGIFlEkCyySCDtyx4AZ80NAsgAeGVbjgzStaAK/gingK8NV7ptUN" ..
+        "d2l+qfIsKUugCRcg3IYvGLs0Ang42n+J7LxLs7/CxSrTfMsp038c4e9hsJ5fOgHdFRe4rfVVP/D14/5fXOlwmKegG5Dc9n8fKnIJvuecugoxj5NYAYIy99Jj" ..
+        "7qsdAJ+iRv08C8lBWbEANuCPb8L03uKYml+6+HTgm0y04aLAbfV895bNexcByP/oBeQk5axCAqFw9wIfdUW5Nz3c3nZsHMwi0Bg2/7iLAML3kL9Dc0vwTlq0" ..
+        "Sacmadgyqdme5/7agwsIvqE7cMz9YAQwZ+2/AhetfUES2OBiT7qBpa+cdJM55eM5/JHQFS2LYQJ3W+ebPnx5qiaALlzCibx2HAHcqHVbhz/alKy2m4RcnN6M" ..
+        "CCA/5H70R3gPBcQ3GNWdmZbpCm7Ad3GShi6rY5BAaCmWqflf8PqdJHBhBDB/LMMV9nwLd/y3qTTiJKx/Q59P0kHf8/GIRCDNJrq3uAJ3EYB0sAktACGX7hAC" ..
+        "kOeL9EUlKJW/4/1MagXMwuQflQCA29uHhe6QaPoVCr0kg72EO77bgW/pNspn1ySQJ4FU+Jp7vPcHRgAPw/x/CZfz/w0XvjThBm5T+I8p+D/zek0SOFHC38ft" ..
+        "fepG2WC9GMvgJngeMbEDCVLpbsRJ5yvMkgAmeQ+5EVyAvLKO9uBOgs4Ct2qV927U9yrrJElme7x2o0b9IO2NQ1JNAKq33xP4zj7bGL+8Vwv/CVyDiNcA/gng" ..
+        "H3B14p8AXFgn2VTsizUqgmMVw5Esv6Iii9sIJc4akD6Ru7QG3keNejvNbcbTbgEsw3fv3VY+8bh+cFdp/o/08X4F8C9aAO+y3hgiS+BaXUaNugRzu2qvrCG+" ..
+        "+cttJ0TiZiwpEnjM/XZBC8MIYA7af1kFeCQivnQHAcQtdFf5/W8p9D/RCvhgwp9a7HNdQYF9Bt/9uRDsiWEujx74EsYYtuGCxKdpvUFpTojJwWdqLVPw5Vx8" ..
+        "ku4w11xIaQTxGq4bzLnJUaoUQ0ly9SvVWqdSrUkK73taeE2Mn8abh8+7KMGfNKwj5Q1l0k4AMplnjVdpwteSCHtLWQFv4pidKceGh72nw33dgj/ObcIfl44L" ..
+        "sQBWA6sztSimnAAkb1vGdy0rjQ6MfgyoR3ld0nQ8iAvuWBDwwaMb07lHugFfcH07Q5TAKAQgyiYTreLTbgGIFbCMLyP//TFfS+5FG0BTC3+Wyj+zjiFtu/IU" ..
+        "+tsIYBh0hqXEAWRAzF2jzYwA7oEE8vhyWo9OrhnntcQV6IY/MxJINXo0/c+GxABGzUYUq1n2W94I4OG4AvkpX2No0omZ/alHG35O4DQxAJGZIgYnQRsBpBz9" ..
+        "wGKw3gHZwg3cKY8UdE2bNZkLLiOAOQntXXnk/SHP92Ke66qrP6JvaUjPXunCV3P2Eng9GAFkCyL8s6iEMzyM9b1B8kVTMALIjgtgyLYFIMVWfSOB7LgAorGn" ..
+        "NcW0T2eEkE0CuKuRyyT7xQggI8hMYMfwBXoYjPFM4+Zlao8UMyS4/YReJ/NgTsPnI6xKtXa1ABZA2N+xn8BeSf2eyVJX4NwYv5ef8G/TLPSSwSYVk1I81Ysa" ..
+        "9RZcr4NWhq27WSofI4A5mXWzmJSTy6Dwr8MPvZTyaclll0YoB1GjfgDWt2fw2LOAwU7K5ualmQAq1VonatTlWCcpEshnbXOwaWoFblbC13CzErfh6idycB1z" ..
+        "zuGqID/Blc2+YburrPRBkHRxsX6MANSNSTN0e+1+4PNNUgw0dGOksRaA7/kJXL/E/wTgvwD4bwD+J4D/AeC/A/ivwXP/GW6k+vOoUV/NMAFYADwDMQAblnm7" ..
+        "2b9L4f8rgL8B+AstgW34MlZJkb0AENFFEAEpRo36R8YH0uwSCMFnooDHCODLIExSgzB06ecXLkeKhH8TrhX2HwD8SAL4Aa4lVtgOSw/SKMOfqEifhTUAH6NG" ..
+        "/aRSraW5D/6kHZzvUjypVj75jBAAEiSBVC8qzfZH9Pd/BPAf4Ial7lHIdSpsLyC9MuMFP/Dv/g3An0gc6xkoiU46zTv1BJC18eAGp7FlgMVXfKzAdUxags+K" ..
+        "iyuIKvL3ZEzZFVwrrRO4wShpHout5ymaC2AEkEm/X7ok78J1rd1Upv0y/NjrOCtQuisV+Ltr/Htpub6G9La/kiCgXBYANALIJPIUcmlYKUEvCYCFAzHiWqT3" ..
+        "1d9I63Uhj7QSgJBbiY9mAWQkBmD4Uni1X6/bWY9z9KVn7S0h5Y0v4SP/VuuRMQKwBR1ED64F9gVchl8hsAZGWX/5m1Vqfq0x0xrw6t/xvRGAIf1gJ+MmXGaf" ..
+        "5PWXxzDfe8o1LCt/OQu5FpYzYgSwELih9r8JfF8t4KO6AXqYZhasLCMAI4CFiANIgxQdA5jEvSoqC8Ki50YAhhT6u9No7hwFXw/CSDMsXmQEkHnoAilMaPLq" ..
+        "U4RwEEaaBd+CxkYAC7GmucAd6I25H/rq+0IG4gB2CmAEsFBrqtNdp2mDHZZJ91JMAD1lHRkBZIQAzJz7ErruPZfAeueQjb4R+nTECMAsgOyB1XpluLz9FWW2" ..
+        "9xLaK2l2AW7gCpluYDMBMkMAdq47CJlfv8WrrDb/tP6zuBZp3is29SmjBGCL6s3/DbhKwG24VN7+hHEAnU8gpbTLNibdCOAhxgAsDuDvxwpcGe8aLYLchMKv" ..
+        "h2kIuUgn4TTfH0MWCCBq1GUzpvl8OmmIqS/pv5Oa7CEBSInwUkoJoI8MtfEyAvAaqaS0Um6RLIMhpni4uae5D5oEpFuQ9AZIKyz4lzEC0JVuuUUy94Y0KV1R" ..
+        "Zr8O3k16/CeXbg6yxo7DaXQVbShIgGIGCKCE5Pq8zcU8HBZYG7UTcdSoS/uuJ3DtwFaVa1SYgAB0C60SBX8VLsC4CaAdNepFFR/oAehUqrX2OJ/3HjstS6ek" ..
+        "5QTjGH0jgPm/99IEBCCmbX6Ij3ifMQw9oy8X8zt9uLPr67gBnhSkdQA7cJ17n8I1An1Ea2AJ43UD0l2EPmt8Cv4jkkuPP79SLkIbwHXUqF/e1To8atS3uGaI" ..
+        "GvU2gCv2MZglCvD5Ecsx+z435v7JTCwhzQRQwGCTx9SYdWzdLTP6ljE8z/5zBhuFpQN/lp3j34rmf0EC2INv4lnG5EFSERp5rztwTUbyJJdrCr9k2F0DuIwa" ..
+        "9Qu4piRX/FleaeB1XiV+hhaA86hRP6tUa80ZWwC3ZUiaC5BSAkh62GNuxoIvAzhEm25TwJYCn1u0i5zfS5tunckmgrhB4dzltcPXXydBLE1BAJJY9IgC3uf7" ..
+        "lZZjMptRrisAl3Dtw8/4fkXzCtmJxdYjURwA2I8a9RNaA+0Z3X6t5e0UIAMEoAtVxiGAYePBZ3pywPHcWxRSMdd3lUYMCaAXuCpiDVwrM3yFlzbVN0ksGwG5" ..
+        "jKop9T0pKgIAhfkRBbeDwVOCvNLqRwCO+Tvioqzxd7rq87UA7PN33gM4jBr1i3twCQwZIIB70doJYpXm+bdwU3uekQA24Pv1CwHogacF5SLcKNNbTPQl5beX" ..
+        "FRGsKQtg0nyAJb5OX7kbTQwW1ehEoRx/dsqrqwhghX9zpT7fFYlQCCLH15+1wjAXIEMEkAaff4ma8xu4IZ3f0W/fpoCsKCHNKTO/r2IdYja3KUDhsZbu/7eM" ..
+        "wQDjNDGWdRLLBv93R5n8Orc+r8jrSlkqK0r7twMCuKHAP+X/uYYbUd6aQQwgC41NjABSihJcfv63cBN6v6fW0+23dTMOPa9PxzmAwfTcHL7M19dabtqNLiRS" ..
+        "VsLeU1/rgZvh8E3dYbgAf1rQVj+X19njPYoA/Aw3imyAQKc8MswFBGAWgBHAvUI0qBzTfcXvZQzXQ1+HcY4RMeR3exTAleB3C7wX1wB+BfA8atSPKtXaqfxh" ..
+        "gvkCOWSjv0GiC2vwmNXZrvjBEq3fgT8SK2ZsP+Vv+Zmcgqwo12BZkeO3AP4M4JuoUd+Z8TobjADuxf/fpr+/RzdgA4OFOr2YK9Scd/3OQ8Q47zdHMngJ4K90" ..
+        "k57w2DQNBG8uQMq0/G2ZgIltEh797cJF/b+hlluL+d86dz/L/mkPXzYe1W7ScxLAJeMBH+gaJGH6WyWgWQCz1Q4xOf0lav9veT2LIQBZhzDYF5rV4ZUWd0C/" ..
+        "3zDPICSAClyA9A+8V8sxhGowCyA1KMEd9YkL8DkP3hCriNboJlV4r6z7kFkA94IwSSSX4P3VRUv6DLoXuCSLhNt6880qI3OSrFEjAMPoiDmu6tKHveQlWXx2" ..
+        "7+NxA59FeIkvm5ma/24EMDONJG2jkxwcccONfMLrQhFAqJkWbd8VYu7VGVxtwAfer25C/086I0sKs3UGMgL4YvO1KKCtBDfeDV/zCC6qfRRDAou6Bl0Sbpv3" ..
+        "XIT/nSKA6zssrHH+1zX/z1XM+i7s6YAFAQcJQNexJ2VZyMZ+D3fMtcX7vrqg2j8kgD5J4JiC/zvv1XGC6yBFSK2E19csgIxATMSbJF0AlrWecWO/hkt1fQNX" ..
+        "A9/EYGFNJ/i+O8QS6cZc92nS6unDvSE/697xPrvB77ZpGX3ifXpNa6mT8PqaC2AWwJ0bBUg2SnwB4CNc6qvU50tdvEzv6SE+OBi28+rjy2KgMLpdUM8XExD2" ..
+        "sEV4GMEPm5iExBBOFsorrd+G7yFwwvv0G62A44RrAAALIhoB3GIJSbVYIUkCqFRrV1GjfgTfYSdHzXYJlxsQNsrQSTP5QJBFCG+C35EkIvkM0i5dCGEaQhRB" ..
+        "vebVCUhAH9npZh+hf61Ll6WsWfzxJoC31PxvAXyqVGvnM1pjOwY0AojVECJAhaQ3SKVaa0aN+iFfW4T/CK6Pn5QF55R27AfCnQ9M7BsMRtI/j+6CLzJax/Rl" ..
+        "wT0K/TktmQsKbSdG0+fV+9fWQz9wX8TNEp9cAoAfAfwTwPtKtXY2g/W1PAAjgDs3ycxaglWqtYuoUZc+eGLuPofviLOiBKgXbFxtwvYCgoDSsGtwtQcVtb6F" ..
+        "EeM9vZjfkYYdR4xbnJAMWjFxigIGG7RqAugrodfXBYVfTkkO+PUs3bsk90nOCCAbkGOiK5qmvRmRQBNAM2rUz7nR90kAT6ixCxjss5e7w6QtqI0tacdXMQIp" ..
+        "8xPGhWj/QxLWPlx0/kK5BuLHL6krF7gJ0t68SetH2oqdwyX9HAG4nGEvwDA+0U+ICMwCyAhkMx7zcabHRJVq7TJq1EUg5JhwVVkAmgD6QzZeXrkrRbgy4wqf" ..
+        "X1ZCr7sFjRoPuFGuyqkiq/fU1Cf8WQu+9VcxcKH6wWfQR3HSWuyKgt+a8foKqequygYsbjlwLoYATqjpzuDbVs2SBNoAjqJGvUXTdylGY92meUSwpcvOY25y" ..
+        "meAjrbglIHjXTL98jOl/RgI4USTwiY+n/J1r5T6E/rUmANG+IoC9e+z+KxaInq1gWGACCIVLtLH4t/eWKELtN5UGjBr1TfiWWzs00ZvKpRmW2xDn94uJLFF/" ..
+        "SZC6IBEc8DoF0LrH8V5JrHuSLoARQMZI4bbkmweNSrV2FjXqoKY/wWDf/nGDVWHQUUx38ddPAZzOIFI/S+hegHYKMMTsW2RoH7mQxg1CgTyn8OtjwtuaiNzW" ..
+        "v0/78xIkbSrLIo1rnDPhNwIYdh+SHjM2D8gJhiQdTZrYlI8hRBlP1p7h+K5ZQfIPJAhoLoARQLoRNeqlmBZk4tPHTR0eZ9Pn8GWLMp2ElDbIFKILZSF1bRdZ" ..
+        "DEDHAFI19vkWLRw3BHOSzxOazKklgEq1dh016lcYrPY0K8AsgExC++rTJjWFZJLmI7Q0tVQ3AjBMhA585t4xfMruuH0HwpLfz2O9mM2Y1r0+TjKUEYAhdZDK" ..
+        "ulO4JJ6rCddZu0J6YnE7xfdG11EYjADuNHnTvMl1kGuazyRpxrocOc2ukQ4CGowAYjd82t+/HAGGbcgnea2wVXpqtSfzJE7pIrVtqxsBDDOh+ylfzxJc3r+e" ..
+        "OtybQPiFDLN0fi5NX2+GuDxGAAsK7R+meTPoQSSi/Sf5PLIvdAnvFdIfQbeTACOATLsAfcSf3Y+y6fXvFJTffArfA6CTgf2et31vBDDM3y2kfIOE2n6ayHcO" ..
+        "g007shQ8s5MAopjyRewhvvfcuCjA18yXUk6Mn8/sMdjAsz+mUEhD0Ev4XoD9DAh+1wggGxaA7pA7SZBLYwm+kcYq0pssomcRNpXJPqpV048RFukJ0MkIAVhF" ..
+        "YEYIQKLTbYw3HCNu8ctw/fR2AGwivSO8ZRTZMVwiUAc+KFi4xecfth966h5noZXWCgZPR4wAUk4A1xNszmEE8Aiup952WgmABUKncB17jnl/ckOEP2yUmRsi" ..
+        "/HIEeJOi7j9fgF2THsMNYynF7ImcEUD6CCD0c0clgHyMC7DOzRHrAsSU3j5UEjiBb9t1Aj+W/EZZSjq5J2wvLsIvw1IvlQuQVuEv0b3bJcGXTfc7pNkU0uOq" ..
+        "pvVNtSCksiNQgDO45p0yaXeLn2lFab/8EB+5Q4E/UkRyL41SZ4gCP/smXLPUJXMD0k8Ak6KPL5thijuhm2iGmjVNGrBFwf+JZu8SP+Mu/HTiECL41xT+13CD" ..
+        "TN/x+zQTwEwnPxkBzG9Rk2rfJbPqpBNuqoNdlWqtEzXqx3CDNtcxOEKsGDwnwq/LiD8A+HcSyMdKtXZkomIEkHVkrWlki9pbtJ4+CbjB4Ciycwr9W2r93wD8" ..
+        "QgI4zMC9sE7ARgAjEUBmTMRKtdbmQFKZ2iO+v6T3ynFnmyb+7xT4nwD8TPI4rlRrp0bwRgCLAIkDZCHhRZOACHeJsY1jxgU24KLh13CnBW+o9X8B8HulWjvI" ..
+        "0Nqmqt+jEcD9Q4ZgZqXoJYwHHNAMvoAL7m3AnwjIDMADcPRXBn3+JNPGjQAysBlCM/CKwi9n55lqGFGp1ppRo/6Bpn4R/hgsD99B6BrA9T0M6pyn+Q9zA4wA" ..
+        "4iC99KToJXM94zmI83qB11iOAo0AFKwceHCDxH1tyMbaiuWzZPveCCDuPliiSLbXV7s+tr5GALGxAQsQZZ/kLSdgwQkgTsi7cNFwOQa0nnGL4+4ZARg+l74a" ..
+        "ASyGhWdWnhHAF5tD177b5FiDEYBpB4PBCGBR7kOYIGMwGAEsCKREdhMuRdYmyBqMADKKuEywElyjjMdIcU9Ag8EIYDQCCFFWBLBJV8BgMALIKAHkYywAaQq6" ..
+        "FkcAaWkKapg5MhUwthiAQwGuX/wqrQG7L4ZRiMAsgAxZQgXYKYDBXICFhbWMMhgBLLhfp7vGGAyZhzUEGSSBcWYMpg5Ro16Gi3PIFOQcBttkybSlNlx3oI5t" ..
+        "CyMAQzaEfwtu+OkzXnLceQM/aLUF1xptH8BR1KhfAGgbERgBGNKr8ctwR5sVAC8B/AHA9/y+jMGBKKcA3gP4Fa5L8BGAi6hRl36BbburRgCGhy30yxTsVWr5" ..
+        "x3CTj58B+ArAdwC+hRsTtgRfBi3afwcuHXoVbr7gCVzX4AtlEbTsThsBZDEGkNpTAE7AXYNLZtqhhn/K60nwWIFLfJKuwB24pqhSCyGZkR/hx4WdkgzOokb9" ..
+        "HEDLiMAIwPAwhH8NroZhB8Aetf0LavwXFHxJc17lpdf+ht9LReSyshr2SQKHEhuAa59+HDXqxUq1dm4rYASQBe1/6zHgQwuE0b9fodbfpkn/JBD853xuG24Y" ..
+        "yDLij36LfC0ZIbZGMjkjoUQU/i1+vUYSOYwadRgJGAFkjQjS4Odv05QX7b7H6ytq7ifU4noK0G15H9INuaRIRdyCbV6bfM1t+LqJQtSo9yvV2oVtHyOANEN3" ..
+        "jX2ogl+mgD6iL/81NX2FFkCFwl+hsC4rwZc8B6g4h3zWXvB9nq5AiXtkWbkOW/z/mySAEoAiB5E2+T96dnRoBJBG4S8+RBKIGvUVavJ1Ze5/BRfNf04LYIs/" ..
+        "k6/L+HLGQT947KnvC0OsgjVFAiv8H4/4P7b4vrYlLgA3XekyatTPK9XapVl4RgBpM//7Q4RwaR5ajea+RPQr6npFEqgobbxCkkiyq1FRWQTL/F9CRuIePIEL" ..
+        "Dh7y8ROA/ahRP6xUa2e2tYwAHjpu4GYCXsKdid88AK2/RC2+S2F/RRLYC0z9Lfgy5hKvUPh7U1o1eeUOyKNYBWu0CI7hTwjkOHE5atRX4YKJnTm7BdIHwupf" ..
+        "goVdRE0f5vtLFtyRbNbwj+5z89Lk3wPwRwB/4/UjgL8A+BNN/2dwkfoN+Kj8CuK7GU2yzr0hr1MOXJFnyh35nu/5z3y/P/L9fgdgj2QQR3T3IfzhZYCNBxe0" ..
+        "7yKAexR+aU32DVyQ7yv6+XvK95aCnmX4YZdJa7f8HT8rB9aBBAk3VVxgjxbBJ7gU437UqA9YAvdErH1Y63cjgDtcgBZdgHsfD07NuErN+pha9XtqTn2WL5pe" ..
+        "hL6A+w9a9tTe6SsyWOElgUFJQ34Cn158DXdScHzP6yvZjm0kM/kpM9ZE2gkgKTafm3aIGvVNpeGf8HqmNP8uhX+dgrakNp3ehPdFAmJp9Eg+kjjVJUG1lTuy" ..
+        "SeGXysMrAC0mD90nCXRJPkkSfCbc57QTQFIMLMEtCaTl70HwpRHpK7gKPTnT36Pm3KU2XVcC9ZCOKOV96IBjGT6tuKBcgnUSgGjetahR/wDgHMDVPdQU9Cj4" ..
+        "TUUA0wZGe1lwJ4opF34xgXMJ3Ic1+OO04gyFfo0msiTzSPBMovw7/J015eMvpWStJB4gcZYVCpsEKlf4ub9hTOAAru+AxF4uZpQ7oIe/tklS0xBAF76PQtcI" ..
+        "YH4EMIklEPd7S9ykEmCb1X3Zhj+/l0u+F40vkfwk/fse7tdykCQk0Y6SLyDBzSO42oJPcBWHbwD8DuBd1Ki/TzqtuFKtdaJGXQtsbwxCu7mFUIwA5ohesKD9" ..
+        "Ke+DRNXLSHg0GI+6RPP9AcAPvF7Rz38EP49gFoKan/PekiSiLcY3WjT/9wG8o+XziOSbixr1fVoDSZ4QdJXmnmav9FXMI/Ut5NJMANLEokk27geL1JvANSgM" ..
+        "E/5xMwGZwbeuLAsp1PkaLrr/PXyQb+UeSVNXPPYweCyaw+xPFgq8L+uKdCX+ItWNHwCcRI26rO9FAhmFPWX6J+G32ynAPFGp1lpRo341hAAmYXXt1021QVR9" ..
+        "/p4y8/co7I/gz/RX73ENpOGnmK6dGGEoKkFcwuwthxLdg6eKGHbhSo4lrTgC8CFq1PMALqewCiwRKGMWANRG7k4ptL27CGCUjRc16hvwke8nFPwf4LLjdmkN" ..
+        "SCBwnfdf/nduRua6+KuiTVtwkfC2spLkGFGy/GZVGdkLTHLANx8pK9I8oXvwAcBb+PTmiEVGY/UmpAsmacvLCbh42gWwGMAc0U/QpJv4SIepu1twufk7DHZV" ..
+        "FAF8C58MI8IlEf6C+v9QZJCfQLDyigylzbe4Smf0u8/hKvba8FWAUvq7QrIQMiorIkj6yCynPv8SfE1Bhe/xMXwvg7JyEz5EjfrxmJaATH/e4WNpyr0v1pSc" ..
+        "KhgBzBFJmHW6UCQfvpbkq8dtOtVuW+rzpffeLr9+Sa0mGy83g3uvOxp1lZkvwbZT+HLdYz53rYS8pPzvR3AJM9JMRBcZlYcI913kMAp5dNWj9DKQ4KyOpZQB" ..
+        "lKJG/ahSrTWHaPtwrcoBQa8M2UPDiDV3SxDQLIA5C38SZqpugFEILQG9mXiWv4TBopg9CrrU5z+Fr8uXgp3VGd6HggpyiWa6pNY/oDn9Eb7JpxBATgm39Bx4" ..
+        "RAKTJiPb8OW/smf0fc8n+BnksaiErxwQgDQ+fRc16gcMEDbvcNXyitzEDZtmz2mrackIYP4uwLSkIcGv5WHBL9VuWwJ82/DddyV994WyAMIy3VlCtP41zXvR" ..
+        "+ocU+rdw5+wfSAhS8NTHYCNQ3V/wGcnsmdKcopnlPhURX3o8LTHkVSxCjg8fKVJ6BuA3AK8BfIwa9ZOQCGLIZVURcXHIvsAIz0usZAM+wckIIOXIYzAVuBDj" ..
+        "48uCS7GObrn9mAKyw436CD79dVboKa0vvQwu4OvydbLNW7hkm098/jwwb3PwjUHX+Tk+wEXgjzGYoryuNv5yjD+dT3BN5DRiVWlwIQApMvoVLqvwMGrUm7SA" ..
+        "WpVq7SogALHapj3dEKtp4x4sOyOAETZJEqnA8lqfj8HYf09MUC3cYu6/VNpxG74Tz8oQ4e8lLCBS4HJOrR4pc/+IgivHafLz41vO06/hWnmd0UI4VdcJL2k/" ..
+        "JsGvdWXlJDVWvRfEY8QlKCk3QMqipey4gsEhJqdRo37KGEgfvpaipFyYaeWmnEAw0QggIQLIJ0QCBWVy7vB1d5VPLMG+Z0oLPVbBsqLSNnHvtZeQ4Msgj1Nu" ..
+        "/NfUhO+UIIjwXlIQWreYyDre0YbLz5cci3NFABf83E34xqCbivzKM9hTmgiEkFcw2KPwOYnvQLk++yTBG0XSo3RHHtX11AFBI4A5BwFzCSyomMHrFOw2N51o" ..
+        "eyGAXfW1aKLlEc39STee5Dp04avaxL//HcBPAH4mAUQU+iZcpd1EiTOVaq3J/PkrIRB+fQY/QmxHuT9iBQkJFKcQ+Nuez6v4g1gFzyj80pfwE+/FPq0VeY/r" ..
+        "CRCAPgXowVKB5x4ETIKFtQ+8Q4GXKjxdrBP6+NKZpzDElJ3W5JdjPS2Ax9zk71Qg7DV9/EMA50kN8eTrtEkEkkx0SIGSkuUXFMAr+OxGbR4XMV3izbD7uKzW" ..
+        "TGYVnJAEtuGrLq/5+EQFMfNTWGe5hPeeEcCUBDBuMVB+iOmv01Iv4c+cZcKOaLmBfvgjaKxx/N44H79JrStmuAT1fqXWf0vtdzGKiT8hEZyTBJrUqrqc+ZSu" ..
+        "wRl8tuOqIkjxv/MjfOZx72MRfuKRuAaryh1ZJzGtqPjFsFOAhWwWmnYCEA2ZhAVQpnDv0W98zI2lz8PXlP+ZT1Dbh38nGXwX8GmxH2neS+nsr3w8qFRr17O+" ..
+        "0Wza0VJptVLDL8lGEXytw2NlMUlcJUmBC+/3EtdFH2vK6UGTa/sEydRf6CGyScWejACmdAGSuhdiKuaV5tiGP9NfwvTR7mFkoctVtfCL0L+BP8+XYN9xUub+" ..
+        "GETQAdCJGvW2slAOleBX6EJdwR+ZyRGcFpjClAQal8uxCn+cK0HCJn8mFtxyAtpekoFS32bcWoINbqZV+F53N/AJHysJmfvD/Eyp0gvP8w9UoO81H99S6891" ..
+        "ICetjmuevR8qX3yPloGU3kpKslhPOjawFNyTadyCcHaBnPm3+LNNFQScds+F1oARwJxJAAmRQJ4kkONmLKlgExIkmtDcl8i+HGFJK+2PcAk5H+CSXT4CiO6h" ..
+        "h97YrgEAMIdACo3aKmYh7oB2pdbhg69JQucQ9JXlsYLkMjIlPiOf0whgjsKfT9gXK6vNk0RyiwQoC0OEX9pkH8N3yHkPn7q7r/zts4ck/DFkcK5ODE7gTil2" ..
+        "6FY9h6uVkOKoLnyG3yz2oc4kTJJo5Cj2TMVAjADm+P6TykDTmHWBh3SpPVeC/5HC/47C/xufP4FL4kmFpiFBSaGOBOdkmKmkITfhKw63ec3ing/t8DRmnCk0" ..
+        "+9vwpdWXRgBzAFN1dQXfQ4U+Yxaf+BI+VfeD0vrvlcn/oVKtRWldH4kRALhgWu6F+vxNEpvMQbiBT58uIpn+A8DsAnTWFfiBvHc9wz6uS/C8AjSdwJKQjSh+" ..
+        "/j6FXaL6b+GP+Q4oLBfICCrVWjtq1A9p1XTVPXhK1+CUVoIE6pYDy27csu9ZRuZlX81jKpMRQAwBLA2JAcxL+KXNliQp9ZXW022ufoM/3vsAF/w7o7nfQcbA" ..
+        "1OIDRQCHivCOMFh6LNOFhQQemoVXQLrmNWSSAHIBA/fnIOhx2iYfaHzx8cXPF5P/LXyQ7wSu4WUb2UaTBHCJwSIj8aWlT6Hc22Vl3d3n+LNR9t4sBrIaAYwZ" ..
+        "nJlHHnYv+P9dtSkkhyBH/3cfwL8D+Ac1/if4XP6ImrD1kCP7SbsCcLUFV/CNS87hIunXGGxl1oLP3dd9GnQfRZ0CPqumqsP2nvj/FgOYE+S4qXPPi5AfEhSS" ..
+        "JB55T+dwyTv/B8D/5tfH1ILNSrV2ggWFyiaUNRSBknsYwTf82IIvO5Zc/7vqMGYt/NJ9yZqCzhGSOdfClyOf78s66Kn4wyX9eTm3P4AL8P0Drlz3E1J0nHdf" ..
+        "FkHUqEtG4xV84pCMFpdeDFKQ9ZhkK0Qwj/0r/RgkY9PyAOa4edq4fdzzrElA+/ofKez/gCvU+ah8/7NFMfMnXMcz3kMhzSW404DHcIlDf6RF9ZK/J12BNuaw" ..
+        "hyULUE5qrowA5ockZr2Nq/F1HfgNN8F7AH8H8L8A/F8A/6Kff3UflXpZcQlCbRo16tLFWAaanNMaqND07sI3D9WBwiRdg/6QfSf9Ga6NAB4OZjUFtwvfbrur" ..
+        "NusJXET/FwD/BPD/qP33g6aUhsmI4Txq1CXQJicqp7QEpFpS9wMoqUuO6aYV/jh38vMkqbS7dFnqCNSPeT6XkPBL803J/T6jn/+G/v1P8Ln7p+bnJ0oCzahR" ..
+        "f0+f+xS+5fk+fBuyLfgmoWvwjUikccssFE3qswCzQABt+CBgH8kNqxBTv6v+xzl8cE+KdX6l9n8LV6VnWn82JHAF4Cpq1OXER08u2oKfyyDDWNbhszHj9vk0" ..
+        "+yO0Bo0A5ggRzHMMHsf0J1xYYXa52sr/PIOLUEtk/2d+LUG+jonqzIngKGrU+1wLGfSxw7hAh+slpdVX8EeyMuOwEBMnkISyOEhcQe8nHQC8NgKY74ZocSrM" ..
+        "CQajsf0JmD48i24qs1++/kSN/3ea/Qem9e99zY+jRv0CvoOzNB8pkAAuSAyb8AlGUl8gsQHZ93dVC+ZjlIn0aJQEJiOAOeMKvge+tPLuBf7/OAMsxcSUvH3p" ..
+        "sy9+v3Tn2Tdff24koBOJtLsm7cof8bGlLIMt5SYu3SH8ekJzIXhegr8XWTjazQIB3FA4D3mtBmZdXpFAnFXQU6/TpvAf0a//CX701IkKQJ2Y8D8MImAOQYea" ..
+        "/x38sNan1P6SbahrDG6bWyCnPNJERIigp/aZZHTCCOBhxAH2aZqXufgSCb4tXbQHn8rZUWZ+RC3/M9zRngzcOAPQNl//YVoDAM7YI2INvlX5tXLpLpV10IE/" ..
+        "MSiN4PtLbEHatB1nwfzPkgvwFu4MXrq1PA0CP3HowPfb1xV7MlVGBmq+S3NjjgUjA2lUKlpfio6kx6JMcpaRbjLeTFqHxcUFrtQ+kQrOY6S8BiBLBHBBMz2H" ..
+        "wbRgGde1GiyoJPGcU+Clz/4vfPwEP0L7slKtnZpopY4IzkgCl1zLbbi6AhnrJrMdn8KPeZNBJjp56BqDDVpfw1V1HmaFAHJZ+BBRo77Mxf0ewL8B+I8AvuMC" ..
+        "S6aY+Pktkob4+b/S1/8XyeCoUq1dmhhlAxztvkpNv03NL6Pdn/OSykOZalSii3hOjS+j194o9/D3ebdmNwIYXOgyWf2PAH4A8DUGu8vk4DvzyEjtt2ph35ip" ..
+        "vxBEIGPNHitrQNqVS1xghQRwGeyTt/BTiE+yUOeRy9gib8BHgGUktJwBF+Dr9s/hR0jvw03YOTExWRgiWOa+2ITvObCmhF9aw8vpwiF809ZTANdZOQXKZXCB" ..
+        "xYyTS3eT6QUxAPHzLbK/eEQgXaWFECRJSB4lbiSFSEeYwyg2I4DJFlc6xkjWlxwHSsJIB65U17L4DEIG0l9S9ovuQdjmfrGeDgaDwWAwGAwGg8FgMBgMBoPB" ..
+        "YDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGgyEO/x9PcNpFeYkUYgAA" ..
+        "AABJRU5ErkJggg=="
+    ),
+}
+
+local EH_B64_ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local EH_B64_DECODE_LOOKUP = {}
+for i = 1, #EH_B64_ALPHA do
+    EH_B64_DECODE_LOOKUP[string.byte(EH_B64_ALPHA, i)] = i - 1
+end
+
+local function EH_decodePNG(encoded)
+    local out, outCount = {}, 0
+    for i = 1, #encoded, 4 do
+        local a, b, c, d = string.byte(encoded, i, i + 3)
+        if not a or not b then return nil end
+        local x = EH_B64_DECODE_LOOKUP[a]
+        local y = EH_B64_DECODE_LOOKUP[b]
+        local z = c and EH_B64_DECODE_LOOKUP[c] or 0
+        local w = d and EH_B64_DECODE_LOOKUP[d] or 0
+        if not x or not y or z == nil or w == nil then return nil end
+        local n = x * 262144 + y * 4096 + z * 64 + w
+        outCount = outCount + 1
+        if c == 61 then
+            out[outCount] = string.char(math.floor(n / 65536) % 256)
+        elseif d == 61 then
+            out[outCount] = string.char(math.floor(n / 65536) % 256, math.floor(n / 256) % 256)
+        else
+            out[outCount] = string.char(math.floor(n / 65536) % 256, math.floor(n / 256) % 256, n % 256)
+        end
+    end
+    return table.concat(out)
+end
+
+local EH_EMBEDDED_IMAGE_URI = {}
+local EH_EMBEDDED_IMAGE_TRIED = {}
+local EH_EMBEDDED_NAMES = {
+    players = "AvatarInspector_EH_players_v7956.png",
+    save = "AvatarInspector_EH_save_v7956.png"
+}
+
+local function EH_getImageURI(kind)
+    if EH_EMBEDDED_IMAGE_TRIED[kind] then
+        return EH_EMBEDDED_IMAGE_URI[kind]
+    end
+    local encoded = EH_EMBEDDED_BASE64[kind]
+    if not encoded then return nil end
+    EH_EMBEDDED_IMAGE_TRIED[kind] = true
+
+    local resolver = nil
+    if type(getcustomasset) == "function" then
+        resolver = getcustomasset
+    elseif type(getsynasset) == "function" then
+        resolver = getsynasset
+    elseif type(syn) == "table" and type(syn.getcustomasset) == "function" then
+        resolver = syn.getcustomasset
+    end
+    if type(writefile) ~= "function" or not resolver then
+        warn("[Avatar Inspector ICON PNG] Local PNG support not available for " .. kind .. "; using original drawing")
+        return nil
+    end
+
+    local success, uri = pcall(function()
+        local path = EH_EMBEDDED_NAMES[kind]
+        local exists = false
+        if type(isfile) == "function" then
+            local checkOK, found = pcall(isfile, path)
+            exists = checkOK and found == true
+        end
+        if not exists then
+            local png = EH_decodePNG(encoded)
+            if type(png) ~= "string" or png:sub(1, 8) ~= "\137PNG\r\n\26\n" then
+                error("Embedded PNG decoding failed for " .. kind)
+            end
+            writefile(path, png)
+        end
+        return resolver(path)
+    end)
+    if success and type(uri) == "string" and #uri > 0 then
+        EH_EMBEDDED_IMAGE_URI[kind] = uri
+        print("[Avatar Inspector ICON PNG] " .. kind .. " loaded from embedded PNG")
+        return uri
+    end
+    warn("[Avatar Inspector ICON PNG] " .. kind .. " failed: " .. tostring(uri))
+    return nil
+end
+
+function EH.embeddedIcon(parent, kind, position, size)
+    local uri = EH_getImageURI(kind)
+    if not uri then return nil end
+    local sz = size or 22
+    local success, icon = pcall(function()
+        return create("ImageLabel", {
+            Name = "EHIconPNG_" .. kind,
+            Size = UDim2.fromOffset(sz, sz),
+            Position = position,
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Image = uri,
+            ImageColor3 = Color3.fromRGB(255, 255, 255),
+            ImageTransparency = 0,
+            ScaleType = Enum.ScaleType.Fit,
+            Active = false,
+            ZIndex = parent.ZIndex + 1
+        }, parent)
+    end)
+    if success then return icon end
+    warn("[Avatar Inspector ICON PNG] ImageLabel creation failed: " .. tostring(icon))
+    return nil
+end
+
 function EH.icon(parent, kind, position, size)
+    local suppliedPNG = EH.embeddedIcon(parent, kind, position, size)
+    if suppliedPNG then return suppliedPNG end
     local sz = size or 22
     local u = sz / 24
     local z = parent.ZIndex + 1
@@ -790,18 +1202,12 @@ function EH.icon(parent, kind, position, size)
         Active = false
     }, parent)
 
-    local function roundedFrame(props, corner)
-        local frame = create("Frame", props, root)
-        create("UICorner", {CornerRadius = UDim.new(0, corner or math.floor((props.Size.X.Offset or 8) * 0.45))}, frame)
-        return frame
-    end
-
     local function strokeLine(x1, y1, x2, y2, width)
         local dx, dy = x2 - x1, y2 - y1
         local length = math.sqrt(dx * dx + dy * dy) * u
-        local thickness = math.max(1.35, (width or 2) * u)
+        local thickness = math.max(1.5, (width or 2) * u)
         local angle = math.deg(math.atan2(dy, dx))
-        local part = roundedFrame({
+        local part = create("Frame", {
             Name = "Line",
             Size = UDim2.fromOffset(length, thickness),
             Position = UDim2.fromOffset(
@@ -813,7 +1219,8 @@ function EH.icon(parent, kind, position, size)
             BackgroundColor3 = ink,
             Active = false,
             ZIndex = z + 1
-        }, math.floor(thickness * 0.5))
+        }, root)
+        create("UICorner", {CornerRadius = UDim.new(1, 0)}, part)
         return part
     end
 
@@ -830,7 +1237,7 @@ function EH.icon(parent, kind, position, size)
         create("UICorner", {CornerRadius = UDim.new(0, (radius or 2) * u)}, part)
         create("UIStroke", {
             Color = ink,
-            Thickness = math.max(1.35, (thickness or 2) * u),
+            Thickness = math.max(1.5, (thickness or 2) * u),
             Transparency = 0,
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         }, part)
@@ -838,7 +1245,7 @@ function EH.icon(parent, kind, position, size)
     end
 
     local function dot(x, y, diameter)
-        return roundedFrame({
+        local part = create("Frame", {
             Name = "Dot",
             Position = UDim2.fromOffset(x * u, y * u),
             Size = UDim2.fromOffset(diameter * u, diameter * u),
@@ -846,127 +1253,119 @@ function EH.icon(parent, kind, position, size)
             BorderSizePixel = 0,
             Active = false,
             ZIndex = z + 1
-        }, math.floor(diameter * u * 0.5))
-    end
-
-    local function curve(points, width)
-        local prev = points[1]
-        for i = 2, #points do
-            local p = points[i]
-            strokeLine(prev[1], prev[2], p[1], p[2], width)
-            prev = p
-        end
+        }, root)
+        create("UICorner", {CornerRadius = UDim.new(1, 0)}, part)
+        return part
     end
 
     if kind == "players" then
-        -- Closer to the reference sheet: two clean heads and two smooth user busts.
-        outline(12.8, 3.7, 5.0, 5.0, 5.0, 2.05)
-        curve({{12.9, 17.4}, {14.6, 14.0}, {17.5, 14.0}, {19.1, 17.0}}, 2.05)
-
-        outline(4.1, 2.1, 6.5, 6.5, 6.5, 2.15)
-        curve({{2.2, 19.8}, {4.8, 14.2}, {8.7, 12.5}, {12.5, 14.0}, {15.0, 19.8}}, 2.2)
+        -- Smooth, symmetrical shoulder curves like the reference icon.
+        -- No half-hidden UIStroke / gradient: those produced jagged gaps.
+        local function curvedShoulders(x0, y0, cx, cy, x1, y1, steps, width)
+            local previousX, previousY = x0, y0
+            for i = 1, steps do
+                local t = i / steps
+                local inv = 1 - t
+                local x = inv * inv * x0 + 2 * inv * t * cx + t * t * x1
+                local y = inv * inv * y0 + 2 * inv * t * cy + t * t * y1
+                strokeLine(previousX, previousY, x, y, width)
+                previousX, previousY = x, y
+            end
+        end
+        -- Rear person first, so the front portrait reads as a single shape.
+        outline(14.7, 4.2, 5.5, 5.5, 5.5, 2.1)
+        curvedShoulders(13.9, 17.1, 18, 10.5, 22.1, 20, 8, 2.25)
+        outline(4.5, 2.7, 7.2, 7.2, 7.2, 2.1)
+        curvedShoulders(2.0, 21.0, 8.4, 5.4, 14.9, 21.0, 12, 2.35)
     elseif kind == "viewer" then
-        -- Friendly 3D-scan pictogram with smiling face from the reference pack.
-        strokeLine(2.8, 8.1, 2.8, 4.2, 2.0)
-        strokeLine(2.8, 4.2, 7.2, 4.2, 2.0)
-        strokeLine(16.8, 4.2, 21.2, 4.2, 2.0)
-        strokeLine(21.2, 4.2, 21.2, 8.1, 2.0)
-        strokeLine(2.8, 15.9, 2.8, 19.8, 2.0)
-        strokeLine(2.8, 19.8, 7.2, 19.8, 2.0)
-        strokeLine(16.8, 19.8, 21.2, 19.8, 2.0)
-        strokeLine(21.2, 15.9, 21.2, 19.8, 2.0)
-        dot(8.0, 10.2, 2.2)
-        dot(13.8, 10.2, 2.2)
-        curve({{8.8, 15.0}, {10.2, 16.3}, {12.0, 16.9}, {13.8, 16.3}, {15.2, 15.0}}, 1.75)
+        -- Four scanning corners, eyes and a small smile.
+        strokeLine(2.5, 8.5, 2.5, 4)
+        strokeLine(2.5, 4, 7.4, 4)
+        strokeLine(16.6, 4, 21.5, 4)
+        strokeLine(21.5, 4, 21.5, 8.5)
+        strokeLine(2.5, 15.5, 2.5, 20)
+        strokeLine(2.5, 20, 7.4, 20)
+        strokeLine(16.6, 20, 21.5, 20)
+        strokeLine(21.5, 20, 21.5, 15.5)
+        dot(8.4, 10.8, 2.1)
+        dot(13.6, 10.8, 2.1)
+        strokeLine(8.7, 15.5, 10.5, 17.1, 1.75)
+        strokeLine(10.5, 17.1, 13.5, 17.1, 1.75)
+        strokeLine(13.5, 17.1, 15.3, 15.5, 1.75)
     elseif kind == "items" then
-        strokeLine(5.1, 8.2, 7.7, 4.7, 2.0)
-        strokeLine(7.7, 4.7, 16.4, 4.7, 2.0)
-        strokeLine(16.4, 4.7, 18.9, 8.2, 2.0)
-        strokeLine(4.1, 8.2, 19.9, 8.2, 2.0)
-        strokeLine(4.1, 13.0, 19.9, 13.0, 1.95)
-        strokeLine(4.1, 18.0, 19.9, 18.0, 1.95)
+        -- Stacked layers: trapezoid cap plus two thin horizontal separators.
+        strokeLine(4.0, 8.1, 7.0, 4.2)
+        strokeLine(7.0, 4.2, 17.0, 4.2)
+        strokeLine(17.0, 4.2, 20.0, 8.1)
+        strokeLine(4.0, 8.1, 20.0, 8.1)
+        strokeLine(4.0, 13.0, 20.0, 13.0)
+        strokeLine(4.0, 18.2, 20.0, 18.2)
     elseif kind == "search" then
-        outline(3.5, 3.1, 13.8, 13.8, 10, 2.2)
-        strokeLine(15.9, 15.8, 20.9, 20.8, 2.4)
+        outline(3.1, 2.8, 14.4, 14.4, 10, 2.2)
+        strokeLine(16.3, 16.4, 21.5, 21.5, 2.5)
     elseif kind == "copy" then
-        outline(3.3, 4.0, 11.6, 12.4, 2.8, 2.15)
-        outline(8.9, 8.0, 11.8, 12.4, 2.8, 2.15)
+        outline(3.2, 3.0, 12.8, 13.8, 2.7, 2.15)
+        outline(9.0, 9.1, 12.0, 12.4, 2.7, 2.15)
     elseif kind == "edit" then
-        -- Cleaner pencil matching the downloaded reference pack.
-        local tipX, tipY = 4.8, 20.9
-        local leftX, leftY = 7.2, 15.7
-        local rightX, rightY = 9.8, 18.3
-        local upperLeftX, upperLeftY = 15.9, 7.0
-        local upperRightX, upperRightY = 18.5, 9.6
-        strokeLine(leftX, leftY, upperLeftX, upperLeftY, 2.15)
-        strokeLine(upperLeftX, upperLeftY, upperRightX, upperRightY, 2.15)
-        strokeLine(upperRightX, upperRightY, rightX, rightY, 2.15)
-        strokeLine(rightX, rightY, tipX, tipY, 2.0)
-        strokeLine(tipX, tipY, leftX, leftY, 2.0)
-        strokeLine(leftX, leftY, rightX, rightY, 1.8)
+        -- Geometrically aligned 45-degree pencil: parallel sides,
+        -- identical stroke widths, a clear cap and a centered sharp nib.
+        local tipX, tipY = 4.55, 21.25
+        local leftX, leftY = 6.8, 15.9
+        local rightX, rightY = 9.9, 19.0
+        local upperLeftX, upperLeftY = 16.0, 6.7
+        local upperRightX, upperRightY = 19.1, 9.8
+        strokeLine(leftX, leftY, upperLeftX, upperLeftY, 2.25)
+        strokeLine(upperLeftX, upperLeftY, upperRightX, upperRightY, 2.25)
+        strokeLine(upperRightX, upperRightY, rightX, rightY, 2.25)
+        strokeLine(rightX, rightY, tipX, tipY, 2.05)
+        strokeLine(tipX, tipY, leftX, leftY, 2.05)
+        strokeLine(leftX, leftY, rightX, rightY, 1.9)
+        -- Small ferrule seam, perpendicular to the pencil barrel.
+        strokeLine(13.9, 8.8, 17.0, 11.9, 1.65)
     elseif kind == "delete" then
-        strokeLine(4.0, 6.8, 20.0, 6.8, 2.0)
-        strokeLine(9.0, 4.2, 15.0, 4.2, 2.0)
-        strokeLine(9.0, 4.2, 8.2, 6.8, 2.0)
-        strokeLine(15.0, 4.2, 15.8, 6.8, 2.0)
-        strokeLine(7.2, 8.8, 7.8, 19.8, 1.95)
-        strokeLine(16.8, 8.8, 16.2, 19.8, 1.95)
-        strokeLine(7.8, 19.8, 16.2, 19.8, 1.95)
-        strokeLine(10.4, 10.5, 10.4, 17.3, 1.7)
-        strokeLine(13.6, 10.5, 13.6, 17.3, 1.7)
+        strokeLine(3.5, 6.8, 20.5, 6.8, 2.1)
+        strokeLine(9, 4.1, 15, 4.1, 2.1)
+        strokeLine(9, 4.1, 8.2, 6.8, 2.1)
+        strokeLine(15, 4.1, 15.8, 6.8, 2.1)
+        strokeLine(6.5, 8.8, 7.1, 20.3, 2)
+        strokeLine(17.5, 8.8, 16.9, 20.3, 2)
+        strokeLine(7.1, 20.3, 16.9, 20.3, 2)
+        strokeLine(10.2, 10.6, 10.2, 17.2, 1.7)
+        strokeLine(13.8, 10.6, 13.8, 17.2, 1.7)
     elseif kind == "save" then
-        strokeLine(6.2, 3.5, 17.8, 3.5, 2.1)
-        strokeLine(6.2, 3.5, 6.2, 20.8, 2.1)
-        strokeLine(17.8, 3.5, 17.8, 20.8, 2.1)
-        strokeLine(6.2, 20.8, 12.0, 17.2, 2.1)
-        strokeLine(12.0, 17.2, 17.8, 20.8, 2.1)
-        strokeLine(12.0, 7.3, 12.0, 13.6, 1.95)
-        strokeLine(8.9, 10.4, 15.1, 10.4, 1.95)
+        -- Bookmark with plus sign, not a text glyph.
+        strokeLine(6.0, 3.2, 18.0, 3.2, 2.2)
+        strokeLine(6.0, 3.2, 6.0, 21.0, 2.2)
+        strokeLine(18.0, 3.2, 18.0, 21.0, 2.2)
+        strokeLine(6.0, 21.0, 12.0, 17.4, 2.2)
+        strokeLine(12.0, 17.4, 18.0, 21.0, 2.2)
+        strokeLine(12, 7, 12, 14, 2.1)
+        strokeLine(8.5, 10.5, 15.5, 10.5, 2.1)
     elseif kind == "close" then
-        strokeLine(5.2, 5.2, 18.8, 18.8, 2.35)
-        strokeLine(18.8, 5.2, 5.2, 18.8, 2.35)
+        strokeLine(5, 5, 19, 19, 2.4)
+        strokeLine(19, 5, 5, 19, 2.4)
     elseif kind == "folder" then
-        strokeLine(2.8, 8.0, 2.8, 19.8, 2.0)
-        strokeLine(2.8, 8.0, 8.8, 8.0, 2.0)
-        strokeLine(8.8, 8.0, 11.7, 10.1, 2.0)
-        strokeLine(11.7, 10.1, 21.0, 10.1, 2.0)
-        strokeLine(21.0, 10.1, 21.0, 19.8, 2.0)
-        strokeLine(2.8, 19.8, 21.0, 19.8, 2.0)
+        strokeLine(2.5, 7.5, 2.5, 20, 2)
+        strokeLine(2.5, 7.5, 9.5, 7.5, 2)
+        strokeLine(9.5, 7.5, 12, 10, 2)
+        strokeLine(12, 10, 21.5, 10, 2)
+        strokeLine(21.5, 10, 21.5, 20, 2)
+        strokeLine(2.5, 20, 21.5, 20, 2)
     elseif kind == "placeholder" then
-        -- Smoother placeholder silhouette for the empty 3D viewport.
-        outline(8.0, 2.0, 8.0, 8.0, 8.0, 2.1)
-        roundedFrame({
-            Name = "ShoulderBar",
-            Position = UDim2.fromOffset(6.2 * u, 12.6 * u),
-            Size = UDim2.fromOffset(11.6 * u, 2.8 * u),
-            BackgroundColor3 = ink,
-            BorderSizePixel = 0,
-            Active = false,
-            ZIndex = z + 1
-        }, math.floor(1.3 * u))
-        strokeLine(6.4, 14.0, 3.8, 17.2, 2.2)
-        strokeLine(17.6, 14.0, 20.2, 17.2, 2.2)
-        roundedFrame({
-            Name = "LeftStem",
-            Position = UDim2.fromOffset(2.9 * u, 16.7 * u),
-            Size = UDim2.fromOffset(2.4 * u, 4.2 * u),
-            BackgroundColor3 = ink,
-            BorderSizePixel = 0,
-            Active = false,
-            ZIndex = z + 1
-        }, math.floor(1.0 * u))
-        roundedFrame({
-            Name = "RightStem",
-            Position = UDim2.fromOffset(18.7 * u, 16.7 * u),
-            Size = UDim2.fromOffset(2.4 * u, 4.2 * u),
-            BackgroundColor3 = ink,
-            BorderSizePixel = 0,
-            Active = false,
-            ZIndex = z + 1
-        }, math.floor(1.0 * u))
+        -- Clear single-user pictogram on an empty 3D viewport.
+        outline(8.1, 2, 7.8, 7.8, 8, 2)
+        strokeLine(4.0, 20, 4.0, 17.0, 2.2)
+        strokeLine(4.0, 17.0, 7.2, 13.1, 2.2)
+        strokeLine(7.2, 13.1, 16.8, 13.1, 2.2)
+        strokeLine(16.8, 13.1, 20.0, 17.0, 2.2)
+        strokeLine(20.0, 17.0, 20.0, 20.0, 2.2)
     elseif kind == "status" then
-        outline(2.6, 3.2, 18.8, 17.6, 4.2, 2.0)
-        curve({{5.2, 13.4}, {8.1, 13.4}, {10.7, 10.1}, {13.4, 15.8}, {16.0, 12.8}, {18.3, 12.8}}, 1.65)
+        outline(2.5, 3, 19, 18, 4, 2)
+        strokeLine(5, 13, 8.5, 13, 1.7)
+        strokeLine(8.5, 13, 11.3, 9.5, 1.7)
+        strokeLine(11.3, 9.5, 14.3, 16, 1.7)
+        strokeLine(14.3, 16, 16.9, 12.6, 1.7)
+        strokeLine(16.9, 12.6, 19.2, 12.6, 1.7)
     end
     return root
 end
@@ -1406,7 +1805,7 @@ if HeaderContour then
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.55",
+    Header, "AVATAR INSPECTOR v7.9.56",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1418,7 +1817,7 @@ HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
 HeaderTitle.Position = UDim2.fromOffset(18, 3)
 
 do
-    local subtitle = makeLabel(Header, "EVENT HORIZON / 055",
+    local subtitle = makeLabel(Header, "EVENT HORIZON / 056",
         UDim2.fromOffset(260, 14), UDim2.fromOffset(17, 29), 9)
     subtitle.Font = Enum.Font.GothamBold
     subtitle.TextColor3 = Color3.fromRGB(244, 184, 136)
@@ -1904,7 +2303,7 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- EVENT HORIZON / 055 lower structural belt: a segmented bridge + useful status console.
+-- EVENT HORIZON / 053 lower structural belt: a segmented bridge + useful status console.
 -- Explicitly replaces the older v7.9.42 bridge and brand pill; no stacking.
 local EHBridge = create("Frame", {
     Name = "EHLowerBridge",
@@ -5243,7 +5642,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.55 loaded successfully")
+print("Avatar Inspector v7.9.54 loaded successfully")
 
 end
 
@@ -5266,11 +5665,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.55 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.56 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.55 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.56 INITIALIZATION FINISHED")
 end
