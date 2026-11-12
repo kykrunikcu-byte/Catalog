@@ -1,7 +1,10 @@
 --[[
-    AVATAR INSPECTOR v7.9.35
+    AVATAR INSPECTOR v7.9.37
 
     CHANGES:
+    - Single FREE LOOK camera control; removed redundant ORBIT button
+    - Obsidian-black premium UI and unified cyan/violet accents
+    - Branded close, rename and delete controls
     - Updated graphite/navy styling and persistent selection indicators
     - Fixed scaled-window dragging and confirmation dialog
     - Replaced fixed camera with 360-degree orbit
@@ -91,18 +94,18 @@ if not PlayerGui then error("PlayerGui unavailable") end
 AI_DIAG_STAGE = "PLAYER_GUI_OK"
 AIDiag("07 PlayerGui OK")
 
--- Premium graphite palette: deep neutral surfaces with restrained cool accents.
-local BG = Color3.fromRGB(12, 16, 25)
-local PANEL = Color3.fromRGB(22, 29, 43)
-local LIGHT = Color3.fromRGB(34, 44, 62)
-local ACCENT = Color3.fromRGB(65, 119, 219)
-local ACCENT_PURPLE = Color3.fromRGB(119, 96, 181)
-local OUTLINE = Color3.fromRGB(57, 66, 82)
-local WHITE = Color3.fromRGB(235, 239, 246)
-local MUTED = Color3.fromRGB(145, 154, 169)
-local GREEN = Color3.fromRGB(35, 120, 104)
+-- Obsidian Violet: layered graphite surfaces with restrained violet accents.
+local BG = Color3.fromRGB(12, 10, 17)
+local PANEL = Color3.fromRGB(25, 22, 34)
+local LIGHT = Color3.fromRGB(39, 34, 52)
+local ACCENT = Color3.fromRGB(119, 86, 207)
+local ACCENT_PURPLE = Color3.fromRGB(164, 132, 242)
+local OUTLINE = Color3.fromRGB(65, 55, 84)
+local WHITE = Color3.fromRGB(245, 241, 252)
+local MUTED = Color3.fromRGB(154, 144, 171)
+local GREEN = Color3.fromRGB(39, 132, 108)
 local ID_GREEN = Color3.fromRGB(104, 218, 151)
-local RED = Color3.fromRGB(164, 69, 82)
+local RED = Color3.fromRGB(137, 61, 85)
 
 local selectedPlayer = nil
 local selectedFavorite = nil
@@ -114,7 +117,7 @@ local currentPose = "N"
 local currentMode = "Players"
 local rotating = false
 local lastPointer = nil
-local viewportMode = "Orbit"
+local viewportMode = "Free"
 local orbitYaw = 0
 local orbitPitch = 0
 local orbitDistance = 10
@@ -655,7 +658,7 @@ local function makeButton(parent, text, size, position, color)
         Selectable = true
     }, parent)
 
-    round(obj, 9)
+    round(obj, 10)
     local outline = create("UIStroke", {
         Color = OUTLINE,
         Thickness = 1,
@@ -680,7 +683,7 @@ local function makeButton(parent, text, size, position, color)
     obj.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
-            TweenService:Create(scale, pressInfo, {Scale = 0.965}):Play()
+            TweenService:Create(scale, pressInfo, {Scale = 0.975}):Play()
         end
     end)
     obj.InputEnded:Connect(function(input)
@@ -799,7 +802,7 @@ table.insert(hatStrokes, crownStroke)
 
 local HatTop = create("Frame", {
     Name = "RainbowHatTop",
-    BackgroundColor3 = Color3.fromRGB(24, 29, 39),
+    BackgroundColor3 = Color3.fromRGB(22, 18, 31),
     BackgroundTransparency = 0.05,
     BorderSizePixel = 0,
     Size = UDim2.fromOffset(29, 8),
@@ -950,9 +953,9 @@ round(Main, 16)
 addStroke(Main)
 create("UIGradient", {
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(19, 23, 31)),
-        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(16, 19, 26)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(22, 20, 29))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(19, 15, 27)),
+        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(12, 10, 17)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(24, 17, 35))
     }),
     Rotation = 25
 }, Main)
@@ -970,9 +973,9 @@ local Header = create("Frame", {
 round(Header, 15)
 create("UIGradient", {
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(27, 33, 44)),
-        ColorSequenceKeypoint.new(0.58, Color3.fromRGB(24, 29, 39)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(31, 26, 40))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(31, 25, 42)),
+        ColorSequenceKeypoint.new(0.58, Color3.fromRGB(22, 18, 31)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(36, 27, 51))
     }),
     Rotation = 0
 }, Header)
@@ -981,14 +984,14 @@ create("Frame", {
     Name = "HeaderAccentLine",
     BorderSizePixel = 0,
     BackgroundColor3 = ACCENT,
-    BackgroundTransparency = 0.38,
-    Size = UDim2.new(1, -28, 0, 1),
+    BackgroundTransparency = 0.15,
+    Size = UDim2.new(1, -28, 0, 2),
     Position = UDim2.new(0, 14, 1, -1),
     ZIndex = Header.ZIndex + 1
 }, Header)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.35",
+    Header, "AVATAR INSPECTOR v7.9.37",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1006,9 +1009,10 @@ LangButton.Name = "LanguageButton"
 LangButton.TextSize = 11
 
 local Close = makeButton(
-    Header, "X",
+    Header, "×",
     UDim2.fromOffset(34, 32),
-    UDim2.new(1, -44, 0, 8)
+    UDim2.new(1, -44, 0, 8),
+    RED
 )
 
 -- Full shutdown confirmation. Tapping the floating profile button still only hides the window.
@@ -1113,7 +1117,7 @@ local PlayerList = create("ScrollingFrame", {
     BackgroundColor3 = PANEL,
     BorderSizePixel = 0,
     ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(91, 126, 181),
+    ScrollBarImageColor3 = Color3.fromRGB(129, 101, 195),
     AutomaticCanvasSize = Enum.AutomaticSize.Y,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -1151,7 +1155,7 @@ addStroke(Viewport)
 local ViewModeBar = create("Frame", {
     Name = "ViewModeBar",
     Position = UDim2.fromOffset(7, 7),
-    Size = UDim2.fromOffset(206, 31),
+    Size = UDim2.fromOffset(114, 31),
     BackgroundColor3 = BG,
     BackgroundTransparency = 0.12,
     BorderSizePixel = 0,
@@ -1159,20 +1163,12 @@ local ViewModeBar = create("Frame", {
 }, Viewport)
 round(ViewModeBar, 7)
 
-local FixedViewButton = makeButton(
-    ViewModeBar, "ORBIT 360°",
-    UDim2.new(0.5, -3, 1, -4),
+-- One camera control: touch-drag to orbit freely around the avatar.
+local FreeViewButton = makeButton(
+    ViewModeBar, "⟳ FREE LOOK",
+    UDim2.new(1, -4, 1, -4),
     UDim2.fromOffset(2, 2),
     ACCENT
-)
-FixedViewButton.TextSize = 10
-FixedViewButton.ZIndex = 21
-
-local FreeViewButton = makeButton(
-    ViewModeBar, "FREE LOOK",
-    UDim2.new(0.5, -3, 1, -4),
-    UDim2.new(0.5, 1, 0, 2),
-    LIGHT
 )
 FreeViewButton.TextSize = 10
 FreeViewButton.ZIndex = 21
@@ -1287,7 +1283,7 @@ local ItemList = create("ScrollingFrame", {
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(91, 126, 181),
+    ScrollBarImageColor3 = Color3.fromRGB(129, 101, 195),
     AutomaticCanvasSize = Enum.AutomaticSize.Y,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -2032,8 +2028,7 @@ end
 local function setViewportMode(mode)
     viewportMode = mode == "Free" and "Free" or "Orbit"
     rotating = false
-    styleSelectedControl(FixedViewButton, viewportMode == "Orbit")
-    styleSelectedControl(FreeViewButton, viewportMode == "Free")
+    styleSelectedControl(FreeViewButton, true)
     updateFreeOrbitCamera()
 end
 
@@ -3120,7 +3115,7 @@ local function showPlayerModel(player)
         return nil
     end
 
-    setViewportMode("Orbit")
+    setViewportMode("Free")
     applyPose(clone, "N")
     Status.Text = "Avatar loaded"
 
@@ -3130,10 +3125,6 @@ end
 --==================================================
 -- VIEWPORT ROTATION / FREE ORBIT / ZOOM
 --==================================================
-
-FixedViewButton.Activated:Connect(function()
-    setViewportMode("Orbit")
-end)
 
 FreeViewButton.Activated:Connect(function()
     setViewportMode("Free")
@@ -3305,7 +3296,7 @@ local function addItem(name, assetId, category)
 
     local itemName = makeLabel(
         card, name,
-        UDim2.new(1, -125, 0, 22),
+        UDim2.new(1, -101, 0, 22),
         UDim2.fromOffset(60, 5), 11
     )
 
@@ -3313,7 +3304,7 @@ local function addItem(name, assetId, category)
 
     local itemId = makeLabel(
         card, tostring(assetId),
-        UDim2.new(1, -125, 0, 24),
+        UDim2.new(1, -101, 0, 24),
         UDim2.fromOffset(60, 28), 13
     )
 
@@ -3322,12 +3313,14 @@ local function addItem(name, assetId, category)
     itemId.Font = Enum.Font.GothamBold
 
     local copyButton = makeButton(
-        card, "COPY",
-        UDim2.fromOffset(65, 28),
-        UDim2.new(1, -72, 0, 40),
+        card, "⧉",
+        UDim2.fromOffset(32, 28),
+        UDim2.new(1, -38, 0, 40),
         ACCENT
     )
 
+    copyButton.Name = "CopyAssetIdButton"
+    copyButton.TextSize = 17
     copyButton.Activated:Connect(function()
         copyID(assetId)
     end)
@@ -3599,7 +3592,7 @@ refreshPlayerList = function()
 
             local nameLabel = makeLabel(
                 row, player.DisplayName,
-                UDim2.new(1, -105, 0, 20),
+                UDim2.new(1, -93, 0, 20),
                 UDim2.fromOffset(49, 5), 10
             )
 
@@ -3607,7 +3600,7 @@ refreshPlayerList = function()
 
             local usernameLabel = makeLabel(
                 row, "@" .. player.Name,
-                UDim2.new(1, -105, 0, 18),
+                UDim2.new(1, -93, 0, 18),
                 UDim2.fromOffset(49, 24), 9
             )
 
@@ -3630,12 +3623,13 @@ refreshPlayerList = function()
             -- Save this player's outfit directly from the player list.
             -- scanPlayer() fills currentItems synchronously before saveFavorite().
             local rowSaveButton = makeButton(
-                row, "SAVE",
-                UDim2.fromOffset(44, 30),
-                UDim2.new(1, -49, 0, 9),
+                row, "＋",
+                UDim2.fromOffset(34, 30),
+                UDim2.new(1, -39, 0, 9),
                 GREEN
             )
-            rowSaveButton.TextSize = 10
+            rowSaveButton.Name = "SavePlayerOutfitButton"
+            rowSaveButton.TextSize = 19
             rowSaveButton.ZIndex = 5
 
             rowSaveButton.Activated:Connect(function()
@@ -4168,7 +4162,7 @@ local function showSavedAvatarAppearance(favorite)
         return false
     end
 
-    setViewportMode("Orbit")
+    setViewportMode("Free")
     applyPose(model, "N")
     Status.Text = "Saved 3D avatar loaded"
     return true
@@ -4311,7 +4305,7 @@ refreshFavoritesList = function()
         end
 
         local renameButton = makeButton(
-            row, "✏",
+            row, "✎",
             UDim2.fromOffset(30, 30),
             UDim2.new(1, -72, 0, 10),
             ACCENT
@@ -4326,7 +4320,7 @@ refreshFavoritesList = function()
         end)
 
         local removeButton = makeButton(
-            row, "X",
+            row, "×",
             UDim2.fromOffset(30, 30),
             UDim2.new(1, -38, 0, 10),
             RED
@@ -4536,11 +4530,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.35 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.37 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.35 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.37 INITIALIZATION FINISHED")
 end
