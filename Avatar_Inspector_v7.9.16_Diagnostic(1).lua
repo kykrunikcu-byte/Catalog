@@ -1,9 +1,9 @@
 --[[
-    AVATAR INSPECTOR v7.9.37
+    AVATAR INSPECTOR v7.9.38
 
     CHANGES:
     - Single FREE LOOK camera control; removed redundant ORBIT button
-    - Obsidian-black premium UI and unified cyan/violet accents
+    - Obsidian Violet architectural framing, inset borders and luminous edge rails
     - Branded close, rename and delete controls
     - Updated graphite/navy styling and persistent selection indicators
     - Fixed scaled-window dragging and confirmation dialog
@@ -627,6 +627,72 @@ local function addStroke(obj)
     }, obj)
 end
 
+-- Obsidian Violet architectural styling: real Roblox UI geometry, not a palette swap.
+-- Decorative objects are non-interactive and do not alter camera or avatar logic.
+local function accentRule(parent, position, size, transparency)
+    return create("Frame", {
+        Name = "ObsidianAccentRule",
+        Position = position,
+        Size = size,
+        BackgroundColor3 = ACCENT_PURPLE,
+        BackgroundTransparency = transparency or 0,
+        BorderSizePixel = 0,
+        Active = false,
+        ZIndex = parent.ZIndex + 1
+    }, parent)
+end
+
+local function decorateSurface(panel, variant)
+    local stroke = panel:FindFirstChildOfClass("UIStroke")
+    if stroke then
+        stroke.Color = Color3.fromRGB(88, 70, 119)
+        stroke.Transparency = 0.20
+        stroke.Thickness = 1.25
+    end
+    if variant == "main" then
+        -- Inset frame: double-layer border and thin left-hand illuminated rail.
+        local inset = create("Frame", {
+            Name = "ObsidianInsetBorder",
+            Position = UDim2.fromOffset(5, 5),
+            Size = UDim2.new(1, -10, 1, -10),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Active = false
+        }, panel)
+        round(inset, 12)
+        create("UIStroke", {
+            Color = Color3.fromRGB(57, 45, 79),
+            Thickness = 1,
+            Transparency = 0.45
+        }, inset)
+        accentRule(panel, UDim2.fromOffset(0, 65), UDim2.fromOffset(3, 72), 0.12)
+        accentRule(panel, UDim2.new(1, -3, 0, 65), UDim2.fromOffset(3, 72), 0.25)
+        accentRule(panel, UDim2.new(0, 22, 1, -3), UDim2.fromOffset(80, 2), 0.30)
+        accentRule(panel, UDim2.new(1, -102, 1, -3), UDim2.fromOffset(80, 2), 0.30)
+    else
+        -- Every column has its own architectural top line and corner marker.
+        accentRule(panel, UDim2.fromOffset(14, 0), UDim2.new(1, -28, 0, 2), 0.32)
+        accentRule(panel, UDim2.fromOffset(0, 13), UDim2.fromOffset(2, 30), 0.14)
+        accentRule(panel, UDim2.new(1, -2, 0, 13), UDim2.fromOffset(2, 30), 0.55)
+        local gleam = create("Frame", {
+            Name = "ObsidianPanelGleam",
+            Position = UDim2.fromOffset(2, 2),
+            Size = UDim2.new(1, -4, 0, 48),
+            BackgroundColor3 = Color3.fromRGB(45, 34, 63),
+            BackgroundTransparency = 0.58,
+            BorderSizePixel = 0,
+            Active = false
+        }, panel)
+        create("UIGradient", {
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.1),
+                NumberSequenceKeypoint.new(1, 1)
+            }),
+            Rotation = 90
+        }, gleam)
+    end
+end
+
 local function makeLabel(parent, text, size, position, textSize)
     return create("TextLabel", {
         BackgroundTransparency = 1,
@@ -949,8 +1015,9 @@ local Main = create("Frame", {
     ClipsDescendants = true
 }, ScreenGui)
 
-round(Main, 16)
+round(Main, 18)
 addStroke(Main)
+decorateSurface(Main, "main")
 create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(19, 15, 27)),
@@ -971,6 +1038,7 @@ local Header = create("Frame", {
 }, Main)
 
 round(Header, 15)
+accentRule(Header, UDim2.fromOffset(0, 12), UDim2.fromOffset(4, 25), 0.02)
 create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(31, 25, 42)),
@@ -991,7 +1059,7 @@ create("Frame", {
 }, Header)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.37",
+    Header, "AVATAR INSPECTOR v7.9.38",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1101,8 +1169,21 @@ local Search = create("TextBox", {
     Active = true
 }, Main)
 
-round(Search, 9)
+round(Search, 12)
 addStroke(Search)
+local searchOutline = Search:FindFirstChildOfClass("UIStroke")
+if searchOutline then
+    Search.Focused:Connect(function()
+        TweenService:Create(searchOutline, TweenInfo.new(0.18), {
+            Color = ACCENT_PURPLE, Transparency = 0.05, Thickness = 1.7
+        }):Play()
+    end)
+    Search.FocusLost:Connect(function()
+        TweenService:Create(searchOutline, TweenInfo.new(0.18), {
+            Color = OUTLINE, Transparency = 0.22, Thickness = 1
+        }):Play()
+    end)
+end
 
 local ModeButton = makeButton(
     Main, "📁 OUTFITS",
@@ -1124,8 +1205,9 @@ local PlayerList = create("ScrollingFrame", {
     Active = true
 }, Main)
 
-round(PlayerList, 9)
+round(PlayerList, 12)
 addStroke(PlayerList)
+decorateSurface(PlayerList, "column")
 
 create("UIListLayout", {
     Padding = UDim.new(0, 5),
@@ -1149,8 +1231,9 @@ local Viewport = create("ViewportFrame", {
     ClipsDescendants = true
 }, Main)
 
-round(Viewport, 8)
+round(Viewport, 12)
 addStroke(Viewport)
+decorateSurface(Viewport, "viewport")
 
 local ViewModeBar = create("Frame", {
     Name = "ViewModeBar",
@@ -1256,8 +1339,9 @@ local ItemsPanel = create("Frame", {
     Active = true
 }, Main)
 
-round(ItemsPanel, 10)
+round(ItemsPanel, 12)
 addStroke(ItemsPanel)
+decorateSurface(ItemsPanel, "column")
 
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
@@ -1308,6 +1392,7 @@ local Status = makeLabel(
     UDim2.new(0, 12, 1, -46), 12
 )
 
+accentRule(Main, UDim2.fromOffset(15, 467), UDim2.new(1, -30, 0, 1), 0.73)
 Status.TextColor3 = MUTED
 
 -- Compact confirmation toast for completed copy/save actions.
@@ -4530,11 +4615,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.37 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.38 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.37 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.38 INITIALIZATION FINISHED")
 end
