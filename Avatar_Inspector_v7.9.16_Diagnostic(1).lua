@@ -1,11 +1,12 @@
 --[[
-    AVATAR INSPECTOR v7.9.48
+    AVATAR INSPECTOR v7.9.49
 
     CHANGES:
-    - Startup recovery based directly on confirmed working v7.9.44
-    - Early floating-toggle binding, independent from late UI initialization
-    - Optional, exception-isolated native icons for Players/3D/Items/Search/Copy/Status
-    - No font-dependent pictograms for new icons
+    - Event Horizon v7.9.49: matching copper line-art icons for all eight actions
+    - Players, 3D face-scan, item layers, search, copy, pencil, trash, save
+    - No unsupported Unicode glyphs for rename, delete, save, or copy
+    - Built directly on working v7.9.48; unchanged startup and floating button
+    - All icon calls are optional and exception-isolated
     - Original scanning, 3D preview, poses, camera, languages and JSON saves unchanged
     - No additional animated loops; decorative changes are optional
     - Event Horizon Refined 2.0: app-like section modules, panel symbols and cleaner edge geometry
@@ -713,13 +714,15 @@ function EH.ehPanel(parent, kind)
     create("UIStroke", {Color = Color3.fromRGB(255, 221, 178), Transparency = 0.45, Thickness = 1}, signal)
 end
 
--- Optional native UI icons. All calls are guarded with pcall so decoration
--- can never abort startup or the avatar scan.
+-- Event Horizon line-icon system. One geometric renderer, no image IDs,
+-- unicode pictograms or external assets. Every piece is decorative and
+-- does not intercept pointer/touch input. The icon's parent remains the button.
 function EH.icon(parent, kind, position, size)
     local sz = size or 22
-    local unit = sz / 24
-    local z = parent.ZIndex + 2
-    local ink = Color3.fromRGB(231, 172, 133)
+    local u = sz / 24
+    local z = parent.ZIndex + 1
+    local ink = kind == "save" and Color3.fromRGB(255, 235, 210)
+        or Color3.fromRGB(236, 172, 129)
     local root = create("Frame", {
         Name = "EHIcon_" .. tostring(kind),
         Size = UDim2.fromOffset(sz, sz),
@@ -729,49 +732,138 @@ function EH.icon(parent, kind, position, size)
         ZIndex = z,
         Active = false
     }, parent)
-    local function piece(x, y, w, h, corner, outline)
+
+    local function strokeLine(x1, y1, x2, y2, width)
+        local dx, dy = x2 - x1, y2 - y1
+        local length = math.sqrt(dx * dx + dy * dy) * u
+        local thickness = math.max(1.5, (width or 2) * u)
+        local angle = math.deg(math.atan2(dy, dx))
         local part = create("Frame", {
-            Position = UDim2.fromOffset(math.floor(x * unit + 0.5), math.floor(y * unit + 0.5)),
-            Size = UDim2.fromOffset(math.max(2, math.floor(w * unit + 0.5)), math.max(2, math.floor(h * unit + 0.5))),
-            BackgroundColor3 = ink,
-            BackgroundTransparency = outline and 1 or 0,
+            Name = "Line",
+            Size = UDim2.fromOffset(length, thickness),
+            Position = UDim2.fromOffset(
+                (x1 + x2) * 0.5 * u - length * 0.5,
+                (y1 + y2) * 0.5 * u - thickness * 0.5
+            ),
+            Rotation = angle,
             BorderSizePixel = 0,
-            ZIndex = z + 1,
-            Active = false
+            BackgroundColor3 = ink,
+            Active = false,
+            ZIndex = z + 1
         }, root)
-        if corner then round(part, math.max(2, math.floor(corner * unit + 0.5))) end
-        if outline then
-            create("UIStroke", {Color = ink, Thickness = math.max(1, 1.4 * unit), Transparency = 0.05}, part)
-        end
+        create("UICorner", {CornerRadius = UDim.new(1, 0)}, part)
         return part
     end
+
+    local function outline(x, y, w, h, radius, thickness)
+        local part = create("Frame", {
+            Name = "Outline",
+            Size = UDim2.fromOffset(w * u, h * u),
+            Position = UDim2.fromOffset(x * u, y * u),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Active = false,
+            ZIndex = z + 1
+        }, root)
+        create("UICorner", {CornerRadius = UDim.new(0, (radius or 2) * u)}, part)
+        create("UIStroke", {
+            Color = ink,
+            Thickness = math.max(1.5, (thickness or 2) * u),
+            Transparency = 0,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        }, part)
+        return part
+    end
+
+    local function dot(x, y, diameter)
+        local part = create("Frame", {
+            Name = "Dot",
+            Position = UDim2.fromOffset(x * u, y * u),
+            Size = UDim2.fromOffset(diameter * u, diameter * u),
+            BackgroundColor3 = ink,
+            BorderSizePixel = 0,
+            Active = false,
+            ZIndex = z + 1
+        }, root)
+        create("UICorner", {CornerRadius = UDim.new(1, 0)}, part)
+        return part
+    end
+
     if kind == "players" then
-        -- Two recognisable heads with shoulders (not a font glyph).
-        piece(3, 3, 7, 7, 7)
-        piece(14, 3, 7, 7, 7)
-        piece(2, 13, 10, 9, 5, true)
-        piece(12, 13, 10, 9, 5, true)
+        -- Two unfilled heads and open shoulder outlines, like the reference.
+        outline(3.3, 2, 7, 7, 7, 2)
+        outline(14.3, 4.5, 6, 6, 6, 2)
+        strokeLine(1.9, 20.5, 3.0, 16.6)
+        strokeLine(3.0, 16.6, 5.4, 14.4)
+        strokeLine(5.4, 14.4, 8.7, 14.4)
+        strokeLine(8.7, 14.4, 11.3, 16.6)
+        strokeLine(11.3, 16.6, 12.0, 20.5)
+        strokeLine(14.0, 15.0, 16.4, 14.0)
+        strokeLine(16.4, 14.0, 19.5, 15.3)
+        strokeLine(19.5, 15.3, 21.5, 19.6)
     elseif kind == "viewer" then
-        piece(2, 2, 8, 2, 1); piece(2, 2, 2, 8, 1)
-        piece(14, 2, 8, 2, 1); piece(20, 2, 2, 8, 1)
-        piece(2, 20, 8, 2, 1); piece(2, 14, 2, 8, 1)
-        piece(14, 20, 8, 2, 1); piece(20, 14, 2, 8, 1)
-        piece(10, 10, 4, 4, 4)
+        -- Four scanning corners, eyes and a small smile.
+        strokeLine(2.5, 8.5, 2.5, 4)
+        strokeLine(2.5, 4, 7.4, 4)
+        strokeLine(16.6, 4, 21.5, 4)
+        strokeLine(21.5, 4, 21.5, 8.5)
+        strokeLine(2.5, 15.5, 2.5, 20)
+        strokeLine(2.5, 20, 7.4, 20)
+        strokeLine(16.6, 20, 21.5, 20)
+        strokeLine(21.5, 20, 21.5, 15.5)
+        dot(8.4, 10.8, 2.1)
+        dot(13.6, 10.8, 2.1)
+        strokeLine(8.7, 15.5, 10.5, 17.1, 1.75)
+        strokeLine(10.5, 17.1, 13.5, 17.1, 1.75)
+        strokeLine(13.5, 17.1, 15.3, 15.5, 1.75)
     elseif kind == "items" then
-        piece(3, 3, 18, 5, 2, true)
-        piece(3, 10, 18, 5, 2, true)
-        piece(3, 17, 18, 5, 2, true)
+        -- Stacked layers: trapezoid cap plus two thin horizontal separators.
+        strokeLine(4.0, 8.1, 7.0, 4.2)
+        strokeLine(7.0, 4.2, 17.0, 4.2)
+        strokeLine(17.0, 4.2, 20.0, 8.1)
+        strokeLine(4.0, 8.1, 20.0, 8.1)
+        strokeLine(4.0, 13.0, 20.0, 13.0)
+        strokeLine(4.0, 18.2, 20.0, 18.2)
     elseif kind == "search" then
-        piece(3, 2, 14, 14, 14, true)
-        piece(14, 15, 9, 3, 1)
+        outline(3.1, 2.8, 14.4, 14.4, 10, 2.2)
+        strokeLine(16.3, 16.4, 21.5, 21.5, 2.5)
     elseif kind == "copy" then
-        piece(3, 3, 14, 15, 2, true)
-        piece(9, 9, 13, 13, 2, true)
+        outline(3.2, 3.0, 12.8, 13.8, 2.7, 2.15)
+        outline(9.0, 9.1, 12.0, 12.4, 2.7, 2.15)
+    elseif kind == "edit" then
+        -- Pencil tilted to the upper right, with a clear cap and pointed tip.
+        strokeLine(5.3, 18.3, 16.8, 6.8, 2.1)
+        strokeLine(8.7, 21.5, 20.2, 10.0, 2.1)
+        strokeLine(16.8, 6.8, 20.2, 10.0, 2.1)
+        strokeLine(5.3, 18.3, 8.7, 21.5, 2.1)
+        strokeLine(3.0, 22.3, 5.3, 18.3, 1.9)
+        strokeLine(3.0, 22.3, 8.7, 21.5, 1.9)
+    elseif kind == "delete" then
+        strokeLine(3.5, 6.8, 20.5, 6.8, 2.1)
+        strokeLine(9, 4.1, 15, 4.1, 2.1)
+        strokeLine(9, 4.1, 8.2, 6.8, 2.1)
+        strokeLine(15, 4.1, 15.8, 6.8, 2.1)
+        strokeLine(6.5, 8.8, 7.1, 20.3, 2)
+        strokeLine(17.5, 8.8, 16.9, 20.3, 2)
+        strokeLine(7.1, 20.3, 16.9, 20.3, 2)
+        strokeLine(10.2, 10.6, 10.2, 17.2, 1.7)
+        strokeLine(13.8, 10.6, 13.8, 17.2, 1.7)
+    elseif kind == "save" then
+        -- Bookmark with plus sign, not a text glyph.
+        strokeLine(6.0, 3.2, 18.0, 3.2, 2.2)
+        strokeLine(6.0, 3.2, 6.0, 21.0, 2.2)
+        strokeLine(18.0, 3.2, 18.0, 21.0, 2.2)
+        strokeLine(6.0, 21.0, 12.0, 17.4, 2.2)
+        strokeLine(12.0, 17.4, 18.0, 21.0, 2.2)
+        strokeLine(12, 7, 12, 14, 2.1)
+        strokeLine(8.5, 10.5, 15.5, 10.5, 2.1)
     elseif kind == "status" then
-        piece(3, 3, 18, 18, 4, true)
-        piece(6, 12, 5, 2, 1)
-        piece(10, 9, 5, 2, 1)
-        piece(15, 12, 4, 2, 1)
+        outline(2.5, 3, 19, 18, 4, 2)
+        strokeLine(5, 13, 8.5, 13, 1.7)
+        strokeLine(8.5, 13, 11.3, 9.5, 1.7)
+        strokeLine(11.3, 9.5, 14.3, 16, 1.7)
+        strokeLine(14.3, 16, 16.9, 12.6, 1.7)
+        strokeLine(16.9, 12.6, 19.2, 12.6, 1.7)
     end
     return root
 end
@@ -1157,7 +1249,7 @@ if HeaderContour then
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.48",
+    Header, "AVATAR INSPECTOR v7.9.49",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1169,7 +1261,7 @@ HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
 HeaderTitle.Position = UDim2.fromOffset(18, 3)
 
 do
-    local subtitle = makeLabel(Header, "EVENT HORIZON / 048",
+    local subtitle = makeLabel(Header, "EVENT HORIZON / 049",
         UDim2.fromOffset(260, 14), UDim2.fromOffset(17, 29), 9)
     subtitle.Font = Enum.Font.GothamBold
     subtitle.TextColor3 = Color3.fromRGB(229, 163, 120)
@@ -1411,7 +1503,7 @@ do
     viewerIcon.Font = Enum.Font.GothamBold
     viewerIcon.ZIndex = 4
     local viewerInfo = makeLabel(Viewport, "3D-PREVIEW",
-        UDim2.fromOffset(120, 18), UDim2.fromOffset(34, 18), 10)
+        UDim2.fromOffset(120, 18), UDim2.fromOffset(40, 18), 10)
     viewerInfo.TextColor3 = Color3.fromRGB(238, 229, 224)
     viewerInfo.Font = Enum.Font.GothamBold
     viewerInfo.ZIndex = 4
@@ -1543,7 +1635,7 @@ ItemsTitleIcon.Font = Enum.Font.GothamBold
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
     UDim2.new(1, -194, 0, 30),
-    UDim2.fromOffset(34, 4), 11
+    UDim2.fromOffset(41, 4), 11
 )
 
 EH.ehSectionLabel(ItemsTitle)
@@ -1589,7 +1681,7 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- EVENT HORIZON / 048 lower structural belt: a segmented bridge + useful status console.
+-- EVENT HORIZON / 049 lower structural belt: a segmented bridge + useful status console.
 -- Explicitly replaces the older v7.9.42 bridge and brand pill; no stacking.
 local EHBridge = create("Frame", {
     Name = "EHLowerBridge",
@@ -3680,7 +3772,7 @@ local function addItem(name, assetId, category)
 
     copyButton.Name = "CopyAssetIdButton"
     copyButton.TextSize = 17
-    EH.safeIcon(copyButton, "copy", UDim2.fromOffset(7, 4), 18)
+    EH.safeIcon(copyButton, "copy", UDim2.fromOffset(6, 4), 20)
     copyButton.Activated:Connect(function()
         copyID(assetId)
     end)
@@ -3907,7 +3999,7 @@ refreshPlayerList = function()
     EH.safeIcon(countHeader, "players", UDim2.fromOffset(9, 7), 20)
 
     local listTitle = makeLabel(countHeader, "PLAYERS",
-        UDim2.new(1, -56, 0, 18), UDim2.fromOffset(32, 8), 10)
+        UDim2.new(1, -56, 0, 18), UDim2.fromOffset(35, 8), 10)
     listTitle.Font = Enum.Font.GothamBold
     listTitle.TextColor3 = WHITE
 
@@ -4001,8 +4093,10 @@ refreshPlayerList = function()
                 GREEN
             )
             rowSaveButton.Name = "SavePlayerOutfitButton"
+            rowSaveButton.Text = ""
             rowSaveButton.TextSize = 19
             rowSaveButton.ZIndex = 5
+            EH.safeIcon(rowSaveButton, "save", UDim2.fromOffset(6, 3), 23)
 
             rowSaveButton.Activated:Connect(function()
                 if not player or player.Parent ~= Players then
@@ -4683,10 +4777,12 @@ refreshFavoritesList = function()
             ACCENT
         )
         renameButton.Name = "RenameOutfitButton"
+        renameButton.Text = ""
         renameButton.TextSize = 18
         renameButton.Font = Enum.Font.GothamBold
         renameButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         renameButton.ZIndex = 10
+        EH.safeIcon(renameButton, "edit", UDim2.fromOffset(5, 5), 20)
         renameButton.Activated:Connect(function()
             openRenameDialog(favorite)
         end)
@@ -4698,7 +4794,9 @@ refreshFavoritesList = function()
             RED
         )
         removeButton.Name = "DeleteOutfitButton"
+        removeButton.Text = ""
         removeButton.ZIndex = 10
+        EH.safeIcon(removeButton, "delete", UDim2.fromOffset(5, 5), 20)
 
         removeButton.Activated:Connect(function()
             openConfirmDialog(
@@ -4888,7 +4986,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.48 loaded successfully")
+print("Avatar Inspector v7.9.49 loaded successfully")
 
 end
 
@@ -4911,11 +5009,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.48 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.49 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.48 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.49 INITIALIZATION FINISHED")
 end
