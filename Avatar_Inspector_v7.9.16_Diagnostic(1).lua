@@ -1,11 +1,12 @@
 --[[
-    AVATAR INSPECTOR v7.9.41
+    AVATAR INSPECTOR v7.9.42
 
     CHANGES:
     - Single FREE LOOK camera control; removed redundant ORBIT button
-    - Obsidian Violet architectural framing, inset borders and luminous edge rails
-    - Animated gradient glints on header and footer light rails
-    - Compact branded status console in the former empty lower strip
+    - Event Horizon black/copper/rose style using existing panels
+    - One animated spectrum rail and one static lower bridge
+    - Reused branded status console; removed redundant decorative layers
+    - Removed unreachable preview helper and write-only pose/bounds fields
     - Branded close, rename and delete controls
     - Updated graphite/navy styling and persistent selection indicators
     - Fixed scaled-window dragging and confirmation dialog
@@ -101,10 +102,10 @@ local BG = Color3.fromRGB(9, 8, 13)
 local PANEL = Color3.fromRGB(21, 18, 26)
 local LIGHT = Color3.fromRGB(39, 32, 42)
 local ACCENT = Color3.fromRGB(205, 131, 108)
-local ACCENT_PURPLE = Color3.fromRGB(240, 177, 120)
+local ACCENT_PURPLE = Color3.fromRGB(234, 166, 121)
 local OUTLINE = Color3.fromRGB(83, 59, 75)
 local WHITE = Color3.fromRGB(245, 241, 252)
-local MUTED = Color3.fromRGB(175, 153, 158)
+local MUTED = Color3.fromRGB(177, 155, 163)
 local GREEN = Color3.fromRGB(39, 132, 108)
 local ID_GREEN = Color3.fromRGB(104, 218, 151)
 local RED = Color3.fromRGB(137, 61, 85)
@@ -114,7 +115,6 @@ local selectedFavorite = nil
 local currentItems = {}
 local favorites = {}
 local currentModel = nil
-local currentPose = "N"
 
 local currentMode = "Players"
 local rotating = false
@@ -126,7 +126,6 @@ local orbitDistance = 10
 local baseCameraDistance = 10
 local minimumCameraDistance = 8
 local maximumCameraDistance = 40
-local currentModelBounds = Vector3.new(4, 6, 2)
 local toastToken = 0
 local windowBaseScale = 1
 
@@ -648,17 +647,18 @@ end
 local function animateLightRail(rail, seconds)
     local gradient = create("UIGradient", {
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(66, 46, 110)),
-            ColorSequenceKeypoint.new(0.48, Color3.fromRGB(175, 137, 255)),
-            ColorSequenceKeypoint.new(0.52, Color3.fromRGB(225, 205, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(66, 46, 110))
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(49, 28, 52)),
+            ColorSequenceKeypoint.new(0.3, Color3.fromRGB(159, 88, 110)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 223, 173)),
+            ColorSequenceKeypoint.new(0.7, Color3.fromRGB(208, 134, 105)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 29, 53))
         }),
         Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0.75),
-            NumberSequenceKeypoint.new(0.42, 0.1),
+            NumberSequenceKeypoint.new(0, 0.16),
+            NumberSequenceKeypoint.new(0.42, 0.06),
             NumberSequenceKeypoint.new(0.5, 0),
-            NumberSequenceKeypoint.new(0.58, 0.1),
-            NumberSequenceKeypoint.new(1, 0.75)
+            NumberSequenceKeypoint.new(0.58, 0.06),
+            NumberSequenceKeypoint.new(1, 0.16)
         }),
         Offset = Vector2.new(-1, 0)
     }, rail)
@@ -672,7 +672,7 @@ end
 local function decorateSurface(panel, variant)
     local stroke = panel:FindFirstChildOfClass("UIStroke")
     if stroke then
-        stroke.Color = Color3.fromRGB(155, 101, 109)
+        stroke.Color = Color3.fromRGB(123, 77, 92)
         stroke.Transparency = 0.20
         stroke.Thickness = 1.25
     end
@@ -688,7 +688,7 @@ local function decorateSurface(panel, variant)
         }, panel)
         round(inset, 12)
         create("UIStroke", {
-            Color = Color3.fromRGB(95, 61, 76),
+            Color = Color3.fromRGB(72, 47, 59),
             Thickness = 1,
             Transparency = 0.45
         }, inset)
@@ -705,7 +705,7 @@ local function decorateSurface(panel, variant)
             Name = "ObsidianPanelGleam",
             Position = UDim2.fromOffset(2, 2),
             Size = UDim2.new(1, -4, 0, 48),
-            BackgroundColor3 = Color3.fromRGB(45, 34, 63),
+            BackgroundColor3 = Color3.fromRGB(58, 39, 51),
             BackgroundTransparency = 0.58,
             BorderSizePixel = 0,
             Active = false
@@ -895,7 +895,7 @@ table.insert(hatStrokes, crownStroke)
 
 local HatTop = create("Frame", {
     Name = "RainbowHatTop",
-    BackgroundColor3 = Color3.fromRGB(21, 17, 25),
+    BackgroundColor3 = Color3.fromRGB(22, 17, 26),
     BackgroundTransparency = 0.05,
     BorderSizePixel = 0,
     Size = UDim2.fromOffset(29, 8),
@@ -1047,9 +1047,9 @@ addStroke(Main)
 decorateSurface(Main, "main")
 create("UIGradient", {
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(19, 15, 27)),
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(23, 16, 25)),
         ColorSequenceKeypoint.new(0.55, Color3.fromRGB(9, 8, 13)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(24, 17, 35))
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(27, 18, 30))
     }),
     Rotation = 25
 }, Main)
@@ -1068,136 +1068,71 @@ round(Header, 15)
 accentRule(Header, UDim2.fromOffset(0, 12), UDim2.fromOffset(4, 25), 0.02)
 create("UIGradient", {
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(31, 25, 42)),
-        ColorSequenceKeypoint.new(0.58, Color3.fromRGB(21, 17, 25)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(36, 27, 51))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(36, 25, 34)),
+        ColorSequenceKeypoint.new(0.58, Color3.fromRGB(22, 17, 26)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(39, 26, 38))
     }),
     Rotation = 0
 }, Header)
 addStroke(Header)
 local HeaderRail = create("Frame", {
-    Name = "HeaderAccentLine",
+    Name = "EventHorizonSpectrum",
     BorderSizePixel = 0,
     BackgroundColor3 = ACCENT,
-    BackgroundTransparency = 0.15,
-    Size = UDim2.new(1, -28, 0, 2),
-    Position = UDim2.new(0, 14, 1, -1),
+    BackgroundTransparency = 0,
+    Size = UDim2.new(1, -44, 0, 5),
+    Position = UDim2.new(0, 22, 1, 3),
     ZIndex = Header.ZIndex + 1
 }, Header)
-animateLightRail(HeaderRail, 8)
-
--- OBSIDIAN VIOLET 2.0: an actual header navigation spine in the formerly empty gap.
--- All parts are decorative; mouse/touch input goes to the existing controls.
-local TopSpine = create("Frame", {
-    Name = "ObsidianTopSpine",
-    Position = UDim2.fromOffset(16, 50),
-    Size = UDim2.new(1, -32, 0, 6),
-    BackgroundTransparency = 1,
-    BorderSizePixel = 0,
-    Active = false
-}, Main)
-local TopSpineBase = create("Frame", {
-    Name = "SpineTrack",
-    Size = UDim2.new(1, 0, 0, 3),
-    Position = UDim2.fromOffset(0, 1),
-    BackgroundColor3 = Color3.fromRGB(77, 48, 64),
-    BorderSizePixel = 0,
-    Active = false
-}, TopSpine)
-round(TopSpineBase, 2)
-local TopSpineGlow = create("Frame", {
-    Name = "MovingSpineGlow",
-    Size = UDim2.new(0.24, 0, 0, 3),
-    Position = UDim2.new(0, 0, 0, 1),
-    BackgroundColor3 = Color3.fromRGB(252, 202, 143),
-    BorderSizePixel = 0,
-    Active = false
-}, TopSpine)
-round(TopSpineGlow, 2)
-create("UIGradient", {
-    Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 1),
-        NumberSequenceKeypoint.new(0.5, 0.05),
-        NumberSequenceKeypoint.new(1, 1)
-    })
-}, TopSpineGlow)
-TweenService:Create(TopSpineGlow, TweenInfo.new(5.5, Enum.EasingStyle.Sine,
-    Enum.EasingDirection.InOut, -1, true), {Position = UDim2.new(0.76, 0, 0, 1)}):Play()
-for i = 1, 9 do
-    local tick = create("Frame", {
-        Name = "SpineTick",
-        Size = UDim2.fromOffset(i % 3 == 0 and 13 or 5, 3),
-        Position = UDim2.new(i / 10, 0, 0, 1),
-        BackgroundColor3 = Color3.fromRGB(112, 85, 160),
-        BackgroundTransparency = i % 3 == 0 and 0.05 or 0.4,
-        BorderSizePixel = 0,
-        Active = false
-    }, TopSpine)
-end
-
--- Event Horizon: signature accretion spectrum, positioned in the top gutter.
-local EventHorizonBand = create("Frame", {
-    Name = "EventHorizonSpectrum",
-    Position = UDim2.fromOffset(28, 51),
-    Size = UDim2.new(1, -56, 0, 5),
-    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-    BorderSizePixel = 0,
-    Active = false,
-    ZIndex = 3
-}, Main)
-round(EventHorizonBand, 3)
-local SpectrumGradient = create("UIGradient", {
-    Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(32, 18, 40)),
-        ColorSequenceKeypoint.new(0.18, Color3.fromRGB(102, 58, 99)),
-        ColorSequenceKeypoint.new(0.40, Color3.fromRGB(220, 140, 112)),
-        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(255, 226, 173)),
-        ColorSequenceKeypoint.new(0.72, Color3.fromRGB(200, 117, 139)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(37, 21, 43))
-    }),
-    Rotation = 0
-}, EventHorizonBand)
-TweenService:Create(SpectrumGradient, TweenInfo.new(11, Enum.EasingStyle.Sine,
-    Enum.EasingDirection.InOut, -1, true), {Offset = Vector2.new(0.14, 0)}):Play()
-
--- Quiet orbit glyph: native GUI shapes only, no external image IDs.
-local OrbitMark = create("Frame", {
-    Name = "EventHorizonOrbitMark",
-    Position = UDim2.new(1, -190, 0, 8),
-    Size = UDim2.fromOffset(33, 33),
-    BackgroundColor3 = Color3.fromRGB(43, 29, 37),
-    BorderSizePixel = 0,
-    Active = false,
-    ZIndex = 5
-}, Header)
-round(OrbitMark, 10)
-local OrbitRing = create("Frame", {
-    Name = "OrbitRing",
-    Position = UDim2.fromOffset(8, 8),
-    Size = UDim2.fromOffset(17, 17),
-    BackgroundTransparency = 1,
-    BorderSizePixel = 0,
-    ZIndex = 6
-}, OrbitMark)
-round(OrbitRing, 10)
-create("UIStroke", {Color = Color3.fromRGB(233, 169, 116), Thickness = 2}, OrbitRing)
-local OrbitCore = create("Frame", {
-    Position = UDim2.fromOffset(14, 14),
-    Size = UDim2.fromOffset(5, 5),
-    BackgroundColor3 = Color3.fromRGB(255, 217, 161),
-    BorderSizePixel = 0,
-    ZIndex = 7
-}, OrbitMark)
-round(OrbitCore, 5)
+round(HeaderRail, 3)
+animateLightRail(HeaderRail, 9)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.41",
+    Header, "AVATAR INSPECTOR v7.9.42",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
 
 HeaderTitle.Font = Enum.Font.GothamBlack
-HeaderTitle.TextColor3 = Color3.fromRGB(250, 250, 255)
+HeaderTitle.TextColor3 = Color3.fromRGB(250, 244, 239)
+HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
+HeaderTitle.Position = UDim2.fromOffset(16, 3)
+
+do
+    local subtitle = makeLabel(Header, "EVENT HORIZON EDITION",
+        UDim2.fromOffset(260, 14), UDim2.fromOffset(17, 29), 9)
+    subtitle.Font = Enum.Font.GothamBold
+    subtitle.TextColor3 = Color3.fromRGB(229, 163, 120)
+
+    local orbit = create("Frame", {
+        Name = "EventHorizonOrbit",
+        Position = UDim2.new(1, -164, 0, 8),
+        Size = UDim2.fromOffset(32, 32),
+        BackgroundColor3 = Color3.fromRGB(44, 31, 40),
+        BorderSizePixel = 0,
+        Active = false
+    }, Header)
+    round(orbit, 10)
+    local ring = create("Frame", {
+        Position = UDim2.fromOffset(8, 8),
+        Size = UDim2.fromOffset(16, 16),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Active = false
+    }, orbit)
+    round(ring, 10)
+    create("UIStroke", {
+        Color = Color3.fromRGB(238, 169, 120), Thickness = 2
+    }, ring)
+    local core = create("Frame", {
+        Position = UDim2.fromOffset(14, 14),
+        Size = UDim2.fromOffset(4, 4),
+        BackgroundColor3 = Color3.fromRGB(255, 214, 164),
+        BorderSizePixel = 0,
+        Active = false
+    }, orbit)
+    round(core, 4)
+end
 
 local LangButton = makeButton(
     Header, currentLanguage:upper(),
@@ -1330,7 +1265,7 @@ local PlayerList = create("ScrollingFrame", {
     BackgroundColor3 = PANEL,
     BorderSizePixel = 0,
     ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(190, 125, 115),
+    ScrollBarImageColor3 = Color3.fromRGB(180, 112, 125),
     AutomaticCanvasSize = Enum.AutomaticSize.Y,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -1499,7 +1434,7 @@ local ItemList = create("ScrollingFrame", {
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(190, 125, 115),
+    ScrollBarImageColor3 = Color3.fromRGB(180, 112, 125),
     AutomaticCanvasSize = Enum.AutomaticSize.Y,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -1515,124 +1450,75 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- Event Horizon lower console bridge: fills the empty 454..468 band.
-local HorizonBridge = create("Frame", {
-    Name = "EventHorizonBridge",
-    Position = UDim2.fromOffset(18, 455),
-    Size = UDim2.new(1, -36, 0, 12),
-    BackgroundColor3 = Color3.fromRGB(34, 23, 34),
-    BackgroundTransparency = 0.05,
-    BorderSizePixel = 0,
-    Active = false,
-    ZIndex = 2
-}, Main)
-round(HorizonBridge, 5)
-create("UIGradient", {
-    Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 21, 38)),
-        ColorSequenceKeypoint.new(0.45, Color3.fromRGB(118, 70, 78)),
-        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(190, 119, 95)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(36, 21, 40))
-    }),
-    Rotation = 0
-}, HorizonBridge)
-for i = 0, 10 do
-    local star = create("Frame", {
-        Name = "OrbitTick",
-        Position = UDim2.new(i / 10, i == 10 and -3 or 0, 0, 4),
-        Size = UDim2.fromOffset(3, 4),
-        BackgroundColor3 = Color3.fromRGB(255, 207, 155),
-        BackgroundTransparency = (i % 2 == 0) and 0.12 or 0.55,
+-- One lightweight ornamental bridge fills the old empty gap above status.
+-- It does not cover the camera, pose buttons, or scrolling lists.
+do
+    local bridge = create("Frame", {
+        Name = "EventHorizonBridge",
+        Position = UDim2.fromOffset(22, 461),
+        Size = UDim2.new(1, -44, 0, 5),
+        BackgroundColor3 = Color3.fromRGB(244, 179, 130),
+        BackgroundTransparency = 0.08,
         BorderSizePixel = 0,
-        Active = false,
-        ZIndex = 3
-    }, HorizonBridge)
-    round(star, 2)
+        Active = false
+    }, Main)
+    round(bridge, 3)
+    create("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(33, 21, 38)),
+            ColorSequenceKeypoint.new(0.27, Color3.fromRGB(159, 91, 109)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(250, 198, 142)),
+            ColorSequenceKeypoint.new(0.75, Color3.fromRGB(179, 100, 99)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(34, 21, 39))
+        })
+    }, bridge)
 end
 
--- The redundant bottom SCAN PLAYER / SAVE OUTFIT buttons are removed.
--- Selecting a player performs the manual scan; the per-player SAVE button
--- stores that exact selected avatar without auto-refreshing its appearance.
--- The former empty black strip is now a quiet, inset system-status console.
--- Keep it below all functional controls and leave the model viewport unchanged.
+-- The existing status panel replaces the previously vacant lower band.
 local StatusConsole = create("Frame", {
-    Name = "ObsidianStatusConsole",
+    Name = "EventHorizonStatusConsole",
     Position = UDim2.new(0, 13, 1, -51),
     Size = UDim2.new(1, -26, 0, 41),
-    BackgroundColor3 = Color3.fromRGB(21, 17, 25),
-    BackgroundTransparency = 0.12,
+    BackgroundColor3 = Color3.fromRGB(22, 17, 26),
+    BackgroundTransparency = 0.06,
     BorderSizePixel = 0,
     Active = false
 }, Main)
 round(StatusConsole, 10)
 create("UIGradient", {
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(61, 38, 53)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(27, 20, 29)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(62, 40, 52))
-    }),
-    Rotation = 0
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(52, 32, 48)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(22, 17, 26)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(49, 31, 45))
+    })
 }, StatusConsole)
 create("UIStroke", {
-    Color = Color3.fromRGB(132, 84, 98),
+    Color = Color3.fromRGB(130, 85, 96),
     Thickness = 1,
     Transparency = 0.4
 }, StatusConsole)
-local StatusRail = accentRule(StatusConsole,
-    UDim2.fromOffset(12, 0), UDim2.new(1, -24, 0, 2), 0.08)
-animateLightRail(StatusRail, 10)
+accentRule(StatusConsole, UDim2.fromOffset(12, 0),
+    UDim2.new(1, -24, 0, 2), 0.18)
 local BrandPill = create("Frame", {
     Name = "StatusBrand",
     Position = UDim2.fromOffset(10, 8),
-    Size = UDim2.fromOffset(106, 25),
-    BackgroundColor3 = Color3.fromRGB(61, 38, 50),
+    Size = UDim2.fromOffset(123, 25),
+    BackgroundColor3 = Color3.fromRGB(65, 40, 53),
     BorderSizePixel = 0,
     Active = false
 }, StatusConsole)
 round(BrandPill, 7)
 local BrandLabel = makeLabel(
-    BrandPill, "◈  INSPECTOR",
+    BrandPill, "EVENT HORIZON",
     UDim2.new(1, -8, 1, 0), UDim2.fromOffset(5, 0), 10
 )
-BrandLabel.TextColor3 = Color3.fromRGB(194, 171, 255)
+BrandLabel.TextColor3 = Color3.fromRGB(243, 184, 141)
 BrandLabel.Font = Enum.Font.GothamBold
-
--- Clear HUD indicators on the right, inside the footer and away from status text.
-local FooterSignal = create("Frame", {
-    Name = "ObsidianFooterSignal",
-    Position = UDim2.new(1, -93, 0, 10),
-    Size = UDim2.fromOffset(78, 21),
-    BackgroundColor3 = Color3.fromRGB(36, 28, 51),
-    BorderSizePixel = 0,
-    Active = false
-}, StatusConsole)
-round(FooterSignal, 6)
-for i = 1, 5 do
-    local bar = create("Frame", {
-        Name = "SignalBar",
-        Position = UDim2.fromOffset(10 + (i - 1) * 13, 14 - i * 2),
-        Size = UDim2.fromOffset(7, 4 + i * 2),
-        BackgroundColor3 = i == 5 and Color3.fromRGB(205, 173, 255)
-            or Color3.fromRGB(126, 96, 190),
-        BorderSizePixel = 0,
-        Active = false
-    }, FooterSignal)
-    round(bar, 2)
-end
-local FooterSeparator = create("Frame", {
-    Name = "FooterSeparator",
-    Position = UDim2.fromOffset(127, 10),
-    Size = UDim2.fromOffset(2, 21),
-    BackgroundColor3 = Color3.fromRGB(116, 88, 170),
-    BackgroundTransparency = 0.3,
-    BorderSizePixel = 0,
-    Active = false
-}, StatusConsole)
 
 local Status = makeLabel(
     Main, "Select a player",
-    UDim2.new(1, -270, 0, 30),
-    UDim2.new(0, 155, 1, -45), 12
+    UDim2.new(1, -179, 0, 30),
+    UDim2.new(0, 163, 1, -45), 12
 )
 Status.TextColor3 = MUTED
 Status.TextTruncate = Enum.TextTruncate.AtEnd
@@ -1847,13 +1733,8 @@ ModalYesButton.Activated:Connect(function()
         return
     end
 
-    if dialogMode == "Confirm" then
-        closeOutfitDialog()
-        callback()
-    else
-        closeOutfitDialog()
-        callback()
-    end
+    closeOutfitDialog()
+    callback()
 end)
 
 -- Dedicated language picker. The option names remain in their native forms.
@@ -2383,7 +2264,6 @@ local function centerModel(model)
     Camera.FieldOfView = 40
     task.wait()
 
-    currentModelBounds = boxSize
     local fitDistance = calculateFitDistance(boxSize)
     baseCameraDistance = math.max(fitDistance * 1.22, 4)
     -- Allow close inspection; ViewportFrame clipping keeps the model
@@ -3312,7 +3192,6 @@ applyPose = function(model, pose)
         end
     end
 
-    currentPose = pose
     updatePoseButtons(pose)
 
     local motorCount, constraintCount =
@@ -3382,38 +3261,7 @@ end
 -- MODEL DISPLAY
 --==================================================
 
-local function showModelFromTemplate(template, pose)
-    clearViewport()
-
-    if not template then
-        return false
-    end
-
-    local success, clone = pcall(function()
-        return template:Clone()
-    end)
-
-    if not success or not clone then
-        return false
-    end
-
-    removeExtraObjects(clone)
-    clone.Parent = World
-    currentModel = clone
-
-    resetJoints(clone)
-    rememberJointBases(clone)
-
-    if not centerModel(clone) then
-        clone:Destroy()
-        currentModel = nil
-        return false
-    end
-
-    applyPose(clone, pose or "N")
-    return true
-end
-
+-- Removed unreachable showModelFromTemplate; live and saved previews use their own active paths.
 local function showPlayerModel(player)
     clearViewport()
 
@@ -4834,7 +4682,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.34 loaded successfully")
+print("Avatar Inspector v7.9.42 loaded successfully")
 
 end
 
@@ -4857,11 +4705,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.41 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.42 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.41 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.42 INITIALIZATION FINISHED")
 end
