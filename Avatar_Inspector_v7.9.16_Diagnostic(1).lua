@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.30
+    AVATAR INSPECTOR v7.9.34
 
     CHANGES:
     - 12-language localization: added Simplified Chinese and Belarusian
@@ -42,15 +42,15 @@
     - Canonical account-avatar description lookup to avoid game morphs
     - Exact HumanoidDescription accessory count and live server player count
     - Larger saved outfit names
-    - New graphite/minimal visual theme inspired by the user's video reference
-    - Neutral charcoal buttons with subtle borders and softer press/hover animations
-    - Green checkmark state on successful COPY actions; green reserved for success
-    - Preserved the previously selected floating profile icon
+    - New blue-purple visual theme and profile-style floating toggle
     - Lightweight button press/hover animations
     - Smooth main-window open/close transitions
     - Small UI performance refinements without removing features
     - Close confirmation with explicit full shutdown
     - Smooth floating-button entrance and refined profile icon proportions
+    - v7.9.34 premium graphite interface pass
+    - Restrained cyan/blue/violet accent system and refined component borders
+    - Rainbow top-hat floating icon with sparkle details, built from native Roblox UI
 ]]
 
 local AI_DIAG_STAGE = "SCRIPT_PARSED"
@@ -88,18 +88,18 @@ if not PlayerGui then error("PlayerGui unavailable") end
 AI_DIAG_STAGE = "PLAYER_GUI_OK"
 AIDiag("07 PlayerGui OK")
 
--- v7.9.30 graphite UI palette, based on the user's video reference.
-local BG = Color3.fromRGB(15, 17, 19)
-local PANEL = Color3.fromRGB(25, 28, 31)
-local LIGHT = Color3.fromRGB(34, 38, 42)
-local ACCENT = Color3.fromRGB(76, 143, 135)
-local ACCENT_PURPLE = Color3.fromRGB(105, 91, 133)
-local OUTLINE = Color3.fromRGB(57, 63, 68)
-local WHITE = Color3.fromRGB(232, 235, 237)
-local MUTED = Color3.fromRGB(151, 158, 163)
-local GREEN = Color3.fromRGB(39, 112, 76)
-local ID_GREEN = Color3.fromRGB(104, 207, 145)
-local RED = Color3.fromRGB(145, 61, 68)
+-- Premium graphite palette: deep neutral surfaces with restrained cool accents.
+local BG = Color3.fromRGB(14, 16, 21)
+local PANEL = Color3.fromRGB(22, 25, 32)
+local LIGHT = Color3.fromRGB(30, 34, 43)
+local ACCENT = Color3.fromRGB(79, 143, 224)
+local ACCENT_PURPLE = Color3.fromRGB(119, 96, 181)
+local OUTLINE = Color3.fromRGB(57, 66, 82)
+local WHITE = Color3.fromRGB(235, 239, 246)
+local MUTED = Color3.fromRGB(145, 154, 169)
+local GREEN = Color3.fromRGB(48, 125, 91)
+local ID_GREEN = Color3.fromRGB(104, 218, 151)
+local RED = Color3.fromRGB(164, 69, 82)
 
 local selectedPlayer = nil
 local selectedFavorite = nil
@@ -616,7 +616,8 @@ local function addStroke(obj)
     create("UIStroke", {
         Color = OUTLINE,
         Thickness = 1,
-        Transparency = 0.18
+        Transparency = 0.22,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     }, obj)
 end
 
@@ -635,17 +636,12 @@ local function makeLabel(parent, text, size, position, textSize)
 end
 
 local function makeButton(parent, text, size, position, color)
-    local requestedColor = color or LIGHT
-    local baseColor = requestedColor
-    -- Most controls in the reference are neutral charcoal; reserve color for
-    -- success/danger states and selected states that are explicitly updated later.
-    if requestedColor == ACCENT or requestedColor == ACCENT_PURPLE then
-        baseColor = LIGHT
-    end
+    local baseColor = color or LIGHT
     local obj = create("TextButton", {
         Size = size,
         Position = position,
         BackgroundColor3 = baseColor,
+        BorderSizePixel = 0,
         Text = text,
         TextColor3 = WHITE,
         TextSize = 12,
@@ -655,15 +651,16 @@ local function makeButton(parent, text, size, position, color)
         Selectable = true
     }, parent)
 
-    round(obj, 8)
+    round(obj, 9)
     local outline = create("UIStroke", {
         Color = OUTLINE,
         Thickness = 1,
-        Transparency = 0.20
+        Transparency = 0.28,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     }, obj)
     local scale = create("UIScale", {Scale = 1}, obj)
-    local pressInfo = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    local releaseInfo = TweenInfo.new(0.17, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local pressInfo = TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local releaseInfo = TweenInfo.new(0.17, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
     local hoverInfo = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
     obj.MouseEnter:Connect(function()
@@ -674,12 +671,12 @@ local function makeButton(parent, text, size, position, color)
     obj.MouseLeave:Connect(function()
         if not obj.Parent then return end
         TweenService:Create(obj, hoverInfo, {BackgroundColor3 = baseColor}):Play()
-        TweenService:Create(outline, hoverInfo, {Transparency = 0.20}):Play()
+        TweenService:Create(outline, hoverInfo, {Transparency = 0.28}):Play()
     end)
     obj.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
-            TweenService:Create(scale, pressInfo, {Scale = 0.97}):Play()
+            TweenService:Create(scale, pressInfo, {Scale = 0.965}):Play()
         end
     end)
     obj.InputEnded:Connect(function(input)
@@ -738,88 +735,152 @@ local ScreenGui = create("ScreenGui", {
 AI_DIAG_STAGE = "SCREEN_GUI_CREATED"
 AIDiag("09 ScreenGui created and parented to PlayerGui")
 
-local Toggle = makeButton(
+local Toggle
+do
+Toggle = makeButton(
     ScreenGui, "",
     UDim2.fromOffset(58, 58),
     UDim2.new(0, 20, 0.5, -29),
-    ACCENT
+    Color3.fromRGB(18, 21, 28)
 )
 Toggle.Name = "AvatarInspectorFloatingButton"
 Toggle.Text = ""
-Toggle.BackgroundColor3 = ACCENT
-Toggle.ClipsDescendants = true
+Toggle.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
+Toggle.ClipsDescendants = false
 local toggleCorner = Toggle:FindFirstChildOfClass("UICorner")
 if toggleCorner then toggleCorner.CornerRadius = UDim.new(0, 29) end
-create("UIGradient", {
-    Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 190, 205)),
-        ColorSequenceKeypoint.new(0.52, Color3.fromRGB(35, 139, 190)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(112, 76, 170))
-    }),
-    Rotation = 35
-}, Toggle)
 
--- Lightweight vector recreation of the supplied profile icon. This avoids
--- external image downloads and executor-specific custom-asset dependencies.
-local iconInk = Color3.fromRGB(0, 12, 20)
-local IconHead = create("Frame", {
-    Name = "ProfileHead",
-    BackgroundTransparency = 1,
-    Size = UDim2.fromOffset(17, 17),
-    Position = UDim2.fromOffset(20.5, 9),
-    ZIndex = Toggle.ZIndex + 1
-}, Toggle)
-round(IconHead, 10)
-local headStroke = create("UIStroke", {
-    Color = iconInk,
-    Thickness = 3.5,
-    Transparency = 1
-}, IconHead)
-
-local IconBody = create("Frame", {
-    Name = "ProfileShoulders",
-    BackgroundTransparency = 1,
-    Size = UDim2.fromOffset(33, 21),
-    Position = UDim2.fromOffset(12.5, 28),
-    ZIndex = Toggle.ZIndex + 1
-}, Toggle)
-round(IconBody, 6)
-local bodyStroke = create("UIStroke", {
-    Color = iconInk,
-    Thickness = 3.5,
-    Transparency = 1
-}, IconBody)
-
-local profileDetails = {}
-for _, x in ipairs({7, 23}) do
-    local detail = create("Frame", {
-        Name = "ProfileDetail",
-        BackgroundColor3 = iconInk,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Size = UDim2.fromOffset(3, 6),
-        Position = UDim2.fromOffset(x, 11),
-        ZIndex = Toggle.ZIndex + 2
-    }, IconBody)
-    round(detail, 2)
-    table.insert(profileDetails, detail)
+local toggleOutline = Toggle:FindFirstChildOfClass("UIStroke")
+if toggleOutline then
+    toggleOutline.Color = ACCENT
+    toggleOutline.Thickness = 1.35
+    toggleOutline.Transparency = 0.12
+    create("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(66, 224, 206)),
+            ColorSequenceKeypoint.new(0.48, Color3.fromRGB(79, 151, 245)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(192, 104, 231))
+        }),
+        Rotation = 35
+    }, toggleOutline)
 end
 
--- Animate the floating control itself (not only the main window).
+local hatStrokes = {}
+local sparkleLabels = {}
+local hatGradient = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 218, 91)),
+    ColorSequenceKeypoint.new(0.22, Color3.fromRGB(99, 230, 170)),
+    ColorSequenceKeypoint.new(0.48, Color3.fromRGB(74, 177, 255)),
+    ColorSequenceKeypoint.new(0.73, Color3.fromRGB(157, 111, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 116, 205))
+})
+
+local HatCrown = create("Frame", {
+    Name = "RainbowHatCrown",
+    BackgroundColor3 = Color3.fromRGB(23, 28, 38),
+    BackgroundTransparency = 0.18,
+    BorderSizePixel = 0,
+    Size = UDim2.fromOffset(27, 24),
+    Position = UDim2.fromOffset(15.5, 17),
+    ZIndex = Toggle.ZIndex + 2
+}, Toggle)
+round(HatCrown, 5)
+local crownStroke = create("UIStroke", {
+    Color = Color3.new(1, 1, 1),
+    Thickness = 2.2,
+    Transparency = 0.02
+}, HatCrown)
+create("UIGradient", {Color = hatGradient, Rotation = 0}, crownStroke)
+table.insert(hatStrokes, crownStroke)
+
+local HatTop = create("Frame", {
+    Name = "RainbowHatTop",
+    BackgroundColor3 = Color3.fromRGB(24, 29, 39),
+    BackgroundTransparency = 0.05,
+    BorderSizePixel = 0,
+    Size = UDim2.fromOffset(29, 8),
+    Position = UDim2.fromOffset(14.5, 13),
+    ZIndex = Toggle.ZIndex + 3
+}, Toggle)
+round(HatTop, 8)
+local topStroke = create("UIStroke", {
+    Color = Color3.new(1, 1, 1),
+    Thickness = 2,
+    Transparency = 0.02
+}, HatTop)
+create("UIGradient", {Color = hatGradient, Rotation = 0}, topStroke)
+table.insert(hatStrokes, topStroke)
+
+local HatBrim = create("Frame", {
+    Name = "RainbowHatBrim",
+    BackgroundColor3 = Color3.fromRGB(23, 28, 38),
+    BackgroundTransparency = 0.12,
+    BorderSizePixel = 0,
+    Size = UDim2.fromOffset(43, 7),
+    Position = UDim2.fromOffset(7.5, 39),
+    ZIndex = Toggle.ZIndex + 4
+}, Toggle)
+round(HatBrim, 6)
+local brimStroke = create("UIStroke", {
+    Color = Color3.new(1, 1, 1),
+    Thickness = 2.1,
+    Transparency = 0.02
+}, HatBrim)
+create("UIGradient", {Color = hatGradient, Rotation = 0}, brimStroke)
+table.insert(hatStrokes, brimStroke)
+
+local HatBand = create("Frame", {
+    Name = "RainbowHatBand",
+    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+    BorderSizePixel = 0,
+    Size = UDim2.fromOffset(23, 2),
+    Position = UDim2.fromOffset(17.5, 34),
+    ZIndex = Toggle.ZIndex + 5
+}, Toggle)
+round(HatBand, 2)
+create("UIGradient", {Color = hatGradient, Rotation = 0}, HatBand)
+
+for _, info in ipairs({
+    {text = "✦", size = 13, pos = UDim2.fromOffset(5, 5), color = Color3.fromRGB(255, 220, 112)},
+    {text = "✧", size = 15, pos = UDim2.fromOffset(41, 5), color = Color3.fromRGB(223, 151, 255)},
+    {text = "✦", size = 10, pos = UDim2.fromOffset(44, 27), color = Color3.fromRGB(103, 208, 255)}
+}) do
+    local sparkle = create("TextLabel", {
+        Name = "HatSparkle",
+        BackgroundTransparency = 1,
+        Text = info.text,
+        TextColor3 = info.color,
+        TextSize = info.size,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        Size = UDim2.fromOffset(14, 14),
+        Position = info.pos,
+        ZIndex = Toggle.ZIndex + 6
+    }, Toggle)
+    table.insert(sparkleLabels, sparkle)
+end
+
+-- Animate the floating control and its native vector icon together.
 local toggleScale = Toggle:FindFirstChildOfClass("UIScale")
 if toggleScale then toggleScale.Scale = 0.72 end
 Toggle.BackgroundTransparency = 1
+for _, stroke in ipairs(hatStrokes) do stroke.Transparency = 1 end
+for _, sparkle in ipairs(sparkleLabels) do sparkle.TextTransparency = 1 end
 local floatingAppearInfo = TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local floatingFadeInfo = TweenInfo.new(0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 if toggleScale then
     TweenService:Create(toggleScale, floatingAppearInfo, {Scale = 1}):Play()
 end
 TweenService:Create(Toggle, floatingFadeInfo, {BackgroundTransparency = 0}):Play()
-TweenService:Create(headStroke, floatingFadeInfo, {Transparency = 0}):Play()
-TweenService:Create(bodyStroke, floatingFadeInfo, {Transparency = 0}):Play()
-for _, detail in ipairs(profileDetails) do
-    TweenService:Create(detail, floatingFadeInfo, {BackgroundTransparency = 0}):Play()
+if toggleOutline then TweenService:Create(toggleOutline, floatingFadeInfo, {Transparency = 0.12}):Play() end
+for _, stroke in ipairs(hatStrokes) do
+    TweenService:Create(stroke, floatingFadeInfo, {Transparency = 0.02}):Play()
 end
+for _, sparkle in ipairs(sparkleLabels) do
+    TweenService:Create(sparkle, floatingFadeInfo, {TextTransparency = 0}):Play()
+end
+end -- floating icon construction scope
 AI_DIAG_STAGE = "AI_BUTTON_CREATED"
 AIDiag("10 AI button created successfully")
 
@@ -884,11 +945,12 @@ local Main = create("Frame", {
 round(Main, 16)
 addStroke(Main)
 create("UIGradient", {
-    Color = ColorSequence.new(
-        Color3.fromRGB(27, 30, 33),
-        Color3.fromRGB(20, 23, 25)
-    ),
-    Rotation = 90
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(19, 23, 31)),
+        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(16, 19, 26)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(22, 20, 29))
+    }),
+    Rotation = 25
 }, Main)
 
 local UIScale = create("UIScale", {
@@ -903,21 +965,32 @@ local Header = create("Frame", {
 
 round(Header, 15)
 create("UIGradient", {
-    Color = ColorSequence.new(
-        Color3.fromRGB(39, 43, 47),
-        Color3.fromRGB(28, 32, 35)
-    ),
-    Rotation = 90
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(27, 33, 44)),
+        ColorSequenceKeypoint.new(0.58, Color3.fromRGB(24, 29, 39)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(31, 26, 40))
+    }),
+    Rotation = 0
+}, Header)
+addStroke(Header)
+create("Frame", {
+    Name = "HeaderAccentLine",
+    BorderSizePixel = 0,
+    BackgroundColor3 = ACCENT,
+    BackgroundTransparency = 0.38,
+    Size = UDim2.new(1, -28, 0, 1),
+    Position = UDim2.new(0, 14, 1, -1),
+    ZIndex = Header.ZIndex + 1
 }, Header)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.30",
+    Header, "AVATAR INSPECTOR v7.9.34",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
 
 HeaderTitle.Font = Enum.Font.GothamBold
-HeaderTitle.TextColor3 = WHITE
+HeaderTitle.TextColor3 = Color3.fromRGB(250, 250, 255)
 
 local LangButton = makeButton(
     Header, currentLanguage:upper(),
@@ -1036,7 +1109,7 @@ local PlayerList = create("ScrollingFrame", {
     BackgroundColor3 = PANEL,
     BorderSizePixel = 0,
     ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(91, 104, 108),
+    ScrollBarImageColor3 = Color3.fromRGB(91, 126, 181),
     AutomaticCanvasSize = Enum.AutomaticSize.Y,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -1210,7 +1283,7 @@ local ItemList = create("ScrollingFrame", {
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     ScrollBarThickness = 5,
-    ScrollBarImageColor3 = Color3.fromRGB(91, 104, 108),
+    ScrollBarImageColor3 = Color3.fromRGB(91, 126, 181),
     AutomaticCanvasSize = Enum.AutomaticSize.Y,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -1243,7 +1316,7 @@ local Toast = create("Frame", {
     AnchorPoint = Vector2.new(0.5, 0),
     Position = UDim2.new(0.5, 0, 0, 10),
     Size = UDim2.fromOffset(260, 38),
-    BackgroundColor3 = Color3.fromRGB(31, 91, 63),
+    BackgroundColor3 = Color3.fromRGB(30, 105, 70),
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     Visible = false,
@@ -1256,7 +1329,7 @@ local ToastIcon = create("TextLabel", {
     Name = "SuccessCheckmark",
     BackgroundTransparency = 1,
     Text = "✓",
-    TextColor3 = Color3.fromRGB(157, 226, 181),
+    TextColor3 = Color3.fromRGB(130, 255, 165),
     TextSize = 19,
     Font = Enum.Font.GothamBold,
     TextXAlignment = Enum.TextXAlignment.Center,
@@ -1324,7 +1397,7 @@ local ModalPanel = create("Frame", {
 }, ModalOverlay)
 round(ModalPanel, 13)
 addStroke(ModalPanel)
-create("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(34, 38, 42), Color3.fromRGB(26, 29, 32)), Rotation = 90}, ModalPanel)
+create("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(25, 30, 40), Color3.fromRGB(29, 25, 37)), Rotation = 25}, ModalPanel)
 
 local ModalTitle = makeLabel(
     ModalPanel, "Confirmation",
@@ -1479,7 +1552,7 @@ local LangPanel = create("Frame", {
 }, LangOverlay)
 round(LangPanel, 13)
 addStroke(LangPanel)
-create("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(34, 38, 42), Color3.fromRGB(26, 29, 32)), Rotation = 90}, LangPanel)
+create("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(25, 30, 40), Color3.fromRGB(29, 25, 37)), Rotation = 25}, LangPanel)
 
 local LangTitle = makeLabel(LangPanel, "Choose language", UDim2.new(1, -60, 0, 30), UDim2.fromOffset(12, 10), 14)
 LangTitle.Font = Enum.Font.GothamBold
@@ -1629,7 +1702,7 @@ end))
 local function makeDraggable(guiObject, handle)
     local dragging = false
     local startPosition
-    local startGuiPosition
+    local startAbsolutePosition
 
     handle.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
@@ -1637,7 +1710,7 @@ local function makeDraggable(guiObject, handle)
 
             dragging = true
             startPosition = input.Position
-            startGuiPosition = guiObject.Position
+            startAbsolutePosition = guiObject.AbsolutePosition
 
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
@@ -1654,12 +1727,18 @@ local function makeDraggable(guiObject, handle)
         or input.UserInputType == Enum.UserInputType.Touch then
 
             local delta = input.Position - startPosition
+            local camera = workspace.CurrentCamera
+            local viewportSize = camera and camera.ViewportSize or Vector2.new(800, 600)
+            local objectSize = guiObject.AbsoluteSize
+            local anchor = guiObject.AnchorPoint
+            local left = startAbsolutePosition.X + delta.X
+            local top = startAbsolutePosition.Y + delta.Y
+            left = math.clamp(left, 4, math.max(4, viewportSize.X - objectSize.X - 4))
+            top = math.clamp(top, 4, math.max(4, viewportSize.Y - objectSize.Y - 4))
 
-            guiObject.Position = UDim2.new(
-                startGuiPosition.X.Scale,
-                startGuiPosition.X.Offset + delta.X,
-                startGuiPosition.Y.Scale,
-                startGuiPosition.Y.Offset + delta.Y
+            guiObject.Position = UDim2.fromOffset(
+                left + objectSize.X * anchor.X,
+                top + objectSize.Y * anchor.Y
             )
         end
     end))
@@ -3195,7 +3274,7 @@ local function addSectionHeader(text)
         BackgroundColor3 = PANEL,
         BackgroundTransparency = 0.15,
         Text = text,
-        TextColor3 = Color3.fromRGB(126, 170, 160),
+        TextColor3 = ACCENT,
         TextSize = 11,
         Font = Enum.Font.GothamBold,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -3267,37 +3346,8 @@ local function addItem(name, assetId, category)
         ACCENT
     )
 
-    local copyDefaultText = copyButton.Text
-    local copyStateToken = 0
     copyButton.Activated:Connect(function()
-        local copied = copyID(assetId)
-        if not copied or not copyButton.Parent then return end
-
-        copyStateToken += 1
-        local token = copyStateToken
-        copyButton.Text = "✓"
-        copyButton.BackgroundColor3 = GREEN
-        local copyStroke = copyButton:FindFirstChildOfClass("UIStroke")
-        if copyStroke then
-            TweenService:Create(copyStroke, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Color = Color3.fromRGB(93, 176, 128),
-                Transparency = 0.05
-            }):Play()
-        end
-
-        task.delay(1.05, function()
-            if token ~= copyStateToken or not copyButton.Parent then return end
-            copyButton.Text = copyDefaultText
-            TweenService:Create(copyButton, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                BackgroundColor3 = LIGHT
-            }):Play()
-            if copyStroke then
-                TweenService:Create(copyStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                    Color = OUTLINE,
-                    Transparency = 0.20
-                }):Play()
-            end
-        end)
+        copyID(assetId)
     end)
 end
 
@@ -4467,20 +4517,20 @@ end)
 --==================================================
 
 updatePoseButtons("N")
-local loadCallOk, loaded, loadMessage = pcall(loadFavoritesFromFile)
+local loadResult = table.pack(pcall(loadFavoritesFromFile))
 refreshPlayerList()
 
-if loadCallOk and loaded then
-    Status.Text = loadMessage
+if loadResult[1] and loadResult[2] then
+    Status.Text = loadResult[3]
 else
-    local reason = loadCallOk and loadMessage or loaded
+    local reason = loadResult[1] and loadResult[3] or loadResult[2]
     Status.Text = "Storage unavailable: " .. tostring(reason)
     warn("[Avatar Inspector] Outfit load failed: " .. tostring(reason))
 end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.30 loaded successfully")
+print("Avatar Inspector v7.9.34 loaded successfully")
 
 end
 
@@ -4503,11 +4553,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.30 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.34 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.30 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.34 INITIALIZATION FINISHED")
 end
