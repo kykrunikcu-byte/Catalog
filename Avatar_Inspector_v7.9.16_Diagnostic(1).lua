@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.39
+    AVATAR INSPECTOR v7.9.40
 
     CHANGES:
     - Single FREE LOOK camera control; removed redundant ORBIT button
@@ -1086,8 +1086,57 @@ local HeaderRail = create("Frame", {
 }, Header)
 animateLightRail(HeaderRail, 8)
 
+-- OBSIDIAN VIOLET 2.0: an actual header navigation spine in the formerly empty gap.
+-- All parts are decorative; mouse/touch input goes to the existing controls.
+local TopSpine = create("Frame", {
+    Name = "ObsidianTopSpine",
+    Position = UDim2.fromOffset(16, 50),
+    Size = UDim2.new(1, -32, 0, 6),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    Active = false
+}, Main)
+local TopSpineBase = create("Frame", {
+    Name = "SpineTrack",
+    Size = UDim2.new(1, 0, 0, 3),
+    Position = UDim2.fromOffset(0, 1),
+    BackgroundColor3 = Color3.fromRGB(51, 37, 75),
+    BorderSizePixel = 0,
+    Active = false
+}, TopSpine)
+round(TopSpineBase, 2)
+local TopSpineGlow = create("Frame", {
+    Name = "MovingSpineGlow",
+    Size = UDim2.new(0.24, 0, 0, 3),
+    Position = UDim2.new(0, 0, 0, 1),
+    BackgroundColor3 = Color3.fromRGB(182, 142, 255),
+    BorderSizePixel = 0,
+    Active = false
+}, TopSpine)
+round(TopSpineGlow, 2)
+create("UIGradient", {
+    Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.5, 0.05),
+        NumberSequenceKeypoint.new(1, 1)
+    })
+}, TopSpineGlow)
+TweenService:Create(TopSpineGlow, TweenInfo.new(5.5, Enum.EasingStyle.Sine,
+    Enum.EasingDirection.InOut, -1, true), {Position = UDim2.new(0.76, 0, 0, 1)}):Play()
+for i = 1, 9 do
+    local tick = create("Frame", {
+        Name = "SpineTick",
+        Size = UDim2.fromOffset(i % 3 == 0 and 13 or 5, 3),
+        Position = UDim2.new(i / 10, 0, 0, 1),
+        BackgroundColor3 = Color3.fromRGB(112, 85, 160),
+        BackgroundTransparency = i % 3 == 0 and 0.05 or 0.4,
+        BorderSizePixel = 0,
+        Active = false
+    }, TopSpine)
+end
+
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.39",
+    Header, "AVATAR INSPECTOR v7.9.40",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1411,6 +1460,55 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
+-- Lower connection strip: fills the old black gutter with a visible segmented
+-- circuit rail. Kept entirely below the viewport and pose controls.
+local LowerSpine = create("Frame", {
+    Name = "ObsidianLowerSpine",
+    Position = UDim2.fromOffset(16, 457),
+    Size = UDim2.new(1, -32, 0, 9),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    Active = false
+}, Main)
+local LowerSpineTrack = create("Frame", {
+    Name = "LowerTrack",
+    Position = UDim2.fromOffset(0, 4),
+    Size = UDim2.new(1, 0, 0, 2),
+    BackgroundColor3 = Color3.fromRGB(68, 50, 99),
+    BackgroundTransparency = 0.12,
+    BorderSizePixel = 0,
+    Active = false
+}, LowerSpine)
+local LowerPulse = create("Frame", {
+    Name = "LowerMovingPulse",
+    Position = UDim2.fromOffset(0, 3),
+    Size = UDim2.new(0.19, 0, 0, 4),
+    BackgroundColor3 = Color3.fromRGB(198, 164, 255),
+    BorderSizePixel = 0,
+    Active = false
+}, LowerSpine)
+round(LowerPulse, 3)
+create("UIGradient", {
+    Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.5, 0.02),
+        NumberSequenceKeypoint.new(1, 1)
+    })
+}, LowerPulse)
+TweenService:Create(LowerPulse, TweenInfo.new(7.5, Enum.EasingStyle.Sine,
+    Enum.EasingDirection.InOut, -1, true), {Position = UDim2.new(0.81, 0, 0, 3)}):Play()
+for i = 0, 4 do
+    local segment = create("Frame", {
+        Name = "CircuitNode",
+        Position = UDim2.new(i / 4, i == 4 and -8 or 0, 0, 1),
+        Size = UDim2.fromOffset(8, 8),
+        BackgroundColor3 = Color3.fromRGB(133, 97, 202),
+        BorderSizePixel = 0,
+        Active = false
+    }, LowerSpine)
+    round(segment, 2)
+end
+
 -- The redundant bottom SCAN PLAYER / SAVE OUTFIT buttons are removed.
 -- Selecting a player performs the manual scan; the per-player SAVE button
 -- stores that exact selected avatar without auto-refreshing its appearance.
@@ -1426,6 +1524,14 @@ local StatusConsole = create("Frame", {
     Active = false
 }, Main)
 round(StatusConsole, 10)
+create("UIGradient", {
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(45, 31, 67)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(26, 21, 38)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(43, 30, 63))
+    }),
+    Rotation = 0
+}, StatusConsole)
 create("UIStroke", {
     Color = Color3.fromRGB(73, 55, 104),
     Thickness = 1,
@@ -1450,10 +1556,42 @@ local BrandLabel = makeLabel(
 BrandLabel.TextColor3 = Color3.fromRGB(194, 171, 255)
 BrandLabel.Font = Enum.Font.GothamBold
 
+-- Clear HUD indicators on the right, inside the footer and away from status text.
+local FooterSignal = create("Frame", {
+    Name = "ObsidianFooterSignal",
+    Position = UDim2.new(1, -93, 0, 10),
+    Size = UDim2.fromOffset(78, 21),
+    BackgroundColor3 = Color3.fromRGB(36, 28, 51),
+    BorderSizePixel = 0,
+    Active = false
+}, StatusConsole)
+round(FooterSignal, 6)
+for i = 1, 5 do
+    local bar = create("Frame", {
+        Name = "SignalBar",
+        Position = UDim2.fromOffset(10 + (i - 1) * 13, 14 - i * 2),
+        Size = UDim2.fromOffset(7, 4 + i * 2),
+        BackgroundColor3 = i == 5 and Color3.fromRGB(205, 173, 255)
+            or Color3.fromRGB(126, 96, 190),
+        BorderSizePixel = 0,
+        Active = false
+    }, FooterSignal)
+    round(bar, 2)
+end
+local FooterSeparator = create("Frame", {
+    Name = "FooterSeparator",
+    Position = UDim2.fromOffset(127, 10),
+    Size = UDim2.fromOffset(2, 21),
+    BackgroundColor3 = Color3.fromRGB(116, 88, 170),
+    BackgroundTransparency = 0.3,
+    BorderSizePixel = 0,
+    Active = false
+}, StatusConsole)
+
 local Status = makeLabel(
     Main, "Select a player",
-    UDim2.new(1, -161, 0, 30),
-    UDim2.new(0, 145, 1, -45), 12
+    UDim2.new(1, -270, 0, 30),
+    UDim2.new(0, 155, 1, -45), 12
 )
 Status.TextColor3 = MUTED
 Status.TextTruncate = Enum.TextTruncate.AtEnd
@@ -4678,11 +4816,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.39 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.40 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.39 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.40 INITIALIZATION FINISHED")
 end
