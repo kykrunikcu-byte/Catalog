@@ -1,9 +1,11 @@
 --[[
-    AVATAR INSPECTOR v7.9.38
+    AVATAR INSPECTOR v7.9.39
 
     CHANGES:
     - Single FREE LOOK camera control; removed redundant ORBIT button
     - Obsidian Violet architectural framing, inset borders and luminous edge rails
+    - Animated gradient glints on header and footer light rails
+    - Compact branded status console in the former empty lower strip
     - Branded close, rename and delete controls
     - Updated graphite/navy styling and persistent selection indicators
     - Fixed scaled-window dragging and confirmation dialog
@@ -642,6 +644,31 @@ local function accentRule(parent, position, size, transparency)
     }, parent)
 end
 
+-- A moving glint is a single UIGradient tween; no per-frame Lua work.
+local function animateLightRail(rail, seconds)
+    local gradient = create("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(66, 46, 110)),
+            ColorSequenceKeypoint.new(0.48, Color3.fromRGB(175, 137, 255)),
+            ColorSequenceKeypoint.new(0.52, Color3.fromRGB(225, 205, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(66, 46, 110))
+        }),
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.75),
+            NumberSequenceKeypoint.new(0.42, 0.1),
+            NumberSequenceKeypoint.new(0.5, 0),
+            NumberSequenceKeypoint.new(0.58, 0.1),
+            NumberSequenceKeypoint.new(1, 0.75)
+        }),
+        Offset = Vector2.new(-1, 0)
+    }, rail)
+    local sweep = TweenService:Create(gradient,
+        TweenInfo.new(seconds or 7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {Offset = Vector2.new(1, 0)})
+    sweep:Play()
+    return sweep
+end
+
 local function decorateSurface(panel, variant)
     local stroke = panel:FindFirstChildOfClass("UIStroke")
     if stroke then
@@ -1048,7 +1075,7 @@ create("UIGradient", {
     Rotation = 0
 }, Header)
 addStroke(Header)
-create("Frame", {
+local HeaderRail = create("Frame", {
     Name = "HeaderAccentLine",
     BorderSizePixel = 0,
     BackgroundColor3 = ACCENT,
@@ -1057,9 +1084,10 @@ create("Frame", {
     Position = UDim2.new(0, 14, 1, -1),
     ZIndex = Header.ZIndex + 1
 }, Header)
+animateLightRail(HeaderRail, 8)
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.38",
+    Header, "AVATAR INSPECTOR v7.9.39",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1386,14 +1414,49 @@ create("UIPadding", {
 -- The redundant bottom SCAN PLAYER / SAVE OUTFIT buttons are removed.
 -- Selecting a player performs the manual scan; the per-player SAVE button
 -- stores that exact selected avatar without auto-refreshing its appearance.
+-- The former empty black strip is now a quiet, inset system-status console.
+-- Keep it below all functional controls and leave the model viewport unchanged.
+local StatusConsole = create("Frame", {
+    Name = "ObsidianStatusConsole",
+    Position = UDim2.new(0, 13, 1, -51),
+    Size = UDim2.new(1, -26, 0, 41),
+    BackgroundColor3 = Color3.fromRGB(22, 18, 31),
+    BackgroundTransparency = 0.12,
+    BorderSizePixel = 0,
+    Active = false
+}, Main)
+round(StatusConsole, 10)
+create("UIStroke", {
+    Color = Color3.fromRGB(73, 55, 104),
+    Thickness = 1,
+    Transparency = 0.4
+}, StatusConsole)
+local StatusRail = accentRule(StatusConsole,
+    UDim2.fromOffset(12, 0), UDim2.new(1, -24, 0, 2), 0.08)
+animateLightRail(StatusRail, 10)
+local BrandPill = create("Frame", {
+    Name = "StatusBrand",
+    Position = UDim2.fromOffset(10, 8),
+    Size = UDim2.fromOffset(106, 25),
+    BackgroundColor3 = Color3.fromRGB(43, 31, 66),
+    BorderSizePixel = 0,
+    Active = false
+}, StatusConsole)
+round(BrandPill, 7)
+local BrandLabel = makeLabel(
+    BrandPill, "◈  INSPECTOR",
+    UDim2.new(1, -8, 1, 0), UDim2.fromOffset(5, 0), 10
+)
+BrandLabel.TextColor3 = Color3.fromRGB(194, 171, 255)
+BrandLabel.Font = Enum.Font.GothamBold
+
 local Status = makeLabel(
     Main, "Select a player",
-    UDim2.new(1, -24, 0, 36),
-    UDim2.new(0, 12, 1, -46), 12
+    UDim2.new(1, -161, 0, 30),
+    UDim2.new(0, 145, 1, -45), 12
 )
-
-accentRule(Main, UDim2.fromOffset(15, 467), UDim2.new(1, -30, 0, 1), 0.73)
 Status.TextColor3 = MUTED
+Status.TextTruncate = Enum.TextTruncate.AtEnd
 
 -- Compact confirmation toast for completed copy/save actions.
 local Toast = create("Frame", {
@@ -1736,8 +1799,8 @@ local function updateLayout()
         ItemsPanel.Position = UDim2.fromOffset(12, 388)
         ItemsPanel.Size = UDim2.new(1, -24, 0, 150)
 
-        Status.Position = UDim2.new(0, 12, 1, -46)
-        Status.Size = UDim2.new(1, -24, 0, 36)
+        Status.Position = UDim2.new(0, 145, 1, -45)
+        Status.Size = UDim2.new(1, -161, 0, 30)
     else
         Search.Position = UDim2.fromOffset(12, 58)
         Search.Size = UDim2.new(1, -120, 0, 36)
@@ -1757,8 +1820,8 @@ local function updateLayout()
         ItemsPanel.Position = UDim2.fromOffset(526, 104)
         ItemsPanel.Size = UDim2.fromOffset(262, 350)
 
-        Status.Position = UDim2.new(0, 12, 1, -46)
-        Status.Size = UDim2.new(1, -24, 0, 36)
+        Status.Position = UDim2.new(0, 145, 1, -45)
+        Status.Size = UDim2.new(1, -161, 0, 30)
     end
 end
 
@@ -4615,11 +4678,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.38 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.39 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.38 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.39 INITIALIZATION FINISHED")
 end
