@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.47
+    AVATAR INSPECTOR v7.9.48
 
     CHANGES:
     - Startup recovery based directly on confirmed working v7.9.44
@@ -692,32 +692,6 @@ function EH.ehPanel(parent, kind)
     -- ScrollingFrame content is driven by UIListLayout and cleared dynamically:
     -- avoid adding decorative Frame children that would be treated as list rows.
     if kind == "scroll" then return end
-    if kind == "shell" then
-        local frame = create("Frame", {
-            Name = "EHInsetShell",
-            Position = UDim2.fromOffset(5, 5),
-            Size = UDim2.new(1, -10, 1, -10),
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            Active = false
-        }, parent)
-        round(frame, 14)
-        create("UIStroke", {
-            Color = Color3.fromRGB(87, 53, 70),
-            Transparency = 0.46,
-            Thickness = 1
-        }, frame)
-        for _, x in ipairs({10, -40}) do
-            local atRight = x < 0
-            EH.accentRule(parent,
-                atRight and UDim2.new(1, x, 0, 7) or UDim2.fromOffset(x, 7),
-                UDim2.fromOffset(30, 2), 0.15)
-            EH.accentRule(parent,
-                atRight and UDim2.new(1, x, 1, -9) or UDim2.new(0, x, 1, -9),
-                UDim2.fromOffset(30, 2), 0.15)
-        end
-        return
-    end
     -- Cleaner section geometry: smooth top segments, restrained bottom bar and one signal dot.
     local leftSeg = EH.accentRule(parent, UDim2.fromOffset(14, 8), UDim2.fromOffset(34, 2), 0.12)
     round(leftSeg, 2)
@@ -950,152 +924,113 @@ local ScreenGui = create("ScreenGui", {
 AI_DIAG_STAGE = "SCREEN_GUI_CREATED"
 AIDiag("09 ScreenGui created and parented to PlayerGui")
 
+-- Event Horizon / Cosmic Orbit A: one clickable, draggable 58px button.
+-- All visual pieces use native Roblox UI and have Active=false. The Toggle is
+-- the ONLY input surface; opening/dragging code below is intentionally unchanged.
 local Toggle
 do
-Toggle = makeButton(
-    ScreenGui, "",
-    UDim2.fromOffset(58, 58),
-    UDim2.new(0, 20, 0.5, -29),
-    Color3.fromRGB(18, 21, 28)
-)
-Toggle.Name = "AvatarInspectorFloatingButton"
-Toggle.Text = ""
-Toggle.BackgroundColor3 = Color3.fromRGB(18, 21, 28)
-Toggle.ClipsDescendants = false
-local toggleCorner = Toggle:FindFirstChildOfClass("UICorner")
-if toggleCorner then toggleCorner.CornerRadius = UDim.new(0, 29) end
+    Toggle = makeButton(
+        ScreenGui, "",
+        UDim2.fromOffset(58, 58),
+        UDim2.new(0, 20, 0.5, -29),
+        Color3.fromRGB(13, 10, 19)
+    )
+    Toggle.Name = "AvatarInspectorFloatingButton"
+    Toggle.Text = ""
+    Toggle.ClipsDescendants = false
+    Toggle.BackgroundColor3 = Color3.fromRGB(13, 10, 19)
 
-local toggleOutline = Toggle:FindFirstChildOfClass("UIStroke")
-if toggleOutline then
-    toggleOutline.Color = ACCENT
-    toggleOutline.Thickness = 1.35
-    toggleOutline.Transparency = 0.12
+    local corner = Toggle:FindFirstChildOfClass("UICorner")
+    if corner then corner.CornerRadius = UDim.new(1, 0) end
+
+    local outline = Toggle:FindFirstChildOfClass("UIStroke")
+    if outline then
+        outline.Color = Color3.fromRGB(228, 159, 115)
+        outline.Thickness = 1.8
+        outline.Transparency = 0.05
+    end
+
+    local function layer(name, pos, size, color, radius, rotation, transparency, z)
+        local frame = create("Frame", {
+            Name = name,
+            Position = pos,
+            Size = size,
+            BackgroundColor3 = color,
+            BackgroundTransparency = transparency or 0,
+            BorderSizePixel = 0,
+            Rotation = rotation or 0,
+            Active = false,
+            ZIndex = (Toggle.ZIndex or 1) + (z or 2)
+        }, Toggle)
+        round(frame, radius or 12)
+        return frame
+    end
+
+    -- Dark celestial core, layered like an application icon.
+    local disk = layer("OrbitDisk", UDim2.fromOffset(7, 7),
+        UDim2.fromOffset(44, 44), Color3.fromRGB(33, 19, 45), 22, 0, 0, 2)
+    local diskGradient = create("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(64, 35, 79)),
+            ColorSequenceKeypoint.new(0.52, Color3.fromRGB(10, 8, 19)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(27, 19, 46))
+        }), Rotation = 45
+    }, disk)
+
+    local eventSphere = layer("EventSphere", UDim2.fromOffset(19, 18),
+        UDim2.fromOffset(21, 21), Color3.fromRGB(7, 6, 13), 11, 0, 0, 3)
+    create("UIStroke", {
+        Color = Color3.fromRGB(132, 78, 154),
+        Thickness = 1,
+        Transparency = 0.13
+    }, eventSphere)
+
+    -- The single elliptical orbit intentionally crosses the dark sphere.
+    -- Using UIStroke rather than broken Frame segments keeps its edge smooth.
+    local orbit = layer("CosmicOrbit", UDim2.fromOffset(7, 21),
+        UDim2.fromOffset(45, 16), Color3.fromRGB(239, 170, 106),
+        9, -27, 1, 5)
+    local orbitStroke = create("UIStroke", {
+        Color = Color3.fromRGB(250, 185, 108),
+        Thickness = 2.5,
+        Transparency = 0.04,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    }, orbit)
     create("UIGradient", {
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(66, 224, 206)),
-            ColorSequenceKeypoint.new(0.48, Color3.fromRGB(79, 151, 245)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(192, 104, 231))
-        }),
-        Rotation = 35
-    }, toggleOutline)
-end
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(168, 89, 144)),
+            ColorSequenceKeypoint.new(0.43, Color3.fromRGB(253, 206, 145)),
+            ColorSequenceKeypoint.new(0.73, Color3.fromRGB(255, 149, 73)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(152, 77, 149))
+        }), Rotation = 0
+    }, orbitStroke)
 
-local hatStrokes = {}
-local sparkleLabels = {}
-local hatGradient = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 218, 91)),
-    ColorSequenceKeypoint.new(0.22, Color3.fromRGB(99, 230, 170)),
-    ColorSequenceKeypoint.new(0.48, Color3.fromRGB(74, 177, 255)),
-    ColorSequenceKeypoint.new(0.73, Color3.fromRGB(157, 111, 255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 116, 205))
-})
+    local satellite = layer("OrbitSatellite", UDim2.fromOffset(43, 12),
+        UDim2.fromOffset(7, 7), Color3.fromRGB(255, 197, 121),
+        4, 0, 0, 6)
+    local star = layer("OrbitStar", UDim2.fromOffset(12, 41),
+        UDim2.fromOffset(4, 4), Color3.fromRGB(182, 123, 215),
+        2, 0, 0, 6)
 
-local HatCrown = create("Frame", {
-    Name = "RainbowHatCrown",
-    BackgroundColor3 = Color3.fromRGB(23, 28, 38),
-    BackgroundTransparency = 0.18,
-    BorderSizePixel = 0,
-    Size = UDim2.fromOffset(27, 24),
-    Position = UDim2.fromOffset(15.5, 17),
-    ZIndex = Toggle.ZIndex + 2
-}, Toggle)
-round(HatCrown, 5)
-local crownStroke = create("UIStroke", {
-    Color = Color3.new(1, 1, 1),
-    Thickness = 2.2,
-    Transparency = 0.02
-}, HatCrown)
-create("UIGradient", {Color = hatGradient, Rotation = 0}, crownStroke)
-table.insert(hatStrokes, crownStroke)
-
-local HatTop = create("Frame", {
-    Name = "RainbowHatTop",
-    BackgroundColor3 = Color3.fromRGB(22, 17, 26),
-    BackgroundTransparency = 0.05,
-    BorderSizePixel = 0,
-    Size = UDim2.fromOffset(29, 8),
-    Position = UDim2.fromOffset(14.5, 13),
-    ZIndex = Toggle.ZIndex + 3
-}, Toggle)
-round(HatTop, 8)
-local topStroke = create("UIStroke", {
-    Color = Color3.new(1, 1, 1),
-    Thickness = 2,
-    Transparency = 0.02
-}, HatTop)
-create("UIGradient", {Color = hatGradient, Rotation = 0}, topStroke)
-table.insert(hatStrokes, topStroke)
-
-local HatBrim = create("Frame", {
-    Name = "RainbowHatBrim",
-    BackgroundColor3 = Color3.fromRGB(23, 28, 38),
-    BackgroundTransparency = 0.12,
-    BorderSizePixel = 0,
-    Size = UDim2.fromOffset(43, 7),
-    Position = UDim2.fromOffset(7.5, 39),
-    ZIndex = Toggle.ZIndex + 4
-}, Toggle)
-round(HatBrim, 6)
-local brimStroke = create("UIStroke", {
-    Color = Color3.new(1, 1, 1),
-    Thickness = 2.1,
-    Transparency = 0.02
-}, HatBrim)
-create("UIGradient", {Color = hatGradient, Rotation = 0}, brimStroke)
-table.insert(hatStrokes, brimStroke)
-
-local HatBand = create("Frame", {
-    Name = "RainbowHatBand",
-    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-    BorderSizePixel = 0,
-    Size = UDim2.fromOffset(23, 2),
-    Position = UDim2.fromOffset(17.5, 34),
-    ZIndex = Toggle.ZIndex + 5
-}, Toggle)
-round(HatBand, 2)
-create("UIGradient", {Color = hatGradient, Rotation = 0}, HatBand)
-
-for _, info in ipairs({
-    {text = "✦", size = 13, pos = UDim2.fromOffset(5, 5), color = Color3.fromRGB(255, 220, 112)},
-    {text = "✧", size = 15, pos = UDim2.fromOffset(41, 5), color = Color3.fromRGB(223, 151, 255)},
-    {text = "✦", size = 10, pos = UDim2.fromOffset(44, 27), color = Color3.fromRGB(103, 208, 255)}
-}) do
-    local sparkle = create("TextLabel", {
-        Name = "HatSparkle",
-        BackgroundTransparency = 1,
-        Text = info.text,
-        TextColor3 = info.color,
-        TextSize = info.size,
-        Font = Enum.Font.GothamBold,
-        TextXAlignment = Enum.TextXAlignment.Center,
-        TextYAlignment = Enum.TextYAlignment.Center,
-        Size = UDim2.fromOffset(14, 14),
-        Position = info.pos,
-        ZIndex = Toggle.ZIndex + 6
-    }, Toggle)
-    table.insert(sparkleLabels, sparkle)
-end
-
--- Animate the floating control and its native vector icon together.
-local toggleScale = Toggle:FindFirstChildOfClass("UIScale")
-if toggleScale then toggleScale.Scale = 0.72 end
-Toggle.BackgroundTransparency = 1
-for _, stroke in ipairs(hatStrokes) do stroke.Transparency = 1 end
-for _, sparkle in ipairs(sparkleLabels) do sparkle.TextTransparency = 1 end
-local floatingAppearInfo = TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local floatingFadeInfo = TweenInfo.new(0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-if toggleScale then
-    TweenService:Create(toggleScale, floatingAppearInfo, {Scale = 1}):Play()
-end
-TweenService:Create(Toggle, floatingFadeInfo, {BackgroundTransparency = 0}):Play()
-if toggleOutline then TweenService:Create(toggleOutline, floatingFadeInfo, {Transparency = 0.12}):Play() end
-for _, stroke in ipairs(hatStrokes) do
-    TweenService:Create(stroke, floatingFadeInfo, {Transparency = 0.02}):Play()
-end
-for _, sparkle in ipairs(sparkleLabels) do
-    TweenService:Create(sparkle, floatingFadeInfo, {TextTransparency = 0}):Play()
-end
-end -- floating icon construction scope
+    -- Smooth entrance; only opacity/scale animate, no per-frame work.
+    local toggleScale = Toggle:FindFirstChildOfClass("UIScale")
+    if toggleScale then toggleScale.Scale = 0.78 end
+    Toggle.BackgroundTransparency = 1
+    if outline then outline.Transparency = 1 end
+    TweenService:Create(Toggle,
+        TweenInfo.new(0.32, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {BackgroundTransparency = 0}):Play()
+    if outline then
+        TweenService:Create(outline,
+            TweenInfo.new(0.36, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Transparency = 0.05}):Play()
+    end
+    if toggleScale then
+        TweenService:Create(toggleScale,
+            TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {Scale = 1}):Play()
+    end
+end -- floating-icon scope
 AI_DIAG_STAGE = "AI_BUTTON_CREATED"
 AIDiag("10 AI button created successfully")
 
@@ -1159,7 +1094,8 @@ local Main = create("Frame", {
 
 round(Main, 18)
 addStroke(Main)
-EH.ehPanel(Main, "shell")
+-- A single continuous border follows Main's UICorner, with no detached strips.
+EH.ehStroke(Main, Color3.fromRGB(180, 115, 116), 0.08, 1.65)
 create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(23, 16, 25)),
@@ -1196,7 +1132,7 @@ local Header = create("Frame", {
 }, Main)
 
 round(Header, 15)
-EH.accentRule(Header, UDim2.fromOffset(0, 12), UDim2.fromOffset(4, 25), 0.02)
+
 create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(36, 25, 34)),
@@ -1206,27 +1142,22 @@ create("UIGradient", {
     Rotation = 0
 }, Header)
 addStroke(Header)
--- Compact segmented spectrum bridge; the center is the only animated rail.
-do
-    EH.accentRule(Header, UDim2.fromOffset(18, 51),
-        UDim2.fromOffset(25, 4), 0.04)
-    EH.accentRule(Header, UDim2.new(1, -43, 1, 3),
-        UDim2.fromOffset(25, 4), 0.04)
-    local headerRail = create("Frame", {
-        Name = "EHSpectrumMain",
-        BorderSizePixel = 0,
-        BackgroundColor3 = Color3.fromRGB(239, 177, 128),
-        Size = UDim2.new(1, -100, 0, 4),
-        Position = UDim2.new(0, 50, 1, 3),
-        ZIndex = 4,
-        Active = false
-    }, Header)
-    round(headerRail, 3)
-    EH.animateLightRail(headerRail, 10)
+-- Connected rounded header contour; no floating segmented fragments.
+EH.ehStroke(Header, Color3.fromRGB(172, 111, 117), 0.11, 1.35)
+local HeaderContour = Header:FindFirstChildOfClass("UIStroke")
+if HeaderContour then
+    create("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(118, 67, 104)),
+            ColorSequenceKeypoint.new(0.45, Color3.fromRGB(229, 168, 134)),
+            ColorSequenceKeypoint.new(0.75, Color3.fromRGB(189, 103, 122)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(118, 67, 104))
+        })
+    }, HeaderContour)
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.47",
+    Header, "AVATAR INSPECTOR v7.9.48",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1238,7 +1169,7 @@ HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
 HeaderTitle.Position = UDim2.fromOffset(18, 3)
 
 do
-    local subtitle = makeLabel(Header, "EVENT HORIZON / 047",
+    local subtitle = makeLabel(Header, "EVENT HORIZON / 048",
         UDim2.fromOffset(260, 14), UDim2.fromOffset(17, 29), 9)
     subtitle.Font = Enum.Font.GothamBold
     subtitle.TextColor3 = Color3.fromRGB(229, 163, 120)
@@ -1658,7 +1589,7 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- EVENT HORIZON / 047 lower structural belt: a segmented bridge + useful status console.
+-- EVENT HORIZON / 048 lower structural belt: a segmented bridge + useful status console.
 -- Explicitly replaces the older v7.9.42 bridge and brand pill; no stacking.
 local EHBridge = create("Frame", {
     Name = "EHLowerBridge",
@@ -1669,27 +1600,22 @@ local EHBridge = create("Frame", {
     Active = false
 }, Main)
 do
-    EH.accentRule(EHBridge, UDim2.fromOffset(0, 0),
-        UDim2.fromOffset(26, 3), 0.1)
-    EH.accentRule(EHBridge, UDim2.new(1, -26, 0, 0),
-        UDim2.fromOffset(26, 3), 0.1)
-    local belt = create("Frame", {
-        Name = "EHLowerBelt",
-        Position = UDim2.fromOffset(33, 0),
-        Size = UDim2.new(1, -66, 0, 3),
-        BackgroundColor3 = Color3.fromRGB(185, 120, 113),
-        BackgroundTransparency = 0.13,
+    local bridgeLine = create("Frame", {
+        Name = "EHContinuousBridge",
+        Position = UDim2.fromOffset(0, 0),
+        Size = UDim2.new(1, 0, 0, 3),
+        BackgroundColor3 = Color3.fromRGB(188, 126, 118),
         BorderSizePixel = 0,
         Active = false
     }, EHBridge)
-    round(belt, 2)
+    round(bridgeLine, 2)
     create("UIGradient", {
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(69, 41, 66)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(246, 191, 146)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(72, 42, 65))
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 62, 93)),
+            ColorSequenceKeypoint.new(0.50, Color3.fromRGB(236, 178, 139)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 62, 93))
         })
-    }, belt)
+    }, bridgeLine)
 end
 
 local StatusConsole = create("Frame", {
@@ -4962,7 +4888,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.47 loaded successfully")
+print("Avatar Inspector v7.9.48 loaded successfully")
 
 end
 
@@ -4985,11 +4911,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.47 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.48 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.47 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.48 INITIALIZATION FINISHED")
 end
