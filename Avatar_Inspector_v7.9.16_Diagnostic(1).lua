@@ -1,5 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.50
+    AVATAR INSPECTOR v7.9.51
 
     CHANGES:
     - Event Horizon Signature: integrated frames, dark animated controls and empty-preview avatar
@@ -114,13 +114,13 @@ AIDiag("07 PlayerGui OK")
 local BG = Color3.fromRGB(9, 8, 13)
 local PANEL = Color3.fromRGB(21, 18, 26)
 local LIGHT = Color3.fromRGB(39, 32, 42)
-local ACCENT = Color3.fromRGB(205, 131, 108)
-local ACCENT_PURPLE = Color3.fromRGB(234, 166, 121)
-local OUTLINE = Color3.fromRGB(83, 59, 75)
+local ACCENT = Color3.fromRGB(222, 151, 122)
+local ACCENT_PURPLE = Color3.fromRGB(247, 188, 138)
+local OUTLINE = Color3.fromRGB(102, 72, 90)
 local WHITE = Color3.fromRGB(245, 241, 252)
-local MUTED = Color3.fromRGB(177, 155, 163)
+local MUTED = Color3.fromRGB(187, 165, 175)
 local GREEN = Color3.fromRGB(39, 132, 108)
-local ID_GREEN = Color3.fromRGB(104, 218, 151)
+local ID_GREEN = Color3.fromRGB(118, 236, 165)
 local RED = Color3.fromRGB(137, 61, 85)
 
 local selectedPlayer = nil
@@ -676,11 +676,10 @@ function EH.ehPanel(parent, kind)
         kind == "viewer" and 1.55 or 1.25)
     -- Rounded UICorner + UIStroke produce a single continuous border.
     -- A single unobtrusive highlight belongs only to the large non-scroll panels.
+    -- v7.9.51 polish: large panels keep a clean uninterrupted top edge.
+    -- Decorative top stripes were removed because they looked detached.
     if kind == "viewer" then
-        local highlight = EH.accentRule(parent,
-            UDim2.fromOffset(16, 0), UDim2.new(1, -32, 0, 2),
-            0.5, Color3.fromRGB(229, 163, 127))
-        round(highlight, 2)
+        -- intentionally no extra highlight stripe
     end
 end
 
@@ -691,7 +690,7 @@ function EH.icon(parent, kind, position, size)
     local sz = size or 22
     local u = sz / 24
     local z = parent.ZIndex + 1
-    local ink = Color3.fromRGB(240, 181, 141)
+    local ink = Color3.fromRGB(247, 194, 152)
     local root = create("Frame", {
         Name = "EHIcon_" .. tostring(kind),
         Size = UDim2.fromOffset(sz, sz),
@@ -890,11 +889,11 @@ end
 
 function EH.styleIconAction(button)
     button:SetAttribute("EHActionButton", true)
-    button.BackgroundColor3 = Color3.fromRGB(39, 29, 42)
-    button.TextColor3 = Color3.fromRGB(245, 209, 178)
+    button.BackgroundColor3 = Color3.fromRGB(34, 25, 38)
+    button.TextColor3 = Color3.fromRGB(250, 220, 190)
     local edge = button:FindFirstChildOfClass("UIStroke")
     if edge then
-        edge.Color = Color3.fromRGB(194, 126, 114)
+        edge.Color = Color3.fromRGB(214, 146, 126)
         edge.Transparency = 0.12
         edge.Thickness = 1.4
     end
@@ -1064,7 +1063,7 @@ do
 
     local outline = Toggle:FindFirstChildOfClass("UIStroke")
     if outline then
-        outline.Color = Color3.fromRGB(228, 159, 115)
+        outline.Color = Color3.fromRGB(242, 176, 126)
         outline.Thickness = 1.8
         outline.Transparency = 0.05
     end
@@ -1297,29 +1296,29 @@ if HeaderContour then
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.50",
+    Header, "AVATAR INSPECTOR v7.9.51",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
 
 HeaderTitle.Font = Enum.Font.GothamBlack
-HeaderTitle.TextColor3 = Color3.fromRGB(250, 244, 239)
+HeaderTitle.TextColor3 = Color3.fromRGB(255, 248, 242)
 HeaderTitle.TextSize = 17
 HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
 HeaderTitle.Position = UDim2.fromOffset(18, 3)
 
 do
-    local subtitle = makeLabel(Header, "EVENT HORIZON / 050",
+    local subtitle = makeLabel(Header, "EVENT HORIZON / 051",
         UDim2.fromOffset(260, 14), UDim2.fromOffset(17, 29), 9)
     subtitle.Font = Enum.Font.GothamBold
-    subtitle.TextColor3 = Color3.fromRGB(229, 163, 120)
+    subtitle.TextColor3 = Color3.fromRGB(244, 184, 136)
     subtitle.TextSize = 9
     subtitle.Position = UDim2.fromOffset(24, 29)
     local marker = create("Frame", {
         Size = UDim2.fromOffset(6, 6),
         Position = UDim2.fromOffset(15, 33),
         Rotation = 45,
-        BackgroundColor3 = Color3.fromRGB(225, 160, 121),
+        BackgroundColor3 = Color3.fromRGB(238, 174, 129),
         BorderSizePixel = 0,
         Active = false
     }, Header)
@@ -1356,7 +1355,7 @@ do
         Name = "OrbitSatellite",
         Size = UDim2.fromOffset(5, 5),
         Position = UDim2.fromOffset(23, 5),
-        BackgroundColor3 = Color3.fromRGB(247, 193, 147),
+        BackgroundColor3 = Color3.fromRGB(255, 205, 154),
         BorderSizePixel = 0
     }, orbit)
     round(orbitSatellite, 5)
@@ -1471,11 +1470,11 @@ local Search = create("TextBox", {
 round(Search, 12)
 addStroke(Search)
 create("UIPadding", {
-    PaddingLeft = UDim.new(0, 28),
-    PaddingRight = UDim.new(0, 8)
+    PaddingLeft = UDim.new(0, 12),
+    PaddingRight = UDim.new(0, 34)
 }, Search)
 Search.TextColor3 = Color3.fromRGB(249, 242, 236)
-Search.PlaceholderColor3 = Color3.fromRGB(172, 155, 167)
+Search.PlaceholderColor3 = Color3.fromRGB(188, 170, 181)
 local searchOutline = Search:FindFirstChildOfClass("UIStroke")
 if searchOutline then
     Search.Focused:Connect(function()
@@ -1485,7 +1484,7 @@ if searchOutline then
     end)
     Search.FocusLost:Connect(function()
         TweenService:Create(searchOutline, TweenInfo.new(0.18), {
-            Color = OUTLINE, Transparency = 0.22, Thickness = 1
+            Color = OUTLINE, Transparency = 0.14, Thickness = 1.1
         }):Play()
     end)
 end
@@ -1546,7 +1545,7 @@ EH.ehPanel(Viewport, "viewer")
 do
     local viewerInfo = makeLabel(Viewport, "3D-PREVIEW",
         UDim2.fromOffset(116, 18), UDim2.fromOffset(37, 11), 10)
-    viewerInfo.TextColor3 = Color3.fromRGB(237, 217, 202)
+    viewerInfo.TextColor3 = Color3.fromRGB(247, 228, 208)
     viewerInfo.Font = Enum.Font.GothamBold
     viewerInfo.ZIndex = 4
 end
@@ -1623,7 +1622,7 @@ do
     local viewerState = makeLabel(Viewport, "SELECT PLAYER",
         UDim2.fromOffset(130, 19), UDim2.new(0, 13, 1, -23), 9)
     viewerState.Name = "EHModelStateLabel"
-    viewerState.TextColor3 = Color3.fromRGB(206, 156, 137)
+    viewerState.TextColor3 = Color3.fromRGB(228, 181, 157)
     viewerState.Font = Enum.Font.GothamBold
     viewerState.ZIndex = 4
 end
@@ -1720,7 +1719,7 @@ EH.ehPanel(ItemsPanel, "viewer")
 
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
-    UDim2.new(1, -70, 0, 24), UDim2.fromOffset(41, 8), 11
+    UDim2.new(1, -70, 0, 24), UDim2.fromOffset(41, 8), 12
 )
 EH.ehSectionLabel(ItemsTitle)
 ItemsTitle.Font = Enum.Font.GothamBold
@@ -1728,7 +1727,7 @@ ItemsTitle.Font = Enum.Font.GothamBold
 local WornCountLabel = makeLabel(
     ItemsPanel, "WORN ITEMS: —",
     UDim2.new(1, -28, 0, 20),
-    UDim2.fromOffset(14, 34), 11
+    UDim2.fromOffset(14, 34), 12
 )
 WornCountLabel.Name = "WornItemsCounter"
 WornCountLabel.TextColor3 = ID_GREEN
@@ -1750,7 +1749,7 @@ local ItemsStatusChip = makeLabel(
     ItemsPanel, "SCAN ACTIVE",
     UDim2.fromOffset(108, 18), UDim2.new(0, 14, 1, -25), 9
 )
-ItemsStatusChip.TextColor3 = Color3.fromRGB(216, 169, 145)
+ItemsStatusChip.TextColor3 = Color3.fromRGB(233, 188, 160)
 ItemsStatusChip.Font = Enum.Font.GothamBold
 
 local ItemList = create("ScrollingFrame", {
@@ -1775,7 +1774,7 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, ItemList)
 
--- EVENT HORIZON / 050 lower structural belt: a segmented bridge + useful status console.
+-- EVENT HORIZON / 051 lower structural belt: a segmented bridge + useful status console.
 -- Explicitly replaces the older v7.9.42 bridge and brand pill; no stacking.
 local EHBridge = create("Frame", {
     Name = "EHLowerBridge",
@@ -1845,14 +1844,14 @@ local BrandLabel = makeLabel(
     BrandPill, "SYSTEM STATUS",
     UDim2.new(1, -28, 1, 0), UDim2.fromOffset(25, 0), 10
 )
-BrandLabel.TextColor3 = Color3.fromRGB(243, 184, 141)
+BrandLabel.TextColor3 = Color3.fromRGB(249, 196, 153)
 BrandLabel.Font = Enum.Font.GothamBold
 
 local StatusActive = makeLabel(
     StatusConsole, "ACTIVE",
     UDim2.fromOffset(64, 20), UDim2.new(1, -84, 0, 10), 10
 )
-StatusActive.TextColor3 = Color3.fromRGB(243, 184, 141)
+StatusActive.TextColor3 = Color3.fromRGB(249, 196, 153)
 StatusActive.TextXAlignment = Enum.TextXAlignment.Right
 StatusActive.Font = Enum.Font.GothamBold
 StatusActive.Visible = false
@@ -2598,7 +2597,7 @@ local function styleSelectedControl(button, selected)
     local stroke = button:FindFirstChildOfClass("UIStroke")
     if stroke then
         TweenService:Create(stroke, TweenInfo.new(0.18), {
-            Color = selected and Color3.fromRGB(236, 171, 128) or OUTLINE,
+            Color = selected and Color3.fromRGB(252, 197, 145) or OUTLINE,
             Thickness = selected and 1.8 or 1,
             Transparency = selected and 0 or 0.28
         }):Play()
@@ -5082,7 +5081,10 @@ refreshPlayerList()
 -- Theme-only icons are deferred until after the working GUI is initialized.
 task.defer(function()
     if not Main or not Main.Parent then return end
-    EH.safeIcon(Search, "search", UDim2.fromOffset(12, 9), 16)
+    local searchIcon = EH.safeIcon(Search, "search", UDim2.new(1, -31, 0, 8), 15)
+    if searchIcon then
+        searchIcon.AnchorPoint = Vector2.new(0, 0)
+    end
     EH.safeIcon(Viewport, "viewer", UDim2.fromOffset(12, 9), 21)
     EH.safeIcon(ItemsPanel, "items", UDim2.fromOffset(12, 9), 21)
     EH.safeIcon(BrandPill, "status", UDim2.fromOffset(5, 5), 18)
@@ -5125,11 +5127,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.50 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.51 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.50 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.51 INITIALIZATION FINISHED")
 end
