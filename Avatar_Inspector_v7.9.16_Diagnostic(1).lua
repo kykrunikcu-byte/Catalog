@@ -2024,6 +2024,45 @@ EH.styleIconAction(EH.assetCloseButton)
 EH.assetCloseButton.TextSize = 11
 EH.assetCloseButton.ZIndex = 25
 EH.assetCloseButton.Visible = false
+-- Native block-avatar silhouette: never relies on executor image APIs.
+-- The existing return action remains unchanged.
+do
+    EH.assetCloseButton.Text = "АВАТАР"
+    EH.assetCloseButton.TextXAlignment = Enum.TextXAlignment.Right
+    create("UIPadding", {PaddingRight = UDim.new(0, 11)}, EH.assetCloseButton)
+    local glyph = create("Frame", {
+        Name = "EHReturnAvatarGlyph",
+        Position = UDim2.fromOffset(10, 4),
+        Size = UDim2.fromOffset(18, 21),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Active = false,
+        ZIndex = EH.assetCloseButton.ZIndex + 1
+    }, EH.assetCloseButton)
+    local parts = {
+        {5, 0, 8, 7},   -- square head
+        {4, 8, 10, 7},  -- torso
+        {0, 8, 3, 8},   -- left block arm
+        {15, 8, 3, 8},  -- right block arm
+        {4, 16, 4, 5},  -- left leg
+        {10, 16, 4, 5}  -- right leg
+    }
+    for _, p in ipairs(parts) do
+        local piece = create("Frame", {
+            Position = UDim2.fromOffset(p[1], p[2]),
+            Size = UDim2.fromOffset(p[3], p[4]),
+            BackgroundColor3 = Color3.fromRGB(241, 185, 153),
+            BorderSizePixel = 0,
+            Active = false,
+            ZIndex = glyph.ZIndex + 1
+        }, glyph)
+        create("UIStroke", {
+            Color = Color3.fromRGB(166, 103, 111),
+            Thickness = 0.6,
+            Transparency = 0.3
+        }, piece)
+    end
+end
 
 local World = Instance.new("WorldModel")
 World.Parent = Viewport
@@ -5509,15 +5548,107 @@ end
 refreshFavoritesList = function()
     clearGuiList(PlayerList)
 
-    if #favorites == 0 then
-        local empty = makeLabel(
-            PlayerList,
-            "No saved outfits yet",
-            UDim2.new(1, -12, 0, 35),
-            UDim2.fromOffset(6, 6), 11
-        )
+    -- Outfit Dashboard: scoped controls, no added persistent Luau locals.
+    do
+        local card = create("Frame", {
+            Name = "EHSavedOutfitCount",
+            Size = UDim2.fromOffset(172, 78),
+            BackgroundColor3 = Color3.fromRGB(43, 34, 49),
+            BorderSizePixel = 0,
+            LayoutOrder = 0
+        }, PlayerList)
+        round(card, 12)
+        create("UIStroke", {
+            Color = Color3.fromRGB(153, 109, 130),
+            Transparency = 0.36,
+            Thickness = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        }, card)
 
-        empty.TextColor3 = MUTED
+        local titleTag = create("Frame", {
+            Name = "EHSavedOutfitTitle",
+            Size = UDim2.fromOffset(98, 23),
+            Position = UDim2.fromOffset(11, 5),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0
+        }, card)
+        round(titleTag, 6)
+        create("UIStroke", {
+            Color = Color3.fromRGB(197, 143, 156),
+            Thickness = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        }, titleTag)
+        local title = makeLabel(titleTag, "OUTFITS",
+            UDim2.new(1, -8, 1, 0), UDim2.fromOffset(4, 0), 12)
+        title.Font = Enum.Font.GothamMedium
+        title.TextColor3 = Color3.fromRGB(244, 223, 227)
+        title.TextXAlignment = Enum.TextXAlignment.Center
+        title.TextScaled = false
+        EH.safeIcon(card, "outfits", UDim2.fromOffset(144, 7), 18)
+
+        local count = makeLabel(card, string.format("%02d", #favorites),
+            UDim2.fromOffset(80, 27), UDim2.fromOffset(11, 29), 25)
+        count.Font = Enum.Font.GothamBold
+        count.TextColor3 = Color3.fromRGB(249, 237, 241)
+        count.TextXAlignment = Enum.TextXAlignment.Left
+
+        local status = create("Frame", {
+            Name = "EHSavedOutfitStatus",
+            Position = UDim2.fromOffset(11, 57),
+            Size = UDim2.fromOffset(151, 19),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0
+        }, card)
+        round(status, 9)
+        create("UIStroke", {
+            Color = Color3.fromRGB(133, 204, 169),
+            Transparency = 0.2,
+            Thickness = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        }, status)
+        local dot = create("Frame", {
+            Size = UDim2.fromOffset(5, 5),
+            Position = UDim2.fromOffset(7, 7),
+            BackgroundColor3 = Color3.fromRGB(155, 231, 186),
+            BorderSizePixel = 0
+        }, status)
+        round(dot, 3)
+        local caption = makeLabel(status,
+            currentLanguage == "ru" and "Сохранено нарядов" or "Saved outfits",
+            UDim2.new(1, -21, 1, 0), UDim2.fromOffset(17, 0), 10)
+        caption.Font = Enum.Font.GothamMedium
+        caption.TextColor3 = Color3.fromRGB(196, 244, 216)
+        caption.TextXAlignment = Enum.TextXAlignment.Left
+        caption.TextScaled = false
+    end
+
+    if #favorites == 0 then
+        do
+            local emptyCard = create("Frame", {
+                Name = "EHSavedOutfitsEmptyState",
+                Size = UDim2.fromOffset(172, 103),
+                BackgroundColor3 = Color3.fromRGB(34, 27, 40),
+                BackgroundTransparency = 0.18,
+                BorderSizePixel = 0,
+                LayoutOrder = 1
+            }, PlayerList)
+            round(emptyCard, 11)
+            create("UIStroke", {
+                Color = Color3.fromRGB(149, 107, 126),
+                Transparency = 0.5,
+                Thickness = 1,
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+            }, emptyCard)
+            EH.safeIcon(emptyCard, "outfits", UDim2.fromOffset(73, 12), 24)
+            local empty = makeLabel(emptyCard, "No saved outfits yet",
+                UDim2.new(1, -16, 0, 49), UDim2.fromOffset(8, 48), 12)
+            empty.Font = Enum.Font.GothamMedium
+            empty.TextColor3 = Color3.fromRGB(207, 180, 193)
+            empty.TextXAlignment = Enum.TextXAlignment.Center
+            empty.TextYAlignment = Enum.TextYAlignment.Center
+            empty.TextWrapped = true
+            empty.TextTruncate = Enum.TextTruncate.None
+        end
         return
     end
 
