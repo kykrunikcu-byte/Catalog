@@ -1314,6 +1314,18 @@ function EH.icon(parent, kind, position, size)
         strokeLine(18.5, 10, 18.5, 21, 2)
         strokeLine(5.5, 21, 18.5, 21, 2)
         outline(10, 14, 4, 7, 1, 1.6)
+    elseif kind == "user_round_cog" then
+        -- User with a small settings cog; native Luau shapes, no external asset.
+        outline(6.8, 2.0, 8.2, 8.2, 8, 1.9)
+        strokeLine(3.0, 21, 3.4, 17.6, 2)
+        strokeLine(3.4, 17.6, 6.3, 13.9, 2)
+        strokeLine(6.3, 13.9, 13, 13.9, 2)
+        outline(15.3, 15.0, 6, 6, 6, 1.6)
+        dot(17.5, 17.2, 1.7)
+        strokeLine(18.3, 12.9, 18.3, 14.8, 1.4)
+        strokeLine(18.3, 21.2, 18.3, 23, 1.4)
+        strokeLine(13.2, 18, 15.0, 18, 1.4)
+        strokeLine(21.3, 18, 23, 18, 1.4)
     elseif kind == "search" then
         outline(3.1, 2.8, 14.4, 14.4, 10, 2.2)
         strokeLine(16.3, 16.4, 21.5, 21.5, 2.5)
@@ -3107,6 +3119,53 @@ do
     end
     EH.refreshHomeText()
 
+    -- Third page is deliberately empty of gameplay features until agreed.
+    local playerPage = create("Frame", {
+        Name = "HorizonPlayerPage",
+        Position = UDim2.fromOffset(8, 108),
+        Size = UDim2.new(1, -16, 1, -166),
+        BackgroundColor3 = BG,
+        BorderSizePixel = 0,
+        Active = true,
+        Visible = false,
+        ZIndex = 30
+    }, Main)
+    round(playerPage, 12)
+    local playerCard = create("Frame", {
+        Name = "HorizonPlayerCard",
+        Position = UDim2.fromOffset(12, 14),
+        Size = UDim2.new(1, -24, 0, 151),
+        BackgroundColor3 = Color3.fromRGB(36, 31, 26),
+        BorderSizePixel = 0,
+        ZIndex = 31
+    }, playerPage)
+    round(playerCard, 13)
+    create("UIStroke", {Color = Color3.fromRGB(154, 113, 72),
+        Thickness = 1.2, Transparency = 0.17}, playerCard)
+    local playerTitle = makeLabel(playerCard, "",
+        UDim2.new(1, -30, 0, 34), UDim2.fromOffset(16, 16), 20)
+    playerTitle.Font = Enum.Font.GothamBold
+    playerTitle.TextColor3 = Color3.fromRGB(246, 220, 187)
+    playerTitle.ZIndex = 32
+    local playerDescription = makeLabel(playerCard, "",
+        UDim2.new(1, -30, 0, 77), UDim2.fromOffset(16, 57), 13)
+    playerDescription.TextColor3 = Color3.fromRGB(195, 181, 164)
+    playerDescription.TextWrapped = true
+    playerDescription.TextYAlignment = Enum.TextYAlignment.Top
+    playerDescription.TextTruncate = Enum.TextTruncate.None
+    playerDescription.ZIndex = 32
+
+    local refreshHome = EH.refreshHomeText
+    EH.refreshHomeText = function()
+        refreshHome()
+        local ru = currentLanguage == "ru"
+        playerTitle.Text = ru and "Управление игроком" or "Player tools"
+        playerDescription.Text = ru
+            and "Здесь появятся полёт, управление скоростью, прыжки и другие настройки игрока. Пока функции не добавлены."
+            or "Fly, speed, jump and other player tools will appear here. No functions have been added yet."
+    end
+    EH.refreshHomeText()
+
     -- Dedicated navigation bar below the header, not inside its narrow title row.
     local nav = create("Frame", {
         Name = "HorizonNavigationBar",
@@ -3122,50 +3181,58 @@ do
         Thickness = 1.1, Transparency = 0.2}, nav)
 
     local homeTab = makeButton(nav, "Главная",
-        UDim2.new(0.5, -6, 1, -8), UDim2.fromOffset(4, 4),
+        UDim2.new(1/3, -5, 1, -8), UDim2.fromOffset(4, 4),
         Color3.fromRGB(47, 37, 29))
     homeTab.Name = "HorizonHomeTab"
     local avatarsTab = makeButton(nav, "Аватары",
-        UDim2.new(0.5, -6, 1, -8), UDim2.new(0.5, 2, 0, 4),
+        UDim2.new(1/3, -5, 1, -8), UDim2.new(1/3, 2, 0, 4),
         Color3.fromRGB(35, 30, 25))
     avatarsTab.Name = "HorizonAvatarsTab"
+    local playerTab = makeButton(nav, "Игрок",
+        UDim2.new(1/3, -7, 1, -8), UDim2.new(2/3, 1, 0, 4),
+        Color3.fromRGB(35, 30, 25))
+    playerTab.Name = "HorizonPlayerTab"
 
-    for _, tab in ipairs({homeTab, avatarsTab}) do
+    for _, tab in ipairs({homeTab, avatarsTab, playerTab}) do
         tab.ZIndex = 13
-        tab.TextSize = 14
+        tab.TextSize = 13
         tab.Font = Enum.Font.GothamBold
-        tab.TextXAlignment = Enum.TextXAlignment.Center
+        tab.TextXAlignment = Enum.TextXAlignment.Left
         EH.styleIconAction(tab)
+        create("UIPadding", {PaddingLeft = UDim.new(0, 37)}, tab)
     end
-    local homeGlyph = EH.safeIcon(homeTab, "home", UDim2.new(0.5, -59, 0, 8), 23)
-    local avatarGlyph = EH.safeIcon(avatarsTab, "shirt_tab", UDim2.new(0.5, -65, 0, 7), 24)
-    if homeGlyph then homeGlyph.ZIndex = 14 end
-    if avatarGlyph then avatarGlyph.ZIndex = 14 end
+    EH.safeIcon(homeTab, "home", UDim2.fromOffset(10, 8), 23)
+    EH.safeIcon(avatarsTab, "shirt_tab", UDim2.fromOffset(10, 7), 24)
+    EH.safeIcon(playerTab, "user_round_cog", UDim2.fromOffset(10, 7), 24)
 
-    -- The layout routine also updates this bar when switching to mobile width.
     EH.layoutHorizonTabs = function(mobile, windowWidth)
         local width = mobile and (windowWidth - 24) or 450
         nav.Size = UDim2.fromOffset(width, 48)
         nav.Position = UDim2.new(0.5, -width / 2, 0, 54)
-        homeTab.TextSize = mobile and 13 or 14
-        avatarsTab.TextSize = mobile and 13 or 14
+        for _, tab in ipairs({homeTab, avatarsTab, playerTab}) do
+            tab.TextSize = mobile and 12 or 13
+        end
     end
 
     local function selectPage(page)
         layer.Visible = page == "Home"
-        homeTab:SetAttribute("SelectedControl", page == "Home")
-        avatarsTab:SetAttribute("SelectedControl", page == "Avatars")
-        homeTab.BackgroundColor3 = page == "Home"
-            and Color3.fromRGB(93, 67, 43) or Color3.fromRGB(35, 30, 25)
-        avatarsTab.BackgroundColor3 = page == "Avatars"
-            and Color3.fromRGB(93, 67, 43) or Color3.fromRGB(35, 30, 25)
-        local homeStroke = homeTab:FindFirstChildOfClass("UIStroke")
-        local avatarsStroke = avatarsTab:FindFirstChildOfClass("UIStroke")
-        if homeStroke then homeStroke.Transparency = page == "Home" and 0.02 or 0.2 end
-        if avatarsStroke then avatarsStroke.Transparency = page == "Avatars" and 0.02 or 0.2 end
+        playerPage.Visible = page == "Player"
+        for _, entry in ipairs({
+            {button = homeTab, active = page == "Home"},
+            {button = avatarsTab, active = page == "Avatars"},
+            {button = playerTab, active = page == "Player"}
+        }) do
+            local button = entry.button
+            button:SetAttribute("SelectedControl", entry.active)
+            button.BackgroundColor3 = entry.active
+                and Color3.fromRGB(93, 67, 43) or Color3.fromRGB(35, 30, 25)
+            local stroke = button:FindFirstChildOfClass("UIStroke")
+            if stroke then stroke.Transparency = entry.active and 0.02 or 0.2 end
+        end
     end
     homeTab.Activated:Connect(function() selectPage("Home") end)
     avatarsTab.Activated:Connect(function() selectPage("Avatars") end)
+    playerTab.Activated:Connect(function() selectPage("Player") end)
     selectPage("Home")
 end
 
