@@ -759,7 +759,7 @@ function EH.listNeon(panel)
         if not stroke then return end
         stroke.Color = Color3.fromRGB(247, 171, 143)
         stroke.Thickness = 2.2
-        stroke.Transparency = 0.07
+        stroke.Transparency = 0.04
         stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
         local gradient = stroke:FindFirstChild("EHListNeonGradient")
@@ -777,15 +777,15 @@ function EH.listNeon(panel)
             }, stroke)
         end
 
-        -- One slow sweep and one soft breathing effect per large list border.
+        -- One moderately paced sweep and one subtle breathing effect per large list border.
         TweenService:Create(gradient,
-            TweenInfo.new(5.6, Enum.EasingStyle.Sine,
+            TweenInfo.new(4.3, Enum.EasingStyle.Sine,
                 Enum.EasingDirection.InOut, -1, true),
             {Offset = Vector2.new(0.55, 0)}):Play()
         TweenService:Create(stroke,
-            TweenInfo.new(2.8, Enum.EasingStyle.Sine,
+            TweenInfo.new(2.4, Enum.EasingStyle.Sine,
                 Enum.EasingDirection.InOut, -1, true),
-            {Transparency = 0.19}):Play()
+            {Transparency = 0.14}):Play()
     end)
     if not ok then
         warn("[Avatar Inspector] List neon was skipped: " .. tostring(reason))
