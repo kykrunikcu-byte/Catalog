@@ -5857,6 +5857,8 @@ do
         if not obj.Visible then return false end
         local p, q = obj.AbsolutePosition, obj.AbsoluteSize
         local a, b = panel.AbsolutePosition, panel.AbsoluteSize
+        -- A hidden window may not have laid out its first frame yet.
+        if b.X <= 0 or b.Y <= 0 then return true end
         -- Skip off-screen list entries: fewer tweens for long scrolling lists.
         return p.X < a.X + b.X and p.X + q.X > a.X
             and p.Y < a.Y + b.Y and p.Y + q.Y > a.Y
@@ -5933,8 +5935,9 @@ do
                 for name, original in pairs(entry.properties) do
                     goals[name] = hidden and 1 or original
                 end
-                local ok, tween = pcall(TweenService.Create,
-                    TweenService, entry.object, info, goals)
+                local ok, tween = pcall(function()
+                    return TweenService:Create(entry.object, info, goals)
+                end)
                 if ok and tween then
                     runningTweens[#runningTweens + 1] = tween
                     tween:Play()
@@ -5979,13 +5982,18 @@ do
         local token = animationToken
 
         local hadTransition = runningRecords ~= nil
+        -- Capture drag position BEFORE resetTransition restores the old anchor.
+        local draggedPosition = not hadTransition and Main.Visible
+            and Main.Position or nil
         resetTransition()
-        if not hadTransition and Main.Visible then
-            -- Preserve the user's dragged window position.
-            basePosition = Main.Position
+        if draggedPosition then
+            basePosition = draggedPosition
+            Main.Position = basePosition
         end
         targetVisible = shouldShow
         local baseScale = windowBaseScale > 0 and windowBaseScale or 1
+        -- Layout/absolute bounds must be ready when starting from hidden.
+        if shouldShow then Main.Visible = true end
         local snapshot = captureAll()
         runningRecords = snapshot
 
