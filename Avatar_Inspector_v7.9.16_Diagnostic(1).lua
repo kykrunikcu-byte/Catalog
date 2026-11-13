@@ -4387,7 +4387,7 @@ refreshPlayerList = function()
 
     local countHeader = create("Frame", {
         Name = "ServerPlayerCount",
-        Size = UDim2.new(1, -32, 0, 64),
+        Size = UDim2.new(1, -26, 0, 64),
         BackgroundColor3 = Color3.fromRGB(45, 35, 49),
         BorderSizePixel = 0,
         LayoutOrder = 0
