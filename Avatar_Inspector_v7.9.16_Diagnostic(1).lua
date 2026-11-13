@@ -1326,6 +1326,13 @@ function EH.icon(parent, kind, position, size)
         strokeLine(18.3, 21.2, 18.3, 23, 1.4)
         strokeLine(13.2, 18, 15.0, 18, 1.4)
         strokeLine(21.3, 18, 23, 18, 1.4)
+    elseif kind == "fly" then
+        -- Outline airplane for the player tools card.
+        strokeLine(2.8, 12.2, 21, 4.5, 1.9)
+        strokeLine(21, 4.5, 14.3, 21, 1.9)
+        strokeLine(14.3, 21, 11, 14.8, 1.9)
+        strokeLine(11, 14.8, 2.8, 12.2, 1.9)
+        strokeLine(11, 14.8, 21, 4.5, 1.9)
     elseif kind == "search" then
         outline(3.1, 2.8, 14.4, 14.4, 10, 2.2)
         strokeLine(16.3, 16.4, 21.5, 21.5, 2.5)
@@ -3154,6 +3161,124 @@ do
     playerDescription.TextYAlignment = Enum.TextYAlignment.Top
     playerDescription.TextTruncate = Enum.TextTruncate.None
     playerDescription.ZIndex = 32
+
+    -- HORIZON / Accent Corner #10 + Smooth Check #7.
+    -- UI control only: the flight controller is not connected yet.
+    do
+        local flyCard = create("Frame", {
+            Name = "HorizonFlyCard",
+            Position = UDim2.fromOffset(12, 180),
+            Size = UDim2.new(1, -24, 0, 78),
+            BackgroundColor3 = Color3.fromRGB(40, 37, 33),
+            BorderSizePixel = 0,
+            ZIndex = 31
+        }, playerPage)
+        round(flyCard, 10)
+        create("UIStroke", {
+            Color = Color3.fromRGB(69, 64, 58),
+            Thickness = 1,
+            Transparency = 0
+        }, flyCard)
+
+        local accent = create("Frame", {
+            Name = "BronzeCornerAccent",
+            Position = UDim2.fromOffset(13, 19),
+            Size = UDim2.fromOffset(3, 39),
+            BackgroundColor3 = Color3.fromRGB(190, 147, 107),
+            BorderSizePixel = 0,
+            ZIndex = 32
+        }, flyCard)
+        round(accent, 2)
+
+        EH.safeIcon(flyCard, "fly", UDim2.fromOffset(27, 26), 25)
+
+        local flyTitle = makeLabel(flyCard, "Fly",
+            UDim2.new(1, -174, 0, 25), UDim2.fromOffset(64, 16), 16)
+        flyTitle.Font = Enum.Font.GothamBold
+        flyTitle.TextColor3 = Color3.fromRGB(242, 223, 205)
+        flyTitle.ZIndex = 32
+
+        local flySubtitle = makeLabel(flyCard, "Режим полёта",
+            UDim2.new(1, -174, 0, 20), UDim2.fromOffset(64, 41), 11)
+        flySubtitle.TextColor3 = Color3.fromRGB(170, 160, 152)
+        flySubtitle.ZIndex = 32
+
+        local flyToggle = create("TextButton", {
+            Name = "HorizonFlyToggle",
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -15, 0.5, 0),
+            Size = UDim2.fromOffset(68, 34),
+            BackgroundColor3 = Color3.fromRGB(60, 58, 55),
+            BorderSizePixel = 0,
+            Text = "",
+            AutoButtonColor = false,
+            Active = true,
+            Selectable = true,
+            ZIndex = 33
+        }, flyCard)
+        round(flyToggle, 17)
+        local toggleStroke = create("UIStroke", {
+            Color = Color3.fromRGB(109, 102, 95),
+            Thickness = 1,
+            Transparency = 0
+        }, flyToggle)
+
+        local knob = create("Frame", {
+            Name = "SmoothCheckKnob",
+            Position = UDim2.fromOffset(4, 4),
+            Size = UDim2.fromOffset(26, 26),
+            BackgroundColor3 = Color3.fromRGB(197, 190, 183),
+            BorderSizePixel = 0,
+            Active = false,
+            ZIndex = 34
+        }, flyToggle)
+        round(knob, 13)
+        local checkmark = makeLabel(knob, "✓",
+            UDim2.fromScale(1, 1), UDim2.fromOffset(0, -1), 19)
+        checkmark.Name = "SmoothCheckMark"
+        checkmark.TextColor3 = Color3.fromRGB(40, 123, 59)
+        checkmark.TextXAlignment = Enum.TextXAlignment.Center
+        checkmark.TextYAlignment = Enum.TextYAlignment.Center
+        checkmark.TextTransparency = 1
+        checkmark.Font = Enum.Font.GothamBold
+        checkmark.Active = false
+        checkmark.ZIndex = 35
+
+        local isEnabled = false
+        local function setFlyVisualState(enabled)
+            isEnabled = enabled
+            flyToggle:SetAttribute("FlyToggleEnabled", enabled)
+            local movement = TweenInfo.new(0.43, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+            local colors = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            TweenService:Create(knob, movement, {
+                Position = UDim2.fromOffset(enabled and 38 or 4, 4)
+            }):Play()
+            TweenService:Create(knob, colors, {
+                BackgroundColor3 = enabled and Color3.fromRGB(220, 255, 208)
+                    or Color3.fromRGB(197, 190, 183)
+            }):Play()
+            TweenService:Create(flyToggle, colors, {
+                BackgroundColor3 = enabled and Color3.fromRGB(80, 107, 74)
+                    or Color3.fromRGB(60, 58, 55)
+            }):Play()
+            TweenService:Create(toggleStroke, colors, {
+                Color = enabled and Color3.fromRGB(164, 217, 146)
+                    or Color3.fromRGB(109, 102, 95)
+            }):Play()
+            TweenService:Create(checkmark, colors, {
+                TextTransparency = enabled and 0 or 1
+            }):Play()
+        end
+
+        flyToggle.Activated:Connect(function()
+            setFlyVisualState(not isEnabled)
+        end)
+
+        -- The existing localization system can call the most recent page refresh.
+        EH.refreshFlyCardText = function()
+            flySubtitle.Text = currentLanguage == "ru" and "Режим полёта" or "Flight mode"
+        end
+    end
 
     local refreshHome = EH.refreshHomeText
     EH.refreshHomeText = function()
