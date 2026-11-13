@@ -1,5 +1,9 @@
 --[[
-    AVATAR INSPECTOR v7.9.64
+    AVATAR INSPECTOR v7.9.65
+
+    CHANGES IN v7.9.65:
+    - Enlarged OUTFITS hanger PNG from 17 to 26 px and centered it vertically
+    - Preserved all existing controls and visuals
 
     CHANGES IN v7.9.64:
     - Embedded supplied transparent PNG hanger icon for the OUTFITS button
@@ -5353,7 +5357,7 @@ task.defer(function()
     EH.safeIcon(Viewport, "viewer", UDim2.fromOffset(12, 9), 21)
     EH.safeIcon(ItemsPanel, "items", UDim2.fromOffset(12, 9), 21)
     EH.safeIcon(BrandPill, "status", UDim2.fromOffset(5, 5), 18)
-    EH.safeIcon(ModeButton, "outfits", UDim2.fromOffset(8, 9), 17)
+    EH.safeIcon(ModeButton, "outfits", UDim2.fromOffset(8, 5), 26)
     if EH.safeIcon(Close, "close", UDim2.fromOffset(8, 7), 18) then
         Close.Text = ""
     end
