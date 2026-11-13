@@ -1,5 +1,11 @@
 --[[
-    AVATAR INSPECTOR v7.9.67
+    AVATAR INSPECTOR v7.9.68
+
+    CHANGES IN v7.9.68:
+    - Raised ITEMS title a further 5 px for optical alignment with unchanged icon
+    - Enlarged and repositioned search icon to 23 px at the left inset
+    - Narrowed search field 12 px to leave a visible gap before OUTFITS button
+    - Preserved the current OUTFITS button alignment and other functions
 
     CHANGES IN v7.9.67:
     - Moved OUTFITS button label 14 px toward unchanged hanger icon via right text padding
@@ -1701,7 +1707,7 @@ ExitYes.Activated:Connect(function()
 end)
 
 local Search = create("TextBox", {
-    Size = UDim2.new(1, -120, 0, 36),
+    Size = UDim2.new(1, -132, 0, 36),
     Position = UDim2.fromOffset(12, 58),
     BackgroundColor3 = PANEL,
     TextColor3 = WHITE,
@@ -1717,7 +1723,7 @@ local Search = create("TextBox", {
 round(Search, 12)
 addStroke(Search)
 create("UIPadding", {
-    PaddingLeft = UDim.new(0, 30),
+    PaddingLeft = UDim.new(0, 38),
     PaddingRight = UDim.new(0, 8)
 }, Search)
 Search.TextColor3 = Color3.fromRGB(249, 242, 236)
@@ -1980,7 +1986,7 @@ EH.listNeon(ItemsPanel)
 
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
-    UDim2.new(1, -70, 0, 24), UDim2.fromOffset(41, 4), 12
+    UDim2.new(1, -70, 0, 24), UDim2.fromOffset(41, -1), 12
 )
 EH.ehSectionLabel(ItemsTitle)
 ItemsTitle.Font = Enum.Font.GothamBold
@@ -2481,7 +2487,7 @@ local function updateLayout()
 
     if mobile then
         Search.Position = UDim2.fromOffset(12, 58)
-        Search.Size = UDim2.new(1, -120, 0, 34)
+        Search.Size = UDim2.new(1, -132, 0, 34)
 
         ModeButton.Position = UDim2.new(1, -112, 0, 58)
         ModeButton.Size = UDim2.fromOffset(100, 34)
@@ -2504,7 +2510,7 @@ local function updateLayout()
         Status.Size = UDim2.new(1, -204, 0, 30)
     else
         Search.Position = UDim2.fromOffset(12, 58)
-        Search.Size = UDim2.new(1, -120, 0, 36)
+        Search.Size = UDim2.new(1, -132, 0, 36)
 
         ModeButton.Position = UDim2.new(1, -112, 0, 58)
         ModeButton.Size = UDim2.fromOffset(100, 36)
@@ -5363,7 +5369,7 @@ refreshPlayerList()
 task.defer(function()
     if not Main or not Main.Parent then return end
     -- Slightly inset from the left edge, never at the far-right end.
-    EH.safeIcon(Search, "search", UDim2.fromOffset(23, 9), 16)
+    EH.safeIcon(Search, "search", UDim2.fromOffset(8, 6), 23)
     EH.safeIcon(Viewport, "viewer", UDim2.fromOffset(12, 9), 21)
     EH.safeIcon(ItemsPanel, "items", UDim2.fromOffset(12, 5), 21)
     EH.safeIcon(BrandPill, "status", UDim2.fromOffset(5, 5), 18)
