@@ -1,5 +1,10 @@
 --[[
-    AVATAR INSPECTOR v7.9.65
+    AVATAR INSPECTOR v7.9.66
+
+    CHANGES IN v7.9.66:
+    - Raised ITEMS panel heading icon by 4 px for cleaner vertical alignment
+    - Moved OUTFITS button text 7 px left toward its hanger icon
+    - Preserved UI behavior and all other visuals
 
     CHANGES IN v7.9.65:
     - Enlarged OUTFITS hanger PNG from 17 to 26 px and centered it vertically
@@ -1734,7 +1739,7 @@ local ModeButton = makeButton(
 )
 EH.styleIconAction(ModeButton)
 ModeButton.TextXAlignment = Enum.TextXAlignment.Right
-create("UIPadding", {PaddingRight = UDim.new(0, 7)}, ModeButton)
+create("UIPadding", {PaddingRight = UDim.new(0, 14)}, ModeButton)
 
 local PlayerList = create("ScrollingFrame", {
     Position = UDim2.fromOffset(12, 104),
@@ -5355,7 +5360,7 @@ task.defer(function()
     -- Slightly inset from the left edge, never at the far-right end.
     EH.safeIcon(Search, "search", UDim2.fromOffset(23, 9), 16)
     EH.safeIcon(Viewport, "viewer", UDim2.fromOffset(12, 9), 21)
-    EH.safeIcon(ItemsPanel, "items", UDim2.fromOffset(12, 9), 21)
+    EH.safeIcon(ItemsPanel, "items", UDim2.fromOffset(12, 5), 21)
     EH.safeIcon(BrandPill, "status", UDim2.fromOffset(5, 5), 18)
     EH.safeIcon(ModeButton, "outfits", UDim2.fromOffset(8, 5), 26)
     if EH.safeIcon(Close, "close", UDim2.fromOffset(8, 7), 18) then
