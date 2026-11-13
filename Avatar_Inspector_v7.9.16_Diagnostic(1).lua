@@ -2188,13 +2188,13 @@ EH.safeIcon(EH.wornHeader, "items", UDim2.new(1, -32, 0, 5), 22)
 
 EH.wornBadge = makeLabel(
     EH.wornHeader, "—",
-    UDim2.fromOffset(72, 26), UDim2.fromOffset(12, 29), 23
+    UDim2.fromOffset(72, 26), UDim2.fromOffset(12, 29), 19
 )
 EH.wornBadge.Name = "EclipseItemCount"
 EH.wornBadge.BackgroundTransparency = 1
-EH.wornBadge.TextColor3 = Color3.fromRGB(249, 237, 241)
+EH.wornBadge.TextColor3 = Color3.fromRGB(255, 240, 242)
 EH.wornBadge.TextXAlignment = Enum.TextXAlignment.Left
-EH.wornBadge.Font = Enum.Font.GothamBold
+EH.wornBadge.Font = Enum.Font.GothamSemibold
 EH.wornBadge.ZIndex = EH.wornHeader.ZIndex + 2
 
 -- Keep the existing WornCountLabel binding used by scanner and favorites.
@@ -4713,7 +4713,7 @@ local function scanPlayer(player)
     add("Mood Animation", description.MoodAnimation, "Animations")
 
     WornCountLabel.Text = translateText("WORN ITEMS: —"):gsub(":%s*—$", "")
-    EH.wornBadge.Text = tostring(wornItemCount)
+    EH.wornBadge.Text = string.format("%02d", wornItemCount)
     displaySavedItems(identifiers)
 
     local animationCount = 0
@@ -4814,10 +4814,10 @@ refreshPlayerList = function()
 
     local numberLabel = makeLabel(countHeader,
         string.format("%02d", serverPlayers),
-        UDim2.fromOffset(80, 27), UDim2.fromOffset(11, 29), 25)
-    numberLabel.TextColor3 = Color3.fromRGB(249, 237, 241)
+        UDim2.fromOffset(80, 27), UDim2.fromOffset(11, 29), 19)
+    numberLabel.TextColor3 = Color3.fromRGB(255, 240, 242)
     numberLabel.TextXAlignment = Enum.TextXAlignment.Left
-    numberLabel.Font = Enum.Font.GothamBold
+    numberLabel.Font = Enum.Font.GothamSemibold
     numberLabel.ZIndex = countHeader.ZIndex + 2
 
     do
