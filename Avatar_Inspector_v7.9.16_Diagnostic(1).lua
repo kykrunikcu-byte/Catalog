@@ -1825,13 +1825,38 @@ round(Viewport, 12)
 addStroke(Viewport)
 EH.ehPanel(Viewport, "viewer")
 EH.ehStroke(Viewport, Color3.fromRGB(171, 130, 190), 0.19, 1.45)
--- Compact viewer header; the avatar owns the center of the viewport.
+-- Dashboard 19: compact upper-left viewer status, keeping orbit controls clear.
 do
-    local viewerInfo = makeLabel(Viewport, "3D-PREVIEW",
-        UDim2.fromOffset(116, 18), UDim2.fromOffset(37, 11), 10)
-    viewerInfo.TextColor3 = Color3.fromRGB(247, 228, 208)
-    viewerInfo.Font = Enum.Font.GothamBold
-    viewerInfo.ZIndex = 4
+    local dashboard = create("Frame", {
+        Name = "EHViewerDashboard",
+        Position = UDim2.fromOffset(12, 8),
+        Size = UDim2.fromOffset(170, 51),
+        BackgroundColor3 = Color3.fromRGB(43, 34, 49),
+        BackgroundTransparency = 0.12,
+        BorderSizePixel = 0,
+        Active = false,
+        ZIndex = 4
+    }, Viewport)
+    round(dashboard, 11)
+    create("UIStroke", {
+        Color = Color3.fromRGB(153, 109, 130),
+        Transparency = 0.36,
+        Thickness = 1
+    }, dashboard)
+    local viewerInfo = makeLabel(dashboard, "3D-PREVIEW",
+        UDim2.fromOffset(132, 16), UDim2.fromOffset(12, 5), 10)
+    viewerInfo.TextColor3 = Color3.fromRGB(202, 174, 189)
+    viewerInfo.Font = Enum.Font.GothamMedium
+    viewerInfo.ZIndex = 5
+    local dot = create("Frame", {
+        Name = "EHDashboardModelDot",
+        Position = UDim2.fromOffset(13, 34),
+        Size = UDim2.fromOffset(6, 6),
+        BackgroundColor3 = Color3.fromRGB(189, 143, 139),
+        BorderSizePixel = 0,
+        ZIndex = 5
+    }, dashboard)
+    round(dot, 3)
 end
 
 EH.emptyPreview = create("Frame", {
@@ -1878,8 +1903,8 @@ EH.setPreviewReady = function(loaded)
     if label then
         label.Text = loaded and "MODEL READY" or "SELECT PLAYER"
     end
-    local pill = Viewport:FindFirstChild("EHModelReadyPill")
-    local dot = pill and pill:FindFirstChild("EHStatusDot")
+    local dashboard = Viewport:FindFirstChild("EHViewerDashboard")
+    local dot = dashboard and dashboard:FindFirstChild("EHDashboardModelDot")
     if dot then
         dot.BackgroundColor3 = loaded and Color3.fromRGB(142, 222, 175)
             or Color3.fromRGB(189, 143, 139)
@@ -1909,16 +1934,12 @@ FreeViewButton.TextSize = 9
 FreeViewButton.ZIndex = 21
 
 do
-    EH.statusChip(Viewport, "EHModelReadyPill",
-        UDim2.new(0, 12, 1, -31), UDim2.fromOffset(132, 24),
-        Color3.fromRGB(189, 143, 139))
     local viewerState = makeLabel(Viewport, "SELECT PLAYER",
-        UDim2.fromOffset(107, 22), UDim2.new(0, 35, 1, -30), 9)
+        UDim2.fromOffset(141, 19), UDim2.fromOffset(25, 28), 12)
     viewerState.Name = "EHModelStateLabel"
-    viewerState.ZIndex = Viewport.ZIndex + 3
-    viewerState.TextColor3 = Color3.fromRGB(249, 193, 150)
-    viewerState.Font = Enum.Font.GothamBold
-    viewerState.ZIndex = 4
+    viewerState.ZIndex = 5
+    viewerState.TextColor3 = Color3.fromRGB(230, 219, 222)
+    viewerState.Font = Enum.Font.GothamSemibold
 end
 
 local ZoomBar = create("Frame", {
@@ -2024,59 +2045,45 @@ addStroke(ItemsPanel)
 EH.ehPanel(ItemsPanel, "viewer")
 EH.listNeon(ItemsPanel)
 
--- Reuse the existing worn-items chip as one combined title/count block.
--- No additional frames: icon, title and count all belong to this chip.
+-- Dashboard 19: title, prominent count, and supporting status in one panel.
 EH.wornHeader = EH.statusChip(ItemsPanel, "EHWornCountPill",
     UDim2.fromOffset(13, 5), UDim2.new(1, -26, 0, 50),
     Color3.fromRGB(142, 222, 175))
--- Premium Capsule: one continuous pill with a circular icon and count.
-EH.wornHeader.BackgroundColor3 = Color3.fromRGB(41, 33, 46)
+EH.wornHeader.BackgroundColor3 = Color3.fromRGB(43, 34, 49)
 EH.wornHeader.EHStatusDot.Visible = false
--- The statusChip helper always constructs one UIStroke and one UICorner.
--- Modify those existing parts without allocating two more function locals.
-EH.wornHeader:FindFirstChildOfClass("UIStroke").Color = Color3.fromRGB(189, 138, 159)
-EH.wornHeader:FindFirstChildOfClass("UIStroke").Transparency = 0.28
-EH.wornHeader:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(0, 25)
-EH.itemsIconCircle = create("Frame", {
-    Name = "PremiumItemsIconCircle",
-    Position = UDim2.fromOffset(6, 7),
-    Size = UDim2.fromOffset(36, 36),
-    BackgroundColor3 = Color3.fromRGB(73, 50, 72),
-    BorderSizePixel = 0,
-    ZIndex = EH.wornHeader.ZIndex + 1
-}, EH.wornHeader)
-round(EH.itemsIconCircle, 18)
--- Item title is needed only during construction, not for the whole script lifetime.
+EH.wornHeader:FindFirstChildOfClass("UIStroke").Color = Color3.fromRGB(153, 109, 130)
+EH.wornHeader:FindFirstChildOfClass("UIStroke").Transparency = 0.36
+EH.wornHeader:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(0, 12)
 do
     local ItemsTitle = makeLabel(
         EH.wornHeader, "ITEMS",
-        UDim2.new(1, -104, 0, 20), UDim2.fromOffset(48, 6), 12
+        UDim2.new(1, -34, 0, 14), UDim2.fromOffset(12, 4), 10
     )
-    ItemsTitle.Font = Enum.Font.GothamBold
+    ItemsTitle.Font = Enum.Font.GothamMedium
+    ItemsTitle.TextColor3 = Color3.fromRGB(202, 174, 189)
     ItemsTitle.ZIndex = EH.wornHeader.ZIndex + 2
+    EH.safeIcon(EH.wornHeader, "items", UDim2.new(1, -29, 0, 5), 18)
 end
 
 EH.wornBadge = makeLabel(
     EH.wornHeader, "—",
-    UDim2.fromOffset(35, 35), UDim2.new(1, -41, 0, 7), 12
+    UDim2.fromOffset(42, 29), UDim2.fromOffset(12, 19), 23
 )
 EH.wornBadge.Name = "EclipseItemCount"
-EH.wornBadge.BackgroundTransparency = 0
-EH.wornBadge.BackgroundColor3 = Color3.fromRGB(66, 48, 68)
-EH.wornBadge.TextColor3 = ID_GREEN
-EH.wornBadge.TextXAlignment = Enum.TextXAlignment.Center
+EH.wornBadge.BackgroundTransparency = 1
+EH.wornBadge.TextColor3 = Color3.fromRGB(249, 237, 241)
+EH.wornBadge.TextXAlignment = Enum.TextXAlignment.Left
 EH.wornBadge.Font = Enum.Font.GothamBold
 EH.wornBadge.ZIndex = EH.wornHeader.ZIndex + 2
-round(EH.wornBadge, 18)
 
 local WornCountLabel = makeLabel(
     EH.wornHeader, "WORN ITEMS: —",
-    UDim2.new(1, -103, 0, 18), UDim2.fromOffset(48, 26), 11
+    UDim2.new(1, -70, 0, 17), UDim2.fromOffset(58, 28), 10
 )
 WornCountLabel.Name = "WornItemsCounter"
 WornCountLabel.ZIndex = EH.wornHeader.ZIndex + 2
-WornCountLabel.TextColor3 = Color3.fromRGB(199, 172, 188)
-WornCountLabel.Font = Enum.Font.Gotham
+WornCountLabel.TextColor3 = Color3.fromRGB(164, 221, 189)
+WornCountLabel.Font = Enum.Font.GothamMedium
 WornCountLabel.TextXAlignment = Enum.TextXAlignment.Left
 WornCountLabel.Text = translateText("WORN ITEMS: —"):gsub(":%s*—$", "")
 
@@ -4612,59 +4619,48 @@ refreshPlayerList = function()
     local countHeader = create("Frame", {
         Name = "ServerPlayerCount",
         Size = UDim2.fromOffset(172, 64),
-        BackgroundColor3 = Color3.fromRGB(41, 33, 46),
+        BackgroundColor3 = Color3.fromRGB(43, 34, 49),
         BorderSizePixel = 0,
         LayoutOrder = 0
     }, PlayerList)
-    -- Premium Capsule: only one continuous outer card.
-    round(countHeader, 32)
+    round(countHeader, 12)
     create("UIStroke", {
-        Color = Color3.fromRGB(189, 138, 159),
-        Transparency = 0.28,
+        Color = Color3.fromRGB(153, 109, 130),
+        Transparency = 0.36,
         Thickness = 1,
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     }, countHeader)
 
-    local iconCircle = create("Frame", {
-        Name = "PremiumPlayersIconCircle",
-        Position = UDim2.fromOffset(6, 14),
-        Size = UDim2.fromOffset(36, 36),
-        BackgroundColor3 = Color3.fromRGB(73, 50, 72),
-        BorderSizePixel = 0,
-        ZIndex = countHeader.ZIndex + 1
-    }, countHeader)
-    round(iconCircle, 18)
-    EH.safeIcon(iconCircle, "players", UDim2.fromOffset(6, 6), 24)
-
     local listTitle = makeLabel(countHeader, "PLAYERS",
-        UDim2.fromOffset(77, 20), UDim2.fromOffset(46, 11), 12)
-    listTitle.Font = Enum.Font.GothamBold
-    listTitle.TextColor3 = WHITE
+        UDim2.fromOffset(126, 15), UDim2.fromOffset(11, 7), 10)
+    listTitle.Font = Enum.Font.GothamMedium
+    listTitle.TextColor3 = Color3.fromRGB(202, 174, 189)
     listTitle.ZIndex = countHeader.ZIndex + 2
+    EH.safeIcon(countHeader, "players", UDim2.fromOffset(144, 7), 18)
 
-    local capsule = create("Frame", {
-        Name = "EclipseOnlineCount",
-        Position = UDim2.new(1, -41, 0.5, -18),
-        Size = UDim2.fromOffset(35, 35),
-        BackgroundColor3 = Color3.fromRGB(66, 48, 68),
-        BorderSizePixel = 0,
-        ZIndex = countHeader.ZIndex + 2
-    }, countHeader)
-    round(capsule, 18)
-    local numberLabel = makeLabel(capsule,
+    local numberLabel = makeLabel(countHeader,
         string.format("%02d", serverPlayers),
-        UDim2.new(1, 0, 1, 0), UDim2.fromOffset(0, 0), 11)
-    numberLabel.TextColor3 = Color3.fromRGB(142, 222, 175)
-    numberLabel.TextXAlignment = Enum.TextXAlignment.Center
+        UDim2.fromOffset(59, 32), UDim2.fromOffset(11, 25), 25)
+    numberLabel.TextColor3 = Color3.fromRGB(249, 237, 241)
+    numberLabel.TextXAlignment = Enum.TextXAlignment.Left
     numberLabel.Font = Enum.Font.GothamBold
-    numberLabel.ZIndex = capsule.ZIndex + 1
+    numberLabel.ZIndex = countHeader.ZIndex + 2
 
     local countText = makeLabel(countHeader,
         currentLanguage == "ru" and "Сейчас онлайн" or "Online now",
-        UDim2.fromOffset(84, 19), UDim2.fromOffset(46, 34), 11)
+        UDim2.fromOffset(110, 20), UDim2.fromOffset(53, 37), 10)
     countText.ZIndex = countHeader.ZIndex + 2
-    countText.Font = Enum.Font.Gotham
-    countText.TextColor3 = Color3.fromRGB(199, 172, 188)
+    countText.Font = Enum.Font.GothamMedium
+    countText.TextColor3 = Color3.fromRGB(164, 221, 189)
+
+    local statusDot = create("Frame", {
+        Name = "EHDashboardOnlineDot",
+        Position = UDim2.fromOffset(53, 31),
+        Size = UDim2.fromOffset(6, 6),
+        BackgroundColor3 = Color3.fromRGB(142, 222, 175),
+        BorderSizePixel = 0
+    }, countHeader)
+    round(statusDot, 3)
 
     local filter = string.lower(Search.Text)
 
