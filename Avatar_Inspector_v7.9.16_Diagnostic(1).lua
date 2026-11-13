@@ -3270,9 +3270,424 @@ do
             }):Play()
         end
 
-        flyToggle.Activated:Connect(function()
-            setFlyVisualState(not isEnabled)
+        -- Fly controller: independent speed sources, compact movable panel.
+        -- No extra script files; every GUI object belongs to the existing ScreenGui.
+        local flightSpeed = 50
+        local sliderSpeed = 50
+        local typedSpeed = "50"
+        local manualSpeed = 50
+        local flightConnection = nil
+        local flightHumanoid = nil
+        local flightRoot = nil
+        local flightVelocity = nil
+        local flightGyro = nil
+        local formerPlatformStand = false
+        local upHeld = false
+        local downHeld = false
+        local flightKeyboard = {W = false, A = false, S = false, D = false, Up = false, Down = false}
+
+        local flyPanel = create("Frame", {
+            Name = "HorizonFlyControlPanel",
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -12, 0.5, 0),
+            Size = UDim2.fromOffset(268, 304),
+            BackgroundColor3 = Color3.fromRGB(36, 33, 30),
+            BorderSizePixel = 0,
+            Visible = false,
+            Active = true,
+            ZIndex = 110
+        }, ScreenGui)
+        round(flyPanel, 16)
+        create("UIStroke", {Color = Color3.fromRGB(106, 85, 64),
+            Thickness = 1, Transparency = 0}, flyPanel)
+        local panelScale = create("UIScale", {Scale = 1}, flyPanel)
+
+        local headerDrag = create("TextButton", {
+            Name = "FlyDragHandle", Text = "",
+            Position = UDim2.fromOffset(4, 4),
+            Size = UDim2.new(1, -8, 0, 41),
+            BackgroundTransparency = 1, AutoButtonColor = false,
+            ZIndex = 111, Active = true
+        }, flyPanel)
+        local panelTitle = makeLabel(flyPanel, "FLY",
+            UDim2.fromOffset(150, 29), UDim2.fromOffset(14, 10), 16)
+        panelTitle.Font = Enum.Font.GothamBold
+        panelTitle.TextColor3 = Color3.fromRGB(240, 214, 184)
+        panelTitle.ZIndex = 112
+        panelTitle.Active = false
+
+        local collapseButton = makeButton(flyPanel, "−",
+            UDim2.fromOffset(30, 28), UDim2.new(1, -42, 0, 8),
+            Color3.fromRGB(49, 42, 35))
+        collapseButton.Name = "FlyCollapseButton"
+        collapseButton.TextSize = 21
+        collapseButton.ZIndex = 114
+
+        local line = create("Frame", {
+            Name = "FlyHeaderDivider",
+            Position = UDim2.fromOffset(12, 44),
+            Size = UDim2.new(1, -24, 0, 1),
+            BackgroundColor3 = Color3.fromRGB(80, 68, 56),
+            BorderSizePixel = 0, ZIndex = 111
+        }, flyPanel)
+
+        local speedTitle = makeLabel(flyPanel, "Скорость полёта",
+            UDim2.fromOffset(156, 24), UDim2.fromOffset(14, 52), 12)
+        speedTitle.TextColor3 = Color3.fromRGB(217, 194, 169)
+        speedTitle.ZIndex = 112
+        local speedValue = makeLabel(flyPanel, "50",
+            UDim2.fromOffset(85, 24), UDim2.new(1, -99, 0, 52), 13)
+        speedValue.TextColor3 = Color3.fromRGB(234, 193, 143)
+        speedValue.Font = Enum.Font.GothamBold
+        speedValue.TextXAlignment = Enum.TextXAlignment.Right
+        speedValue.ZIndex = 112
+
+        local sliderTrack = create("TextButton", {
+            Name = "FlySpeedSlider", Text = "", AutoButtonColor = false,
+            Position = UDim2.fromOffset(16, 88),
+            Size = UDim2.new(1, -32, 0, 20),
+            BackgroundTransparency = 1, BorderSizePixel = 0,
+            ZIndex = 113
+        }, flyPanel)
+        local sliderRail = create("Frame", {
+            Position = UDim2.new(0, 0, 0.5, -3),
+            Size = UDim2.new(1, 0, 0, 6),
+            BackgroundColor3 = Color3.fromRGB(84, 72, 60),
+            BorderSizePixel = 0, Active = false, ZIndex = 113
+        }, sliderTrack)
+        round(sliderRail, 3)
+        local sliderFill = create("Frame", {
+            Size = UDim2.fromScale(0.05, 1),
+            BackgroundColor3 = Color3.fromRGB(204, 159, 111),
+            BorderSizePixel = 0, Active = false, ZIndex = 114
+        }, sliderRail)
+        round(sliderFill, 3)
+        local sliderKnob = create("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(0.05, 0.5),
+            Size = UDim2.fromOffset(17, 17),
+            BackgroundColor3 = Color3.fromRGB(227, 190, 151),
+            BorderSizePixel = 0, Active = false, ZIndex = 115
+        }, sliderTrack)
+        round(sliderKnob, 9)
+        local sliderMin = makeLabel(flyPanel, "0",
+            UDim2.fromOffset(40, 16), UDim2.fromOffset(16, 112), 10)
+        sliderMin.TextColor3 = MUTED
+        sliderMin.ZIndex = 112
+        local sliderMax = makeLabel(flyPanel, "1000",
+            UDim2.fromOffset(50, 16), UDim2.new(1, -65, 0, 112), 10)
+        sliderMax.TextColor3 = MUTED
+        sliderMax.TextXAlignment = Enum.TextXAlignment.Right
+        sliderMax.ZIndex = 112
+
+        local manualTitle = makeLabel(flyPanel, "Ручной ввод скорости",
+            UDim2.new(1, -28, 0, 20), UDim2.fromOffset(14, 140), 12)
+        manualTitle.TextColor3 = Color3.fromRGB(232, 210, 185)
+        manualTitle.Font = Enum.Font.GothamMedium
+        manualTitle.ZIndex = 112
+
+        local manualBox = create("TextBox", {
+            Name = "FlyManualSpeedInput",
+            Position = UDim2.fromOffset(14, 165),
+            Size = UDim2.new(1, -28, 0, 34),
+            BackgroundColor3 = Color3.fromRGB(48, 43, 39),
+            TextColor3 = Color3.fromRGB(242, 223, 205),
+            PlaceholderText = "0 - 100000000",
+            PlaceholderColor3 = Color3.fromRGB(163, 150, 134),
+            Text = typedSpeed, TextSize = 14, Font = Enum.Font.Gotham,
+            ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Center,
+            BorderSizePixel = 0, ZIndex = 113
+        }, flyPanel)
+        round(manualBox, 8)
+        create("UIStroke", {Color = Color3.fromRGB(95, 77, 60),
+            Thickness = 1, Transparency = 0.1}, manualBox)
+
+        local applyManual = makeButton(flyPanel, "Применить",
+            UDim2.new(1, -28, 0, 30), UDim2.fromOffset(14, 205),
+            Color3.fromRGB(87, 63, 44))
+        applyManual.Name = "FlyApplyManual"
+        applyManual.TextSize = 12
+        applyManual.ZIndex = 113
+
+        local upButton = makeButton(flyPanel, "↑  Вверх",
+            UDim2.new(0.5, -18, 0, 37), UDim2.fromOffset(14, 250),
+            Color3.fromRGB(60, 49, 40))
+        upButton.Name = "FlyAscend"
+        upButton.ZIndex = 113
+        upButton.TextSize = 12
+        local downButton = makeButton(flyPanel, "↓  Вниз",
+            UDim2.new(0.5, -18, 0, 37), UDim2.new(0.5, 4, 0, 250),
+            Color3.fromRGB(60, 49, 40))
+        downButton.Name = "FlyDescend"
+        downButton.ZIndex = 113
+        downButton.TextSize = 12
+
+        local function refreshSpeedText()
+            speedValue.Text = tostring(flightSpeed)
+        end
+        local function refreshSlider()
+            local fraction = math.clamp(sliderSpeed / 1000, 0, 1)
+            sliderFill.Size = UDim2.fromScale(fraction, 1)
+            sliderKnob.Position = UDim2.fromScale(fraction, 0.5)
+        end
+        local function applyTypedSpeed()
+            local candidate = manualBox.Text:match("^%s*(%d+)%s*$")
+            if not candidate or #candidate > 12 then
+                manualBox.TextColor3 = Color3.fromRGB(248, 128, 128)
+                return
+            end
+            local value = tonumber(candidate)
+            if not value or value > 100000000 then
+                manualBox.TextColor3 = Color3.fromRGB(248, 128, 128)
+                return
+            end
+            manualSpeed = value
+            typedSpeed = tostring(value)
+            manualBox.Text = typedSpeed
+            manualBox.TextColor3 = Color3.fromRGB(242, 223, 205)
+            flightSpeed = value
+            refreshSpeedText()
+        end
+        applyManual.Activated:Connect(applyTypedSpeed)
+        manualBox.FocusLost:Connect(function(enterPressed)
+            typedSpeed = manualBox.Text
+            if enterPressed then applyTypedSpeed() end
         end)
+
+        local sliding = false
+        local slidingInput = nil
+        local function setSpeedFromX(x)
+            local left = sliderTrack.AbsolutePosition.X
+            local width = sliderTrack.AbsoluteSize.X
+            if width <= 0 then return end
+            sliderSpeed = math.floor(math.clamp((x - left) / width, 0, 1) * 1000 + 0.5)
+            flightSpeed = sliderSpeed
+            -- Deliberately never write manualBox.Text here.
+            refreshSpeedText()
+            refreshSlider()
+        end
+        sliderTrack.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1
+                or input.UserInputType == Enum.UserInputType.Touch then
+                sliding = true
+                slidingInput = input
+                setSpeedFromX(input.Position.X)
+            end
+        end)
+
+        -- Drag the panel by its title bar; touch and mouse are both supported.
+        local dragging = false
+        local dragInput = nil
+        local dragOrigin = nil
+        local panelOrigin = nil
+        headerDrag.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch
+                or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = true
+                dragInput = input
+                dragOrigin = input.Position
+                panelOrigin = flyPanel.Position
+            end
+        end)
+
+        local function holdButton(button, direction)
+            button.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1
+                    or input.UserInputType == Enum.UserInputType.Touch then
+                    if direction == 1 then upHeld = true else downHeld = true end
+                end
+            end)
+            button.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1
+                    or input.UserInputType == Enum.UserInputType.Touch then
+                    if direction == 1 then upHeld = false else downHeld = false end
+                end
+            end)
+        end
+        holdButton(upButton, 1)
+        holdButton(downButton, -1)
+
+        local function stopPhysics()
+            if flightConnection then flightConnection:Disconnect(); flightConnection = nil end
+            if flightVelocity then flightVelocity:Destroy(); flightVelocity = nil end
+            if flightGyro then flightGyro:Destroy(); flightGyro = nil end
+            if flightHumanoid and flightHumanoid.Parent then
+                flightHumanoid.PlatformStand = formerPlatformStand
+                if flightRoot and flightRoot.Parent then
+                    flightRoot.AssemblyLinearVelocity = Vector3.zero
+                    flightRoot.AssemblyAngularVelocity = Vector3.zero
+                end
+            end
+            flightHumanoid = nil
+            flightRoot = nil
+            upHeld = false
+            downHeld = false
+        end
+
+        local runService = game:GetService("RunService")
+        local function beginPhysics()
+            stopPhysics()
+            local char = LocalPlayer.Character
+            if not char then return end
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if not humanoid or not root or humanoid.Health <= 0 then return end
+            flightHumanoid = humanoid
+            flightRoot = root
+            formerPlatformStand = humanoid.PlatformStand
+            humanoid.PlatformStand = true
+            flightVelocity = Instance.new("BodyVelocity")
+            flightVelocity.Name = "HorizonFlyVelocity"
+            flightVelocity.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+            flightVelocity.P = 12500
+            flightVelocity.Velocity = Vector3.zero
+            flightVelocity.Parent = root
+            flightGyro = Instance.new("BodyGyro")
+            flightGyro.Name = "HorizonFlyGyro"
+            flightGyro.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+            flightGyro.P = 12000
+            flightGyro.D = 600
+            flightGyro.CFrame = root.CFrame
+            flightGyro.Parent = root
+            flightConnection = runService.Heartbeat:Connect(function()
+                if not isEnabled or not ScreenGui.Parent or not root.Parent
+                    or not humanoid.Parent or humanoid.Health <= 0 then
+                    stopPhysics()
+                    return
+                end
+                local camera = workspace.CurrentCamera
+                if not camera then return end
+                local look = camera.CFrame.LookVector
+                local right = camera.CFrame.RightVector
+                local flatForward = Vector3.new(look.X, 0, look.Z)
+                if flatForward.Magnitude > 0.001 then flatForward = flatForward.Unit
+                else flatForward = Vector3.new(0, 0, -1) end
+                local flatRight = Vector3.new(right.X, 0, right.Z)
+                if flatRight.Magnitude > 0.001 then flatRight = flatRight.Unit
+                else flatRight = Vector3.new(1, 0, 0) end
+
+                -- The Roblox touch thumbstick provides MoveDirection; PC keys
+                -- are read separately because PlatformStand suppresses normal walking.
+                local movement = humanoid.MoveDirection
+                local horizontal = Vector3.new(movement.X, 0, movement.Z)
+                local forwardAxis = (flightKeyboard.W and 1 or 0) - (flightKeyboard.S and 1 or 0)
+                local rightAxis = (flightKeyboard.D and 1 or 0) - (flightKeyboard.A and 1 or 0)
+                if forwardAxis ~= 0 or rightAxis ~= 0 then
+                    horizontal = flatForward * forwardAxis + flatRight * rightAxis
+                end
+                if horizontal.Magnitude > 1 then horizontal = horizontal.Unit end
+                local vertical = ((upHeld or flightKeyboard.Up) and 1 or 0)
+                    - ((downHeld or flightKeyboard.Down) and 1 or 0)
+                local direction = horizontal + Vector3.new(0, vertical, 0)
+                if direction.Magnitude > 1 then direction = direction.Unit end
+                -- Requested value is applied directly, including manual values.
+                -- At very high speeds Roblox physics or server validation may fail.
+                flightVelocity.Velocity = direction * flightSpeed
+                flightGyro.CFrame = CFrame.lookAt(root.Position, root.Position + flatForward)
+            end)
+        end
+
+        local function fitPanel()
+            local camera = workspace.CurrentCamera
+            if not camera then return end
+            local view = camera.ViewportSize
+            panelScale.Scale = math.min(1, math.max(0.55, (view.Y - 22) / 310),
+                math.max(0.55, (view.X - 22) / 274))
+        end
+
+        local function showFlyPanel(show)
+            if show then
+                fitPanel()
+                flyPanel.Visible = true
+                panelScale.Scale = panelScale.Scale * 0.94
+                local target = math.min(1,
+                    math.max(0.55, (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.Y or 350) / 320))
+                TweenService:Create(panelScale,
+                    TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                    {Scale = target}):Play()
+            else
+                flyPanel.Visible = false
+            end
+        end
+
+        local function setFlyState(enabled)
+            setFlyVisualState(enabled)
+            showFlyPanel(enabled)
+            if enabled then beginPhysics() else stopPhysics() end
+        end
+        flyToggle.Activated:Connect(function()
+            setFlyState(not isEnabled)
+        end)
+        collapseButton.Activated:Connect(function()
+            -- Minimize the controls while retaining flight; toggle from Player page to reopen.
+            flyPanel.Visible = false
+        end)
+
+        local inputChangedConnection = UserInputService.InputChanged:Connect(function(input)
+            if sliding and (input == slidingInput
+                or (slidingInput and slidingInput.UserInputType == Enum.UserInputType.MouseButton1
+                    and input.UserInputType == Enum.UserInputType.MouseMovement)) then
+                setSpeedFromX(input.Position.X)
+            end
+            if dragging and dragOrigin and panelOrigin and (input == dragInput
+                or (dragInput and dragInput.UserInputType == Enum.UserInputType.MouseButton1
+                    and input.UserInputType == Enum.UserInputType.MouseMovement)) then
+                local delta = input.Position - dragOrigin
+                local scale = panelScale.Scale
+                -- Keep the floating panel inside the visible screen.
+                local camera = workspace.CurrentCamera
+                if camera then
+                    local view = camera.ViewportSize
+                    local nx = math.clamp(panelOrigin.X.Offset + delta.X, 268 * scale + 4, view.X - 4)
+                    local ny = math.clamp(panelOrigin.Y.Offset + delta.Y, -view.Y / 2 + 152 * scale,
+                        view.Y / 2 - 152 * scale)
+                    flyPanel.Position = UDim2.new(1, nx - view.X, 0.5, ny)
+                end
+            end
+        end)
+        local inputEndedConnection = UserInputService.InputEnded:Connect(function(input)
+            if input == slidingInput or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                sliding = false; slidingInput = nil
+            end
+            if input == dragInput or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = false; dragInput = nil
+            end
+            if input.KeyCode == Enum.KeyCode.W then flightKeyboard.W = false
+            elseif input.KeyCode == Enum.KeyCode.A then flightKeyboard.A = false
+            elseif input.KeyCode == Enum.KeyCode.S then flightKeyboard.S = false
+            elseif input.KeyCode == Enum.KeyCode.D then flightKeyboard.D = false
+            elseif input.KeyCode == Enum.KeyCode.Space then flightKeyboard.Up = false
+            elseif input.KeyCode == Enum.KeyCode.LeftControl then flightKeyboard.Down = false
+            end
+        end)
+        local inputBeganConnection = UserInputService.InputBegan:Connect(function(input, processed)
+            if processed or UserInputService:GetFocusedTextBox() then return end
+            if input.KeyCode == Enum.KeyCode.W then flightKeyboard.W = true
+            elseif input.KeyCode == Enum.KeyCode.A then flightKeyboard.A = true
+            elseif input.KeyCode == Enum.KeyCode.S then flightKeyboard.S = true
+            elseif input.KeyCode == Enum.KeyCode.D then flightKeyboard.D = true
+            elseif input.KeyCode == Enum.KeyCode.Space then flightKeyboard.Up = true
+            elseif input.KeyCode == Enum.KeyCode.LeftControl then flightKeyboard.Down = true
+            end
+        end)
+        table.insert(externalConnections, inputChangedConnection)
+        table.insert(externalConnections, inputEndedConnection)
+        table.insert(externalConnections, inputBeganConnection)
+        table.insert(externalConnections, LocalPlayer.CharacterAdded:Connect(function()
+            if not isEnabled then return end
+            task.defer(function()
+                local character = LocalPlayer.Character
+                if character and character:WaitForChild("HumanoidRootPart", 10)
+                    and isEnabled and ScreenGui.Parent then beginPhysics() end
+            end)
+        end))
+        EH.stopFly = function()
+            isEnabled = false
+            stopPhysics()
+            flyPanel.Visible = false
+        end
+        refreshSlider()
+        refreshSpeedText()
 
         -- The existing localization system can call the most recent page refresh.
         EH.refreshFlyCardText = function()
@@ -3287,8 +3702,8 @@ do
         playerTitle.Text = ru and "Управление игроком" or "Player tools"
         if EH.refreshFlyCardText then EH.refreshFlyCardText() end
         playerDescription.Text = ru
-            and "Здесь появятся полёт, управление скоростью, прыжки и другие настройки игрока. Пока функции не добавлены."
-            or "Fly, speed, jump and other player tools will appear here. No functions have been added yet."
+            and "Используйте Fly ниже для полёта. Остальные функции управления игроком добавим позже."
+            or "Use Fly below to control flight. More player tools are coming later."
     end
     EH.refreshHomeText()
 
@@ -4206,6 +4621,8 @@ local function cancelPoseTweens()
 end
 
 shutdownAvatarInspector = function()
+    -- Restore normal character physics before shutting down HORIZON.
+    if EH.stopFly then pcall(EH.stopFly) end
     -- Disconnect listeners attached to services/workspace before removing the GUI.
     for _, connection in ipairs(externalConnections) do
         pcall(function() connection:Disconnect() end)
