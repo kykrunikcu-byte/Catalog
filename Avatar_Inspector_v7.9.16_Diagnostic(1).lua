@@ -4387,7 +4387,7 @@ refreshPlayerList = function()
 
     local countHeader = create("Frame", {
         Name = "ServerPlayerCount",
-        Size = UDim2.new(1, -38, 0, 64),
+        Size = UDim2.new(1, -44, 0, 64),
         BackgroundColor3 = Color3.fromRGB(45, 35, 49),
         BorderSizePixel = 0,
         LayoutOrder = 0
@@ -4417,7 +4417,7 @@ refreshPlayerList = function()
     -- Single existing player-count header: no nested status chip/frame.
     local onlineDot = create("Frame", {
         Name = "EHOnlineDot",
-        Position = UDim2.fromOffset(9, 37),
+        Position = UDim2.fromOffset(7, 37),
         Size = UDim2.fromOffset(7, 7),
         BackgroundColor3 = Color3.fromRGB(142, 222, 175),
         BorderSizePixel = 0,
@@ -4427,7 +4427,7 @@ refreshPlayerList = function()
     round(onlineDot, 7)
     local countText = makeLabel(countHeader,
         string.format("%02d ONLINE", serverPlayers),
-        UDim2.new(1, -26, 0, 19), UDim2.fromOffset(21, 30), 10)
+        UDim2.new(1, -18, 0, 22), UDim2.fromOffset(17, 29), 12)
     countText.ZIndex = countHeader.ZIndex + 3
     countText.Font = Enum.Font.GothamBold
     countText.TextColor3 = Color3.fromRGB(249, 193, 150)
