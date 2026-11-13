@@ -759,7 +759,7 @@ function EH.listNeon(panel)
         if not stroke then return end
         stroke.Color = Color3.fromRGB(247, 171, 143)
         stroke.Thickness = 2.2
-        stroke.Transparency = 0.10
+        stroke.Transparency = 0.07
         stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
         local gradient = stroke:FindFirstChild("EHListNeonGradient")
@@ -769,10 +769,10 @@ function EH.listNeon(panel)
                 Rotation = 15,
                 Offset = Vector2.new(-0.55, 0),
                 Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Color3.fromRGB(144, 91, 120)),
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(152, 112, 190)),
                     ColorSequenceKeypoint.new(0.40, Color3.fromRGB(251, 183, 147)),
                     ColorSequenceKeypoint.new(0.57, Color3.fromRGB(255, 218, 162)),
-                    ColorSequenceKeypoint.new(1, Color3.fromRGB(186, 108, 128))
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(152, 112, 190))
                 })
             }, stroke)
         end
@@ -785,7 +785,7 @@ function EH.listNeon(panel)
         TweenService:Create(stroke,
             TweenInfo.new(2.8, Enum.EasingStyle.Sine,
                 Enum.EasingDirection.InOut, -1, true),
-            {Transparency = 0.23}):Play()
+            {Transparency = 0.19}):Play()
     end)
     if not ok then
         warn("[Avatar Inspector] List neon was skipped: " .. tostring(reason))
