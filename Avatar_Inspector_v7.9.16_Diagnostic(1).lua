@@ -2037,7 +2037,8 @@ if itemsEdge then
     itemsEdge.Color = Color3.fromRGB(189, 138, 159)
     itemsEdge.Transparency = 0.28
 end
-round(EH.wornHeader, 25)
+local itemsCorner = EH.wornHeader:FindFirstChildOfClass("UICorner")
+if itemsCorner then itemsCorner.CornerRadius = UDim.new(0, 25) end
 EH.itemsIconCircle = create("Frame", {
     Name = "PremiumItemsIconCircle",
     Position = UDim2.fromOffset(6, 7),
@@ -4609,7 +4610,7 @@ refreshPlayerList = function()
 
     local countHeader = create("Frame", {
         Name = "ServerPlayerCount",
-        Size = UDim2.fromOffset(150, 64),
+        Size = UDim2.fromOffset(172, 64),
         BackgroundColor3 = Color3.fromRGB(41, 33, 46),
         BorderSizePixel = 0,
         LayoutOrder = 0
@@ -4635,7 +4636,7 @@ refreshPlayerList = function()
     EH.safeIcon(iconCircle, "players", UDim2.fromOffset(6, 6), 24)
 
     local listTitle = makeLabel(countHeader, "PLAYERS",
-        UDim2.fromOffset(62, 20), UDim2.fromOffset(46, 11), 12)
+        UDim2.fromOffset(77, 20), UDim2.fromOffset(46, 11), 12)
     listTitle.Font = Enum.Font.GothamBold
     listTitle.TextColor3 = WHITE
     listTitle.ZIndex = countHeader.ZIndex + 2
@@ -4659,7 +4660,7 @@ refreshPlayerList = function()
 
     local countText = makeLabel(countHeader,
         currentLanguage == "ru" and "Сейчас онлайн" or "Online now",
-        UDim2.fromOffset(99, 19), UDim2.fromOffset(46, 34), 11)
+        UDim2.fromOffset(84, 19), UDim2.fromOffset(46, 34), 11)
     countText.ZIndex = countHeader.ZIndex + 2
     countText.Font = Enum.Font.Gotham
     countText.TextColor3 = Color3.fromRGB(199, 172, 188)
