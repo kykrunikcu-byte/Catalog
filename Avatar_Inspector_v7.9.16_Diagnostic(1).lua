@@ -2000,25 +2000,41 @@ EH.listNeon(ItemsPanel)
 EH.wornHeader = EH.statusChip(ItemsPanel, "EHWornCountPill",
     UDim2.fromOffset(13, 5), UDim2.new(1, -26, 0, 50),
     Color3.fromRGB(142, 222, 175))
-EH.wornHeader.EHStatusDot.Position = UDim2.fromOffset(9, 35)
+-- Eclipse Card: the existing card contains both heading and counter.
+EH.wornHeader.BackgroundColor3 = Color3.fromRGB(33, 26, 38)
+EH.wornHeader.EHStatusDot.Visible = false
+EH.wornHeader:FindFirstChildOfClass("UIStroke").Color = Color3.fromRGB(167, 123, 158)
 local ItemsTitle = makeLabel(
     EH.wornHeader, "ITEMS",
-    UDim2.new(1, -48, 0, 21), UDim2.fromOffset(36, 7), 12
+    UDim2.new(1, -92, 0, 21), UDim2.fromOffset(36, 7), 12
 )
 EH.ehSectionLabel(ItemsTitle)
 ItemsTitle.Font = Enum.Font.GothamBold
 ItemsTitle.ZIndex = EH.wornHeader.ZIndex + 2
 
+EH.wornBadge = makeLabel(
+    EH.wornHeader, "—",
+    UDim2.fromOffset(37, 22), UDim2.new(1, -46, 0, 5), 12
+)
+EH.wornBadge.Name = "EclipseItemCount"
+EH.wornBadge.BackgroundTransparency = 0
+EH.wornBadge.BackgroundColor3 = Color3.fromRGB(66, 48, 68)
+EH.wornBadge.TextColor3 = ID_GREEN
+EH.wornBadge.TextXAlignment = Enum.TextXAlignment.Center
+EH.wornBadge.Font = Enum.Font.GothamBold
+EH.wornBadge.ZIndex = EH.wornHeader.ZIndex + 2
+round(EH.wornBadge, 11)
+
 local WornCountLabel = makeLabel(
     EH.wornHeader, "WORN ITEMS: —",
-    UDim2.new(1, -29, 0, 22),
-    UDim2.fromOffset(21, 29), 11
+    UDim2.new(1, -24, 0, 18), UDim2.fromOffset(12, 29), 11
 )
 WornCountLabel.Name = "WornItemsCounter"
 WornCountLabel.ZIndex = EH.wornHeader.ZIndex + 2
-WornCountLabel.TextColor3 = ID_GREEN
-WornCountLabel.Font = Enum.Font.GothamBold
+WornCountLabel.TextColor3 = Color3.fromRGB(199, 172, 188)
+WornCountLabel.Font = Enum.Font.Gotham
 WornCountLabel.TextXAlignment = Enum.TextXAlignment.Left
+WornCountLabel.Text = translateText("WORN ITEMS: —"):gsub(":%s*—$", "")
 
 do
     local rule = create("Frame", {
@@ -4213,7 +4229,8 @@ local function scanPlayer(player)
     selectedFavorite = nil
 
     clearItems()
-    WornCountLabel.Text = "WORN ITEMS: —"
+    WornCountLabel.Text = translateText("WORN ITEMS: —"):gsub(":%s*—$", "")
+    EH.wornBadge.Text = "—"
     Status.Text = "Loading player..."
 
     showPlayerModel(player)
@@ -4326,7 +4343,8 @@ local function scanPlayer(player)
     add("Swim Animation", description.SwimAnimation, "Animations")
     add("Mood Animation", description.MoodAnimation, "Animations")
 
-    WornCountLabel.Text = string.format("WORN ITEMS: %d", wornItemCount)
+    WornCountLabel.Text = translateText("WORN ITEMS: —"):gsub(":%s*—$", "")
+    EH.wornBadge.Text = tostring(wornItemCount)
     displaySavedItems(identifiers)
 
     local animationCount = 0
@@ -4388,18 +4406,18 @@ refreshPlayerList = function()
     local countHeader = create("Frame", {
         Name = "ServerPlayerCount",
         Size = UDim2.fromOffset(150, 64),
-        BackgroundColor3 = Color3.fromRGB(45, 35, 49),
+        BackgroundColor3 = Color3.fromRGB(33, 26, 38),
         BorderSizePixel = 0,
         LayoutOrder = 0
     }, PlayerList)
     EH.ehCard(countHeader)
-    -- Match the existing items status chip instead of the darker card gradient.
+    -- Eclipse Card: keep one outer card and its existing player icon.
     local headerGradient = countHeader:FindFirstChildOfClass("UIGradient")
     if headerGradient then headerGradient:Destroy() end
     local headerEdge = countHeader:FindFirstChildOfClass("UIStroke")
     if headerEdge then
-        headerEdge.Color = Color3.fromRGB(215, 143, 123)
-        headerEdge.Transparency = 0.50
+        headerEdge.Color = Color3.fromRGB(167, 123, 158)
+        headerEdge.Transparency = 0.35
         headerEdge.Thickness = 1
     end
 
@@ -4410,27 +4428,43 @@ refreshPlayerList = function()
     EH.safeIcon(countHeader, "players", UDim2.fromOffset(8, 6), 23)
 
     local listTitle = makeLabel(countHeader, "PLAYERS",
-        UDim2.new(1, -56, 0, 18), UDim2.fromOffset(35, 8), 12)
+        UDim2.fromOffset(62, 21), UDim2.fromOffset(35, 7), 12)
     listTitle.Font = Enum.Font.GothamBold
     listTitle.TextColor3 = WHITE
 
-    -- Single existing player-count header: no nested status chip/frame.
-    local onlineDot = create("Frame", {
-        Name = "EHOnlineDot",
-        Position = UDim2.fromOffset(7, 37),
-        Size = UDim2.fromOffset(7, 7),
-        BackgroundColor3 = Color3.fromRGB(142, 222, 175),
-        BorderSizePixel = 0,
-        Active = false,
-        ZIndex = countHeader.ZIndex + 2
-    }, countHeader)
-    round(onlineDot, 7)
+    -- The small number capsule is part of the single existing header.
+    do
+        local capsule = create("Frame", {
+            Name = "EclipseOnlineCount",
+            Size = UDim2.fromOffset(43, 23),
+            Position = UDim2.new(1, -48, 0, 6),
+            BackgroundColor3 = Color3.fromRGB(66, 48, 68),
+            BorderSizePixel = 0,
+            ZIndex = countHeader.ZIndex + 2
+        }, countHeader)
+        round(capsule, 12)
+        local dot = create("Frame", {
+            Name = "EHOnlineDot",
+            Position = UDim2.fromOffset(6, 9),
+            Size = UDim2.fromOffset(6, 6),
+            BackgroundColor3 = Color3.fromRGB(142, 222, 175),
+            BorderSizePixel = 0,
+            ZIndex = capsule.ZIndex + 1
+        }, capsule)
+        round(dot, 6)
+        local numberLabel = makeLabel(capsule,
+            string.format("%02d", serverPlayers),
+            UDim2.fromOffset(25, 21), UDim2.fromOffset(15, 1), 11)
+        numberLabel.TextColor3 = Color3.fromRGB(240, 184, 142)
+        numberLabel.Font = Enum.Font.GothamBold
+        numberLabel.ZIndex = capsule.ZIndex + 1
+    end
     local countText = makeLabel(countHeader,
-        string.format("%02d ONLINE", serverPlayers),
-        UDim2.new(1, -18, 0, 22), UDim2.fromOffset(17, 29), 11)
+        currentLanguage == "ru" and "Сейчас онлайн" or "Online now",
+        UDim2.new(1, -18, 0, 19), UDim2.fromOffset(12, 37), 11)
     countText.ZIndex = countHeader.ZIndex + 3
-    countText.Font = Enum.Font.GothamBold
-    countText.TextColor3 = Color3.fromRGB(249, 193, 150)
+    countText.Font = Enum.Font.Gotham
+    countText.TextColor3 = Color3.fromRGB(199, 172, 188)
 
     local filter = string.lower(Search.Text)
 
@@ -5367,7 +5401,8 @@ trackExternalConnection(Players.PlayerRemoving:Connect(function(player)
         selectedPlayer = nil
         clearViewport()
         clearItems()
-        WornCountLabel.Text = "WORN ITEMS: —"
+        WornCountLabel.Text = translateText("WORN ITEMS: —"):gsub(":%s*—$", "")
+        EH.wornBadge.Text = "—"
         Status.Text = "Player left"
     end
 
