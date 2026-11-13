@@ -261,7 +261,7 @@ local languageOptions = {
 local translations = {
     ru = {
         ["AVATAR INSPECTOR"]="АВАТАР ИНСПЕКТОР", ["Search players..."]="Поиск игроков...", ["PLAYERS"]="ИГРОКИ", ["📁 OUTFITS"]="📁 НАРЯДЫ",
-        ["3D-PREVIEW"]="3D-ПРОСМОТР", ["FREE LOOK"]="СВОБОДНЫЙ ОБЗОР", ["MODEL READY"]="МОДЕЛЬ ГОТОВА", ["SELECT PLAYER"]="ВЫБЕРИТЕ ИГРОКА", ["SCAN ACTIVE"]="СКАНИРОВАНИЕ", ["SYSTEM STATUS"]="СТАТУС СИСТЕМЫ",
+        ["3D-PREVIEW"]="3D-ПРОСМОТР", ["FREE LOOK"]="ОБЗОР", ["MODEL READY"]="МОДЕЛЬ ГОТОВА", ["SELECT PLAYER"]="ВЫБЕРИТЕ ИГРОКА", ["SCAN ACTIVE"]="СКАН АКТИВЕН", ["SYSTEM STATUS"]="СТАТУС",
         ["FIXED"]="ФИКСИРОВАННАЯ", ["FREE"]="СВОБОДНАЯ", ["T-POSE"]="Т-ПОЗА", ["A-POSE"]="А-ПОЗА", ["NEUTRAL"]="НЕЙТРАЛЬНАЯ",
         ["AVATAR ITEMS / ANIMATIONS"]="ПРЕДМЕТЫ / АНИМАЦИИ", ["AVATAR ITEMS"]="ПРЕДМЕТЫ АВАТАРА", ["ANIMATIONS"]="АНИМАЦИИ", ["COPY"]="КОПИРОВАТЬ", ["SAVE"]="СОХРАНИТЬ",
         ["Select a player"]="Выберите игрока", ["Select a player first"]="Сначала выберите игрока", ["Loading player..."]="Загрузка игрока...", ["Character not loaded"]="Персонаж ещё не загружен",
