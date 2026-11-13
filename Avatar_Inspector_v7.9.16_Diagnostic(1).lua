@@ -1162,6 +1162,80 @@ local function makeLabel(parent, text, size, position, textSize)
     }, parent)
 end
 
+-- Physical Press #16: one shared implementation, no permanent root locals.
+-- Target may be a visible card behind a transparent selection button.
+function EH.bindPhysicalPress(button, target, moveTarget)
+    target = target or button
+    local scale = target:FindFirstChildOfClass("UIScale")
+    if not scale then
+        scale = create("UIScale", {Scale = 1}, target)
+    end
+    local outline = target:FindFirstChildOfClass("UIStroke")
+    local downTween, upTween, downMove, upMove
+    local pressed = false
+    local originalPosition
+    local originalScale = scale.Scale
+
+    local function release()
+        if not pressed then return end
+        pressed = false
+        if downTween then downTween:Cancel() end
+        if downMove then downMove:Cancel() end
+        if upTween then upTween:Cancel() end
+        if upMove then upMove:Cancel() end
+        upTween = TweenService:Create(scale,
+            TweenInfo.new(0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Scale = originalScale})
+        upTween:Play()
+        if moveTarget and originalPosition and target.Parent then
+            upMove = TweenService:Create(target,
+                TweenInfo.new(0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {Position = originalPosition})
+            upMove:Play()
+        end
+        if outline and button:GetAttribute("EHActionButton") then
+            TweenService:Create(outline,
+                TweenInfo.new(0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {Transparency = 0.12, Thickness = 1.4}):Play()
+        end
+    end
+
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and input.UserInputType ~= Enum.UserInputType.Touch then return end
+        if pressed or not target.Parent then return end
+        pressed = true
+        originalScale = scale.Scale
+        originalPosition = target.Position
+        if upTween then upTween:Cancel() end
+        if upMove then upMove:Cancel() end
+        downTween = TweenService:Create(scale,
+            TweenInfo.new(0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Scale = originalScale * 0.97})
+        downTween:Play()
+        if moveTarget then
+            downMove = TweenService:Create(target,
+                TweenInfo.new(0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {Position = originalPosition + UDim2.fromOffset(0, 3)})
+            downMove:Play()
+        end
+        if outline and button:GetAttribute("EHActionButton") then
+            TweenService:Create(outline,
+                TweenInfo.new(0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {Transparency = 0, Thickness = 1.7}):Play()
+        end
+    end)
+    button.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            release()
+        end
+    end)
+    button.MouseLeave:Connect(release)
+    -- Gamepad/keyboard activation and cancelled touch must not leave a button pressed.
+    button.Activated:Connect(release)
+end
+
 local function makeButton(parent, text, size, position, color)
     local baseColor = color or LIGHT
     local obj = create("TextButton", {
@@ -1186,10 +1260,9 @@ local function makeButton(parent, text, size, position, color)
         Transparency = 0.28,
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     }, obj)
-    local scale = create("UIScale", {Scale = 1}, obj)
-    local pressInfo = TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    local releaseInfo = TweenInfo.new(0.17, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
     local hoverInfo = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    -- Floating toggle is draggable: scale it without altering its coordinates.
+    EH.bindPhysicalPress(obj, obj, not parent:IsA("ScreenGui"))
 
     obj.MouseEnter:Connect(function()
         if not obj.Parent then return end
@@ -1206,26 +1279,6 @@ local function makeButton(parent, text, size, position, color)
             Transparency = chosen and 0.02
                 or (obj:GetAttribute("EHActionButton") and 0.12 or 0.28)
         }):Play()
-    end)
-    obj.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-            TweenService:Create(scale, pressInfo, {Scale = 0.975}):Play()
-            if obj:GetAttribute("EHActionButton") then
-                TweenService:Create(outline, pressInfo,
-                    {Transparency = 0, Thickness = 1.7}):Play()
-            end
-        end
-    end)
-    obj.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-            TweenService:Create(scale, releaseInfo, {Scale = 1}):Play()
-            if obj:GetAttribute("EHActionButton") then
-                TweenService:Create(outline, releaseInfo,
-                    {Transparency = 0.12, Thickness = 1.4}):Play()
-            end
-        end
     end)
     return obj
 end
@@ -4808,6 +4861,7 @@ refreshPlayerList = function()
                 ZIndex = 2
             }, row)
 
+            EH.bindPhysicalPress(selectButton, row, false)
             selectButton.Activated:Connect(function()
                 scanPlayer(player)
             end)
@@ -5580,6 +5634,7 @@ refreshFavoritesList = function()
             ZIndex = 1
         }, row)
 
+        EH.bindPhysicalPress(selectButton, row, false)
         selectButton.Activated:Connect(function()
             showFavorite(favorite)
         end)
