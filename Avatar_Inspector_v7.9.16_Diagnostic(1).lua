@@ -261,6 +261,7 @@ local languageOptions = {
 local translations = {
     ru = {
         ["AVATAR INSPECTOR"]="АВАТАР ИНСПЕКТОР", ["Search players..."]="Поиск игроков...", ["PLAYERS"]="ИГРОКИ", ["📁 OUTFITS"]="📁 НАРЯДЫ",
+        ["3D-PREVIEW"]="3D-ПРОСМОТР", ["FREE LOOK"]="СВОБОДНЫЙ ОБЗОР", ["MODEL READY"]="МОДЕЛЬ ГОТОВА", ["SELECT PLAYER"]="ВЫБЕРИТЕ ИГРОКА", ["SCAN ACTIVE"]="СКАНИРОВАНИЕ", ["SYSTEM STATUS"]="СТАТУС СИСТЕМЫ",
         ["FIXED"]="ФИКСИРОВАННАЯ", ["FREE"]="СВОБОДНАЯ", ["T-POSE"]="Т-ПОЗА", ["A-POSE"]="А-ПОЗА", ["NEUTRAL"]="НЕЙТРАЛЬНАЯ",
         ["AVATAR ITEMS / ANIMATIONS"]="ПРЕДМЕТЫ / АНИМАЦИИ", ["AVATAR ITEMS"]="ПРЕДМЕТЫ АВАТАРА", ["ANIMATIONS"]="АНИМАЦИИ", ["COPY"]="КОПИРОВАТЬ", ["SAVE"]="СОХРАНИТЬ",
         ["Select a player"]="Выберите игрока", ["Select a player first"]="Сначала выберите игрока", ["Loading player..."]="Загрузка игрока...", ["Character not loaded"]="Персонаж ещё не загружен",
@@ -595,6 +596,17 @@ local function translateText(text)
         if template then return string.format(template, noShoulderRig, tonumber(motorCount), tonumber(constraintCount)) end
     end
 
+    local onlineCount = text:match("^(%d+) ONLINE$")
+    if onlineCount and currentLanguage == "ru" then
+        local number = tonumber(onlineCount) or 0
+        local lastTwo = number % 100
+        local lastOne = number % 10
+        local noun = (lastTwo >= 11 and lastTwo <= 14) and "ИГРОКОВ"
+            or lastOne == 1 and "ИГРОК"
+            or (lastOne >= 2 and lastOne <= 4) and "ИГРОКА"
+            or "ИГРОКОВ"
+        return onlineCount .. " " .. noun
+    end
     local count = text:match("^PLAYERS ON SERVER: (%d+)$")
     if count then
         local prefix = dictionary and dictionary["PLAYERS ON SERVER: "] or "PLAYERS ON SERVER: "
@@ -1801,6 +1813,7 @@ local Viewport = create("ViewportFrame", {
 round(Viewport, 12)
 addStroke(Viewport)
 EH.ehPanel(Viewport, "viewer")
+EH.ehStroke(Viewport, Color3.fromRGB(171, 130, 190), 0.19, 1.45)
 -- Compact viewer header; the avatar owns the center of the viewport.
 do
     local viewerInfo = makeLabel(Viewport, "3D-PREVIEW",
@@ -1988,6 +2001,27 @@ round(ItemsPanel, 12)
 addStroke(ItemsPanel)
 EH.ehPanel(ItemsPanel, "viewer")
 EH.listNeon(ItemsPanel)
+
+-- Subtle signature heading behind the existing label and icon.
+do
+    local heading = create("Frame", {
+        Name = "EHItemsSignatureHeader",
+        Position = UDim2.fromOffset(7, 2),
+        Size = UDim2.new(1, -14, 0, 26),
+        BackgroundColor3 = Color3.fromRGB(37, 28, 42),
+        BackgroundTransparency = 0.32,
+        BorderSizePixel = 0,
+        Active = false,
+        ZIndex = ItemsPanel.ZIndex
+    }, ItemsPanel)
+    round(heading, 8)
+    create("UIStroke", {
+        Color = Color3.fromRGB(142, 106, 153),
+        Thickness = 1,
+        Transparency = 0.52,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    }, heading)
+end
 
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
@@ -2511,8 +2545,8 @@ local function updateLayout()
         ItemList.Position = UDim2.fromOffset(6, 60)
         ItemList.Size = UDim2.new(1, -12, 1, -65)
 
-        Status.Position = UDim2.new(0, 145, 1, -45)
-        Status.Size = UDim2.new(1, -204, 0, 30)
+        Status.Position = UDim2.new(0, 181, 1, -45)
+        Status.Size = UDim2.new(1, -240, 0, 30)
     else
         Search.Position = UDim2.fromOffset(12, 58)
         Search.Size = UDim2.new(1, -132, 0, 36)
@@ -2534,8 +2568,8 @@ local function updateLayout()
         ItemList.Position = UDim2.fromOffset(6, 63)
         ItemList.Size = UDim2.new(1, -12, 1, -97)
 
-        Status.Position = UDim2.new(0, 145, 1, -45)
-        Status.Size = UDim2.new(1, -204, 0, 30)
+        Status.Position = UDim2.new(0, 181, 1, -45)
+        Status.Size = UDim2.new(1, -240, 0, 30)
     end
 end
 
@@ -2882,8 +2916,8 @@ local function styleSelectedControl(button, selected)
     local stroke = button:FindFirstChildOfClass("UIStroke")
     if stroke then
         TweenService:Create(stroke, TweenInfo.new(0.18), {
-            Color = selected and Color3.fromRGB(252, 197, 145) or OUTLINE,
-            Thickness = selected and 1.8 or 1,
+            Color = selected and Color3.fromRGB(255, 206, 161) or OUTLINE,
+            Thickness = selected and 1.95 or 1,
             Transparency = selected and 0 or 0.28
         }):Play()
     end
@@ -4383,6 +4417,11 @@ refreshPlayerList = function()
         LayoutOrder = 0
     }, PlayerList)
     EH.ehCard(countHeader)
+    local headerEdge = countHeader:FindFirstChildOfClass("UIStroke")
+    if headerEdge then
+        headerEdge.Color = Color3.fromRGB(153, 111, 160)
+        headerEdge.Transparency = 0.39
+    end
 
     local listIcon = makeLabel(countHeader, "",
         UDim2.fromOffset(18, 18), UDim2.fromOffset(10, 8), 12)
