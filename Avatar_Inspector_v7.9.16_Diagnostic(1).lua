@@ -3486,7 +3486,7 @@ do
                 dragging = true
                 dragInput = input
                 dragOrigin = input.Position
-                panelOrigin = flyPanel.Position
+                panelOrigin = flyPanel.AbsolutePosition
             end
         end)
 
@@ -3589,19 +3589,16 @@ do
 
         local function fitPanel()
             local camera = workspace.CurrentCamera
-            if not camera then return end
+            if not camera then return 1 end
             local view = camera.ViewportSize
-            panelScale.Scale = math.min(1, math.max(0.55, (view.Y - 22) / 310),
-                math.max(0.55, (view.X - 22) / 274))
+            return math.min(1, (view.Y - 18) / 304, (view.X - 18) / 268)
         end
 
         local function showFlyPanel(show)
             if show then
-                fitPanel()
+                local target = math.max(0.3, fitPanel())
                 flyPanel.Visible = true
-                panelScale.Scale = panelScale.Scale * 0.94
-                local target = math.min(1,
-                    math.max(0.55, (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.Y or 350) / 320))
+                panelScale.Scale = target * 0.94
                 TweenService:Create(panelScale,
                     TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
                     {Scale = target}):Play()
@@ -3633,15 +3630,17 @@ do
                 or (dragInput and dragInput.UserInputType == Enum.UserInputType.MouseButton1
                     and input.UserInputType == Enum.UserInputType.MouseMovement)) then
                 local delta = input.Position - dragOrigin
-                local scale = panelScale.Scale
-                -- Keep the floating panel inside the visible screen.
+                -- Drag with top-left screen pixels; convert back to the panel anchor.
                 local camera = workspace.CurrentCamera
                 if camera then
                     local view = camera.ViewportSize
-                    local nx = math.clamp(panelOrigin.X.Offset + delta.X, 268 * scale + 4, view.X - 4)
-                    local ny = math.clamp(panelOrigin.Y.Offset + delta.Y, -view.Y / 2 + 152 * scale,
-                        view.Y / 2 - 152 * scale)
-                    flyPanel.Position = UDim2.new(1, nx - view.X, 0.5, ny)
+                    local size = flyPanel.AbsoluteSize
+                    local nx = math.clamp(panelOrigin.X + delta.X, 4,
+                        math.max(4, view.X - size.X - 4))
+                    local ny = math.clamp(panelOrigin.Y + delta.Y, 4,
+                        math.max(4, view.Y - size.Y - 4))
+                    flyPanel.Position = UDim2.fromOffset(
+                        nx + size.X, ny + size.Y * 0.5)
                 end
             end
         end)
