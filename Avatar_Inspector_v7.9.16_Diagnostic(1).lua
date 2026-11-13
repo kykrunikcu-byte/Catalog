@@ -1825,38 +1825,13 @@ round(Viewport, 12)
 addStroke(Viewport)
 EH.ehPanel(Viewport, "viewer")
 EH.ehStroke(Viewport, Color3.fromRGB(171, 130, 190), 0.19, 1.45)
--- Dashboard 19: compact upper-left viewer status, keeping orbit controls clear.
+-- Original compact, frameless 3D preview heading.
 do
-    local dashboard = create("Frame", {
-        Name = "EHViewerDashboard",
-        Position = UDim2.fromOffset(12, 8),
-        Size = UDim2.fromOffset(170, 51),
-        BackgroundColor3 = Color3.fromRGB(43, 34, 49),
-        BackgroundTransparency = 0.12,
-        BorderSizePixel = 0,
-        Active = false,
-        ZIndex = 4
-    }, Viewport)
-    round(dashboard, 11)
-    create("UIStroke", {
-        Color = Color3.fromRGB(153, 109, 130),
-        Transparency = 0.36,
-        Thickness = 1
-    }, dashboard)
-    local viewerInfo = makeLabel(dashboard, "3D-PREVIEW",
-        UDim2.fromOffset(132, 16), UDim2.fromOffset(12, 5), 10)
-    viewerInfo.TextColor3 = Color3.fromRGB(202, 174, 189)
-    viewerInfo.Font = Enum.Font.GothamMedium
-    viewerInfo.ZIndex = 5
-    local dot = create("Frame", {
-        Name = "EHDashboardModelDot",
-        Position = UDim2.fromOffset(13, 34),
-        Size = UDim2.fromOffset(6, 6),
-        BackgroundColor3 = Color3.fromRGB(189, 143, 139),
-        BorderSizePixel = 0,
-        ZIndex = 5
-    }, dashboard)
-    round(dot, 3)
+    local viewerInfo = makeLabel(Viewport, "3D-PREVIEW",
+        UDim2.fromOffset(116, 18), UDim2.fromOffset(37, 11), 10)
+    viewerInfo.TextColor3 = Color3.fromRGB(247, 228, 208)
+    viewerInfo.Font = Enum.Font.GothamBold
+    viewerInfo.ZIndex = 4
 end
 
 EH.emptyPreview = create("Frame", {
@@ -1903,8 +1878,8 @@ EH.setPreviewReady = function(loaded)
     if label then
         label.Text = loaded and "MODEL READY" or "SELECT PLAYER"
     end
-    local dashboard = Viewport:FindFirstChild("EHViewerDashboard")
-    local dot = dashboard and dashboard:FindFirstChild("EHDashboardModelDot")
+    local pill = Viewport:FindFirstChild("EHModelReadyPill")
+    local dot = pill and pill:FindFirstChild("EHStatusDot")
     if dot then
         dot.BackgroundColor3 = loaded and Color3.fromRGB(142, 222, 175)
             or Color3.fromRGB(189, 143, 139)
@@ -1934,12 +1909,16 @@ FreeViewButton.TextSize = 9
 FreeViewButton.ZIndex = 21
 
 do
+    EH.statusChip(Viewport, "EHModelReadyPill",
+        UDim2.new(0, 12, 1, -31), UDim2.fromOffset(132, 24),
+        Color3.fromRGB(189, 143, 139))
     local viewerState = makeLabel(Viewport, "SELECT PLAYER",
-        UDim2.fromOffset(141, 19), UDim2.fromOffset(25, 28), 12)
+        UDim2.fromOffset(107, 22), UDim2.new(0, 35, 1, -30), 9)
     viewerState.Name = "EHModelStateLabel"
-    viewerState.ZIndex = 5
-    viewerState.TextColor3 = Color3.fromRGB(230, 219, 222)
-    viewerState.Font = Enum.Font.GothamSemibold
+    viewerState.ZIndex = Viewport.ZIndex + 3
+    viewerState.TextColor3 = Color3.fromRGB(249, 193, 150)
+    viewerState.Font = Enum.Font.GothamBold
+    viewerState.ZIndex = 4
 end
 
 local ZoomBar = create("Frame", {
@@ -2067,7 +2046,7 @@ end
 
 EH.wornBadge = makeLabel(
     EH.wornHeader, "—",
-    UDim2.fromOffset(42, 29), UDim2.fromOffset(12, 19), 23
+    UDim2.fromOffset(72, 24), UDim2.fromOffset(12, 15), 21
 )
 EH.wornBadge.Name = "EclipseItemCount"
 EH.wornBadge.BackgroundTransparency = 1
@@ -2078,9 +2057,17 @@ EH.wornBadge.ZIndex = EH.wornHeader.ZIndex + 2
 
 local WornCountLabel = makeLabel(
     EH.wornHeader, "WORN ITEMS: —",
-    UDim2.new(1, -70, 0, 17), UDim2.fromOffset(58, 28), 10
+    UDim2.new(1, -38, 0, 12), UDim2.fromOffset(25, 37), 10
 )
 WornCountLabel.Name = "WornItemsCounter"
+local wornDashboardDot = create("Frame", {
+    Name = "EHDashboardWornDot",
+    Position = UDim2.fromOffset(13, 40),
+    Size = UDim2.fromOffset(6, 6),
+    BackgroundColor3 = Color3.fromRGB(142, 222, 175),
+    BorderSizePixel = 0
+}, EH.wornHeader)
+round(wornDashboardDot, 3)
 WornCountLabel.ZIndex = EH.wornHeader.ZIndex + 2
 WornCountLabel.TextColor3 = Color3.fromRGB(164, 221, 189)
 WornCountLabel.Font = Enum.Font.GothamMedium
@@ -4640,7 +4627,7 @@ refreshPlayerList = function()
 
     local numberLabel = makeLabel(countHeader,
         string.format("%02d", serverPlayers),
-        UDim2.fromOffset(59, 32), UDim2.fromOffset(11, 25), 25)
+        UDim2.fromOffset(80, 28), UDim2.fromOffset(11, 21), 25)
     numberLabel.TextColor3 = Color3.fromRGB(249, 237, 241)
     numberLabel.TextXAlignment = Enum.TextXAlignment.Left
     numberLabel.Font = Enum.Font.GothamBold
@@ -4648,14 +4635,14 @@ refreshPlayerList = function()
 
     local countText = makeLabel(countHeader,
         currentLanguage == "ru" and "Сейчас онлайн" or "Online now",
-        UDim2.fromOffset(110, 20), UDim2.fromOffset(53, 37), 10)
+        UDim2.fromOffset(142, 15), UDim2.fromOffset(23, 47), 10)
     countText.ZIndex = countHeader.ZIndex + 2
     countText.Font = Enum.Font.GothamMedium
     countText.TextColor3 = Color3.fromRGB(164, 221, 189)
 
     local statusDot = create("Frame", {
         Name = "EHDashboardOnlineDot",
-        Position = UDim2.fromOffset(53, 31),
+        Position = UDim2.fromOffset(12, 52),
         Size = UDim2.fromOffset(6, 6),
         BackgroundColor3 = Color3.fromRGB(142, 222, 175),
         BorderSizePixel = 0
