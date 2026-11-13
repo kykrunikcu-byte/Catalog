@@ -3285,6 +3285,7 @@ do
         refreshHome()
         local ru = currentLanguage == "ru"
         playerTitle.Text = ru and "Управление игроком" or "Player tools"
+        if EH.refreshFlyCardText then EH.refreshFlyCardText() end
         playerDescription.Text = ru
             and "Здесь появятся полёт, управление скоростью, прыжки и другие настройки игрока. Пока функции не добавлены."
             or "Fly, speed, jump and other player tools will appear here. No functions have been added yet."
