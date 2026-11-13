@@ -1263,8 +1263,10 @@ end
 -- GUI
 --==================================================
 
+do -- release construction-only local: oldGui
 local oldGui = PlayerGui:FindFirstChild("AvatarInspector")
 if oldGui then oldGui:Destroy() end
+end -- short-lived oldGui scope
 
 AI_DIAG_STAGE = "BEFORE_SCREEN_GUI"
 AIDiag("08 Creating ScreenGui")
@@ -1557,6 +1559,7 @@ create("UIGradient", {
 addStroke(Header)
 -- Connected rounded header contour; no floating segmented fragments.
 EH.ehStroke(Header, Color3.fromRGB(172, 111, 117), 0.11, 1.35)
+do -- release construction-only local: HeaderContour
 local HeaderContour = Header:FindFirstChildOfClass("UIStroke")
 if HeaderContour then
     create("UIGradient", {
@@ -1575,7 +1578,9 @@ if HeaderContour then
             {Offset = Vector2.new(0.38, 0)}):Play()
     end
 end
+end -- short-lived HeaderContour scope
 
+do -- release construction-only local: HeaderTitle
 local HeaderTitle = makeLabel(
     Header, "AVATAR INSPECTOR v7.9.62",
     UDim2.new(1, -182, 1, 0),
@@ -1587,6 +1592,7 @@ HeaderTitle.TextColor3 = Color3.fromRGB(255, 248, 242)
 HeaderTitle.TextSize = 17
 HeaderTitle.Size = UDim2.new(1, -182, 0, 27)
 HeaderTitle.Position = UDim2.fromOffset(18, 3)
+end -- short-lived HeaderTitle scope
 
 do
     local subtitle = makeLabel(Header, "EVENT HORIZON / 053",
@@ -1756,6 +1762,7 @@ create("UIPadding", {
 }, Search)
 Search.TextColor3 = Color3.fromRGB(249, 242, 236)
 Search.PlaceholderColor3 = Color3.fromRGB(188, 170, 181)
+do -- release construction-only local: searchOutline
 local searchOutline = Search:FindFirstChildOfClass("UIStroke")
 if searchOutline then
     Search.Focused:Connect(function()
@@ -1769,6 +1776,7 @@ if searchOutline then
         }):Play()
     end)
 end
+end -- short-lived searchOutline scope
 
 local ModeButton = makeButton(
     Main, "📁 OUTFITS",
@@ -2060,6 +2068,7 @@ local WornCountLabel = makeLabel(
     UDim2.new(1, -38, 0, 12), UDim2.fromOffset(25, 37), 10
 )
 WornCountLabel.Name = "WornItemsCounter"
+do -- release construction-only local: wornDashboardDot
 local wornDashboardDot = create("Frame", {
     Name = "EHDashboardWornDot",
     Position = UDim2.fromOffset(13, 40),
@@ -2068,6 +2077,7 @@ local wornDashboardDot = create("Frame", {
     BorderSizePixel = 0
 }, EH.wornHeader)
 round(wornDashboardDot, 3)
+end -- short-lived wornDashboardDot scope
 WornCountLabel.ZIndex = EH.wornHeader.ZIndex + 2
 WornCountLabel.TextColor3 = Color3.fromRGB(164, 221, 189)
 WornCountLabel.Font = Enum.Font.GothamMedium
@@ -2178,20 +2188,25 @@ local BrandPill = create("Frame", {
     Active = false
 }, StatusConsole)
 round(BrandPill, 8)
+do -- release construction-only local: StatusIcon
 local StatusIcon = makeLabel(
     BrandPill, "",
     UDim2.fromOffset(16, 16), UDim2.fromOffset(8, 5), 12
 )
 StatusIcon.TextColor3 = Color3.fromRGB(243, 184, 141)
 StatusIcon.Font = Enum.Font.GothamBold
+end -- short-lived StatusIcon scope
 
+do -- release construction-only local: BrandLabel
 local BrandLabel = makeLabel(
     BrandPill, "SYSTEM STATUS",
     UDim2.new(1, -28, 1, 0), UDim2.fromOffset(25, 0), 10
 )
 BrandLabel.TextColor3 = Color3.fromRGB(249, 196, 153)
 BrandLabel.Font = Enum.Font.GothamBold
+end -- short-lived BrandLabel scope
 
+do -- release construction-only local: StatusActive
 local StatusActive = makeLabel(
     StatusConsole, "ACTIVE",
     UDim2.fromOffset(64, 20), UDim2.new(1, -84, 0, 10), 10
@@ -2200,6 +2215,7 @@ StatusActive.TextColor3 = Color3.fromRGB(249, 196, 153)
 StatusActive.TextXAlignment = Enum.TextXAlignment.Right
 StatusActive.Font = Enum.Font.GothamBold
 StatusActive.Visible = false
+end -- short-lived StatusActive scope
 
 -- The right-hand indicator reflects that the GUI is alive, not whether scanning is active.
 do
@@ -2467,9 +2483,11 @@ round(LangPanel, 13)
 addStroke(LangPanel)
 create("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(25, 30, 40), Color3.fromRGB(29, 25, 37)), Rotation = 25}, LangPanel)
 
+do -- release construction-only local: LangTitle
 local LangTitle = makeLabel(LangPanel, "Choose language", UDim2.new(1, -60, 0, 30), UDim2.fromOffset(12, 10), 14)
 LangTitle.Font = Enum.Font.GothamBold
 LangTitle.ZIndex = 82
+end -- short-lived LangTitle scope
 
 local LangClose = makeButton(LangPanel, "X", UDim2.fromOffset(30, 28), UDim2.new(1, -42, 0, 9), RED)
 LangClose.ZIndex = 83
