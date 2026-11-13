@@ -2602,7 +2602,7 @@ create("UIPadding", {
 -- Explicitly replaces the older v7.9.42 bridge and brand pill; no stacking.
 local EHBridge = create("Frame", {
     Name = "EHLowerBridge",
-    Position = UDim2.fromOffset(18, 461),
+    Position = UDim2.fromOffset(18, 517),
     Size = UDim2.new(1, -36, 0, 4),
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
@@ -3020,8 +3020,8 @@ EH.setModeButtonLabel(ModeButton, currentMode)
 do
     local layer = create("Frame", {
         Name = "HorizonHomePage",
-        Position = UDim2.fromOffset(8, 54),
-        Size = UDim2.new(1, -16, 1, -112),
+        Position = UDim2.fromOffset(8, 108),
+        Size = UDim2.new(1, -16, 1, -166),
         BackgroundColor3 = BG,
         BorderSizePixel = 0,
         Active = true, Visible = true, ZIndex = 30
@@ -3107,24 +3107,49 @@ do
     end
     EH.refreshHomeText()
 
-    local homeTab = makeButton(Header, "Главная",
-        UDim2.fromOffset(70, 32), UDim2.new(0.5, -76, 0, 8),
+    -- Dedicated navigation bar below the header, not inside its narrow title row.
+    local nav = create("Frame", {
+        Name = "HorizonNavigationBar",
+        Position = UDim2.fromOffset(12, 54),
+        Size = UDim2.fromOffset(450, 48),
+        BackgroundColor3 = Color3.fromRGB(32, 28, 24),
+        BorderSizePixel = 0,
+        ZIndex = 12,
+        Active = true
+    }, Main)
+    round(nav, 12)
+    create("UIStroke", {Color = Color3.fromRGB(132, 98, 67),
+        Thickness = 1.1, Transparency = 0.2}, nav)
+
+    local homeTab = makeButton(nav, "Главная",
+        UDim2.new(0.5, -6, 1, -8), UDim2.fromOffset(4, 4),
         Color3.fromRGB(47, 37, 29))
     homeTab.Name = "HorizonHomeTab"
-    local avatarsTab = makeButton(Header, "Аватары",
-        UDim2.fromOffset(70, 32), UDim2.new(0.5, -4, 0, 8),
+    local avatarsTab = makeButton(nav, "Аватары",
+        UDim2.new(0.5, -6, 1, -8), UDim2.new(0.5, 2, 0, 4),
         Color3.fromRGB(35, 30, 25))
     avatarsTab.Name = "HorizonAvatarsTab"
 
     for _, tab in ipairs({homeTab, avatarsTab}) do
-        tab.ZIndex = 15
-        tab.TextSize = 9
-        tab.TextXAlignment = Enum.TextXAlignment.Right
+        tab.ZIndex = 13
+        tab.TextSize = 14
+        tab.Font = Enum.Font.GothamBold
+        tab.TextXAlignment = Enum.TextXAlignment.Center
         EH.styleIconAction(tab)
-        create("UIPadding", {PaddingRight = UDim.new(0, 4)}, tab)
     end
-    EH.safeIcon(homeTab, "home", UDim2.fromOffset(4, 7), 18)
-    EH.safeIcon(avatarsTab, "shirt_tab", UDim2.fromOffset(3, 6), 19)
+    local homeGlyph = EH.safeIcon(homeTab, "home", UDim2.new(0.5, -59, 0, 8), 23)
+    local avatarGlyph = EH.safeIcon(avatarsTab, "shirt_tab", UDim2.new(0.5, -65, 0, 7), 24)
+    if homeGlyph then homeGlyph.ZIndex = 14 end
+    if avatarGlyph then avatarGlyph.ZIndex = 14 end
+
+    -- The layout routine also updates this bar when switching to mobile width.
+    EH.layoutHorizonTabs = function(mobile, windowWidth)
+        local width = mobile and (windowWidth - 24) or 450
+        nav.Size = UDim2.fromOffset(width, 48)
+        nav.Position = UDim2.new(0.5, -width / 2, 0, 54)
+        homeTab.TextSize = mobile and 13 or 14
+        avatarsTab.TextSize = mobile and 13 or 14
+    end
 
     local function selectPage(page)
         layer.Visible = page == "Home"
@@ -3156,9 +3181,10 @@ local function updateLayout()
     local mobile = screen.X < 650
 
     local width = mobile and 360 or 800
-    local height = mobile and 620 or 520
+    local height = mobile and 676 or 576
 
     Main.Size = UDim2.fromOffset(width, height)
+    if EH.layoutHorizonTabs then EH.layoutHorizonTabs(mobile, width) end
 
     UIScale.Scale = math.min(
         (screen.X - 20) / width,
@@ -3175,22 +3201,22 @@ local function updateLayout()
     end
 
     if mobile then
-        Search.Position = UDim2.fromOffset(12, 58)
+        Search.Position = UDim2.fromOffset(12, 114)
         Search.Size = UDim2.new(1, -132, 0, 34)
 
-        ModeButton.Position = UDim2.new(1, -112, 0, 58)
+        ModeButton.Position = UDim2.new(1, -112, 0, 114)
         ModeButton.Size = UDim2.fromOffset(100, 34)
 
-        PlayerList.Position = UDim2.fromOffset(12, 100)
+        PlayerList.Position = UDim2.fromOffset(12, 156)
         PlayerList.Size = UDim2.new(1, -24, 0, 90)
 
-        Viewport.Position = UDim2.fromOffset(12, 198)
+        Viewport.Position = UDim2.fromOffset(12, 254)
         Viewport.Size = UDim2.new(1, -24, 0, 150)
 
-        PoseBar.Position = UDim2.fromOffset(12, 352)
+        PoseBar.Position = UDim2.fromOffset(12, 408)
         PoseBar.Size = UDim2.new(1, -24, 0, 32)
 
-        ItemsPanel.Position = UDim2.fromOffset(12, 388)
+        ItemsPanel.Position = UDim2.fromOffset(12, 444)
         ItemsPanel.Size = UDim2.new(1, -24, 0, 150)
         ItemList.Position = UDim2.fromOffset(6, 60)
         ItemList.Size = UDim2.new(1, -12, 1, -65)
@@ -3198,22 +3224,22 @@ local function updateLayout()
         Status.Position = UDim2.new(0, 181, 1, -45)
         Status.Size = UDim2.new(1, -240, 0, 30)
     else
-        Search.Position = UDim2.fromOffset(12, 58)
+        Search.Position = UDim2.fromOffset(12, 114)
         Search.Size = UDim2.new(1, -132, 0, 36)
 
-        ModeButton.Position = UDim2.new(1, -112, 0, 58)
+        ModeButton.Position = UDim2.new(1, -112, 0, 114)
         ModeButton.Size = UDim2.fromOffset(100, 36)
 
-        PlayerList.Position = UDim2.fromOffset(12, 104)
+        PlayerList.Position = UDim2.fromOffset(12, 160)
         PlayerList.Size = UDim2.fromOffset(190, 310)
 
-        Viewport.Position = UDim2.fromOffset(214, 104)
+        Viewport.Position = UDim2.fromOffset(214, 160)
         Viewport.Size = UDim2.fromOffset(300, 310)
 
-        PoseBar.Position = UDim2.fromOffset(214, 420)
+        PoseBar.Position = UDim2.fromOffset(214, 476)
         PoseBar.Size = UDim2.fromOffset(300, 32)
 
-        ItemsPanel.Position = UDim2.fromOffset(526, 104)
+        ItemsPanel.Position = UDim2.fromOffset(526, 160)
         ItemsPanel.Size = UDim2.fromOffset(262, 350)
         ItemList.Position = UDim2.fromOffset(6, 63)
         ItemList.Size = UDim2.new(1, -12, 1, -97)
