@@ -1991,7 +1991,7 @@ EH.listNeon(ItemsPanel)
 
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
-    UDim2.new(1, -64, 0, 24), UDim2.fromOffset(35, 8), 12
+    UDim2.new(1, -64, 0, 24), UDim2.fromOffset(35, 4), 12
 )
 EH.ehSectionLabel(ItemsTitle)
 ItemsTitle.Font = Enum.Font.GothamBold
