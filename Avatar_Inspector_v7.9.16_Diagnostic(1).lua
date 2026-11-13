@@ -5826,7 +5826,9 @@ ModeButton.Activated:Connect(updateListMode)
 -- Do not reparent GUI, rebuild panels, alter 3D cameras, or create CanvasGroups:
 -- CanvasGroups consume extra render memory on mobile devices.
 -- Every animated transparency is restored after hiding or interruption.
-do
+-- Isolated function scope is essential: StartAvatarInspector is near Luau's
+-- 200-local-per-function compiler limit. No new startup locals are declared.
+function EH.installCascadeTransitions()
     local animationToken = 0
     local targetVisible = Main.Visible
     local basePosition = Main.Position
@@ -6076,6 +6078,15 @@ do
         setMainWindowVisible(not targetVisible)
     end
 end
+
+-- Install safely only after the GUI and floating control are created.
+-- If a transition fails, Toggle.Activated keeps its original direct fallback.
+task.defer(function()
+    local ok, err = pcall(EH.installCascadeTransitions)
+    if not ok then
+        warn("[Avatar Inspector] Cascade transitions unavailable, using safe toggle: " .. tostring(err))
+    end
+end)
 
 --==================================================
 -- EVENTS
