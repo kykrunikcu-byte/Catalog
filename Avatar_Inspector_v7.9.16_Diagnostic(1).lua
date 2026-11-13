@@ -2002,44 +2002,27 @@ addStroke(ItemsPanel)
 EH.ehPanel(ItemsPanel, "viewer")
 EH.listNeon(ItemsPanel)
 
--- Subtle signature heading behind the existing label and icon.
-do
-    local heading = create("Frame", {
-        Name = "EHItemsSignatureHeader",
-        Position = UDim2.fromOffset(7, 2),
-        Size = UDim2.new(1, -14, 0, 26),
-        BackgroundColor3 = Color3.fromRGB(37, 28, 42),
-        BackgroundTransparency = 0.32,
-        BorderSizePixel = 0,
-        Active = false,
-        ZIndex = ItemsPanel.ZIndex
-    }, ItemsPanel)
-    round(heading, 8)
-    create("UIStroke", {
-        Color = Color3.fromRGB(142, 106, 153),
-        Thickness = 1,
-        Transparency = 0.52,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    }, heading)
-end
-
+-- Reuse the existing worn-items chip as one combined title/count block.
+-- No additional frames: icon, title and count all belong to this chip.
+EH.wornHeader = EH.statusChip(ItemsPanel, "EHWornCountPill",
+    UDim2.fromOffset(13, 4), UDim2.new(1, -26, 0, 52),
+    Color3.fromRGB(142, 222, 175))
+EH.wornHeader.EHStatusDot.Position = UDim2.fromOffset(9, 36)
 local ItemsTitle = makeLabel(
-    ItemsPanel, "ITEMS",
-    UDim2.new(1, -64, 0, 21), UDim2.fromOffset(35, 5), 12
+    EH.wornHeader, "ITEMS",
+    UDim2.new(1, -48, 0, 21), UDim2.fromOffset(36, 7), 12
 )
 EH.ehSectionLabel(ItemsTitle)
 ItemsTitle.Font = Enum.Font.GothamBold
+ItemsTitle.ZIndex = EH.wornHeader.ZIndex + 2
 
-EH.statusChip(ItemsPanel, "EHWornCountPill",
-    UDim2.fromOffset(13, 30), UDim2.new(1, -26, 0, 26),
-    Color3.fromRGB(142, 222, 175))
 local WornCountLabel = makeLabel(
-    ItemsPanel, "WORN ITEMS: —",
-    UDim2.new(1, -54, 0, 22),
-    UDim2.fromOffset(34, 32), 11
+    EH.wornHeader, "WORN ITEMS: —",
+    UDim2.new(1, -29, 0, 22),
+    UDim2.fromOffset(21, 29), 11
 )
 WornCountLabel.Name = "WornItemsCounter"
-WornCountLabel.ZIndex = ItemsPanel.ZIndex + 3
+WornCountLabel.ZIndex = EH.wornHeader.ZIndex + 2
 WornCountLabel.TextColor3 = ID_GREEN
 WornCountLabel.Font = Enum.Font.GothamBold
 WornCountLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -5415,7 +5398,7 @@ task.defer(function()
     -- Slightly inset from the left edge, never at the far-right end.
     EH.safeIcon(Search, "search", UDim2.fromOffset(8, 6), 23)
     EH.safeIcon(Viewport, "viewer", UDim2.fromOffset(12, 9), 21)
-    EH.safeIcon(ItemsPanel, "items", UDim2.fromOffset(12, 5), 21)
+    EH.safeIcon(EH.wornHeader, "items", UDim2.fromOffset(9, 7), 21)
     EH.safeIcon(BrandPill, "status", UDim2.fromOffset(5, 5), 18)
     EH.safeIcon(ModeButton, "outfits", UDim2.fromOffset(8, 5), 26)
     if EH.safeIcon(Close, "close", UDim2.fromOffset(8, 7), 18) then
