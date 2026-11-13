@@ -1,5 +1,10 @@
 --[[
-    AVATAR INSPECTOR v7.9.68
+    AVATAR INSPECTOR v7.9.69
+
+    CHANGES IN v7.9.69:
+    - Restored a visible gap between OUTFITS label and unchanged hanger icon
+    - Repositioned ITEMS title horizontally and vertically beside unchanged icon
+    - Kept search changes and all functional code intact
 
     CHANGES IN v7.9.68:
     - Raised ITEMS title a further 5 px for optical alignment with unchanged icon
@@ -1750,7 +1755,7 @@ local ModeButton = makeButton(
 )
 EH.styleIconAction(ModeButton)
 ModeButton.TextXAlignment = Enum.TextXAlignment.Right
-create("UIPadding", {PaddingRight = UDim.new(0, 28)}, ModeButton)
+create("UIPadding", {PaddingRight = UDim.new(0, 14)}, ModeButton)
 
 local PlayerList = create("ScrollingFrame", {
     Position = UDim2.fromOffset(12, 104),
@@ -1986,7 +1991,7 @@ EH.listNeon(ItemsPanel)
 
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
-    UDim2.new(1, -70, 0, 24), UDim2.fromOffset(41, -1), 12
+    UDim2.new(1, -64, 0, 24), UDim2.fromOffset(35, 8), 12
 )
 EH.ehSectionLabel(ItemsTitle)
 ItemsTitle.Font = Enum.Font.GothamBold
