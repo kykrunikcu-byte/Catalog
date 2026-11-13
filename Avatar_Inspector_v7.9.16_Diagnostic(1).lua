@@ -2032,13 +2032,11 @@ EH.wornHeader = EH.statusChip(ItemsPanel, "EHWornCountPill",
 -- Premium Capsule: one continuous pill with a circular icon and count.
 EH.wornHeader.BackgroundColor3 = Color3.fromRGB(41, 33, 46)
 EH.wornHeader.EHStatusDot.Visible = false
-local itemsEdge = EH.wornHeader:FindFirstChildOfClass("UIStroke")
-if itemsEdge then
-    itemsEdge.Color = Color3.fromRGB(189, 138, 159)
-    itemsEdge.Transparency = 0.28
-end
-local itemsCorner = EH.wornHeader:FindFirstChildOfClass("UICorner")
-if itemsCorner then itemsCorner.CornerRadius = UDim.new(0, 25) end
+-- The statusChip helper always constructs one UIStroke and one UICorner.
+-- Modify those existing parts without allocating two more function locals.
+EH.wornHeader:FindFirstChildOfClass("UIStroke").Color = Color3.fromRGB(189, 138, 159)
+EH.wornHeader:FindFirstChildOfClass("UIStroke").Transparency = 0.28
+EH.wornHeader:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(0, 25)
 EH.itemsIconCircle = create("Frame", {
     Name = "PremiumItemsIconCircle",
     Position = UDim2.fromOffset(6, 7),
@@ -2048,12 +2046,15 @@ EH.itemsIconCircle = create("Frame", {
     ZIndex = EH.wornHeader.ZIndex + 1
 }, EH.wornHeader)
 round(EH.itemsIconCircle, 18)
-local ItemsTitle = makeLabel(
-    EH.wornHeader, "ITEMS",
-    UDim2.new(1, -104, 0, 20), UDim2.fromOffset(48, 6), 12
-)
-ItemsTitle.Font = Enum.Font.GothamBold
-ItemsTitle.ZIndex = EH.wornHeader.ZIndex + 2
+-- Item title is needed only during construction, not for the whole script lifetime.
+do
+    local ItemsTitle = makeLabel(
+        EH.wornHeader, "ITEMS",
+        UDim2.new(1, -104, 0, 20), UDim2.fromOffset(48, 6), 12
+    )
+    ItemsTitle.Font = Enum.Font.GothamBold
+    ItemsTitle.ZIndex = EH.wornHeader.ZIndex + 2
+end
 
 EH.wornBadge = makeLabel(
     EH.wornHeader, "—",
