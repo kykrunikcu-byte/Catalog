@@ -1,5 +1,10 @@
 --[[
-    AVATAR INSPECTOR v7.9.70
+    AVATAR INSPECTOR v7.9.71
+
+    CHANGES IN v7.9.71:
+    - Reverted extra OUTFITS TextLabel and local ModeText added in v7.9.70
+    - Restored previously running TextButton label implementation
+    - Kept search and ITEMS alignment changes
 
     CHANGES IN v7.9.70:
     - Aligned ITEMS title vertically with the unchanged 21 px icon
@@ -1120,16 +1125,7 @@ end
 function EH.setModeButtonLabel(button, mode)
     local base = mode == "Players" and "📁 OUTFITS" or "PLAYERS"
     local localized = translateText(base)
-    local displayed = localized:gsub("^📁%s*", "")
-    local customLabel = button:FindFirstChild("EHModeText")
-    if customLabel and customLabel:IsA("TextLabel") then
-        -- A dedicated label keeps icon-to-text spacing fixed regardless of
-        -- Roblox TextButton padding and TextXAlignment behavior.
-        button.Text = ""
-        customLabel.Text = displayed
-    else
-        button.Text = displayed
-    end
+    button.Text = localized:gsub("^📁%s*", "")
 end
 
 function EH.ehSectionLabel(label, marker)
@@ -1569,7 +1565,7 @@ if HeaderContour then
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.70",
+    Header, "AVATAR INSPECTOR v7.9.71",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -1769,15 +1765,8 @@ local ModeButton = makeButton(
     Color3.fromRGB(43, 31, 43)
 )
 EH.styleIconAction(ModeButton)
-ModeButton.Text = ""
-local ModeText = makeLabel(ModeButton, "", UDim2.new(1, -39, 1, 0), UDim2.fromOffset(39, 0), 12)
-ModeText.Name = "EHModeText"
-ModeText.Font = Enum.Font.GothamBold
-ModeText.TextColor3 = Color3.fromRGB(250, 220, 190)
-ModeText.TextXAlignment = Enum.TextXAlignment.Left
-ModeText.TextYAlignment = Enum.TextYAlignment.Center
-ModeText.ZIndex = ModeButton.ZIndex + 2
-ModeText.Active = false
+ModeButton.TextXAlignment = Enum.TextXAlignment.Right
+create("UIPadding", {PaddingRight = UDim.new(0, 14)}, ModeButton)
 
 local PlayerList = create("ScrollingFrame", {
     Position = UDim2.fromOffset(12, 104),
@@ -5416,7 +5405,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.70 loaded successfully")
+print("Avatar Inspector v7.9.71 loaded successfully")
 
 end
 
@@ -5439,7 +5428,7 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.70 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.71 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
