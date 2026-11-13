@@ -1,6 +1,13 @@
 --[[
     AVATAR INSPECTOR v7.9.69
 
+    NEW: Glass Lens accessory preview
+    - Optional eye button next to copy for equipped items
+    - Reuses central ViewportFrame, free orbit and bounded zoom
+    - Keeps avatar model, pose and camera intact when returning
+    - Attempts source accessory / executor-compatible asset loading safely
+    - Unsupported assets show status instead of blanking the avatar
+
     CHANGES IN v7.9.69:
     - Restored a visible gap between OUTFITS label and unchanged hanger icon
     - Repositioned ITEMS title horizontally and vertically beside unchanged icon
@@ -1004,6 +1011,17 @@ function EH.icon(parent, kind, position, size)
     if kind == "search" then
         outline(3.1, 2.8, 14.4, 14.4, 10, 2.2)
         strokeLine(16.3, 16.4, 21.5, 21.5, 2.5)
+    elseif kind == "eye" then
+        -- Small curved-looking eye silhouette, with a centered iris.
+        strokeLine(2, 12, 6, 8, 1.8)
+        strokeLine(6, 8, 12, 6, 1.8)
+        strokeLine(12, 6, 18, 8, 1.8)
+        strokeLine(18, 8, 22, 12, 1.8)
+        strokeLine(22, 12, 18, 16, 1.8)
+        strokeLine(18, 16, 12, 18, 1.8)
+        strokeLine(12, 18, 6, 16, 1.8)
+        strokeLine(6, 16, 2, 12, 1.8)
+        outline(9, 9, 6, 6, 6, 1.8)
     elseif kind == "copy" then
         outline(3.2, 3.0, 12.8, 13.8, 2.7, 2.15)
         outline(9.0, 9.1, 12.0, 12.4, 2.7, 2.15)
@@ -1935,6 +1953,17 @@ EH.styleIconAction(ZoomInButton)
 ZoomInButton.TextSize = 18
 ZoomInButton.ZIndex = 21
 
+-- Exit from a temporary asset preview, replacing the camera mode control.
+EH.assetCloseButton = makeButton(
+    Viewport, "✕  АВАТАР",
+    UDim2.fromOffset(106, 29), UDim2.new(1, -116, 0, 8),
+    Color3.fromRGB(48, 36, 54)
+)
+EH.styleIconAction(EH.assetCloseButton)
+EH.assetCloseButton.TextSize = 11
+EH.assetCloseButton.ZIndex = 25
+EH.assetCloseButton.Visible = false
+
 local World = Instance.new("WorldModel")
 World.Parent = Viewport
 
@@ -2851,6 +2880,8 @@ end
 --==================================================
 
 local function clearViewport()
+    -- Cancel pending loads and restore an avatar before clearing this viewport.
+    if EH.closeAssetPreview then EH.closeAssetPreview() end
     for _, child in ipairs(World:GetChildren()) do
         child:Destroy()
     end
@@ -2962,6 +2993,144 @@ local function centerModel(model)
     )
 
     return true
+end
+
+
+-- GLASS LENS: temporary item preview. No separate viewport or permanent avatar edits.
+function EH.closeAssetPreview()
+    EH.assetPreviewToken = (EH.assetPreviewToken or 0) + 1
+    local saved = EH.assetPreviewState
+    EH.assetPreviewState = nil
+    EH.assetCloseButton.Visible = false
+    if not saved then return end
+    if saved.item and saved.item.Parent then saved.item:Destroy() end
+    if saved.avatar then
+        if saved.avatar.Parent == nil then saved.avatar.Parent = World end
+        currentModel = saved.avatar
+    else
+        currentModel = nil
+    end
+    orbitYaw, orbitPitch = saved.yaw, saved.pitch
+    orbitDistance, baseCameraDistance = saved.distance, saved.baseDistance
+    minimumCameraDistance, maximumCameraDistance = saved.minimum, saved.maximum
+    viewportMode = saved.mode
+    Camera.FieldOfView = saved.fov
+    Camera.CFrame = saved.camera
+    rotating, lastPointer = false, nil
+    PoseBar.Visible = saved.poseVisible
+    ViewModeBar.Visible = saved.viewVisible
+    if EH.setPreviewReady then EH.setPreviewReady(currentModel ~= nil) end
+    Status.Text = currentLanguage == "ru" and "Просмотр аватара восстановлен" or "Avatar preview restored"
+end
+
+EH.assetCloseButton.Activated:Connect(function()
+    EH.closeAssetPreview()
+end)
+
+function EH.loadItemGeometry(assetId)
+    -- Existing avatar attachments are preferable: no download or permissions needed.
+    if currentModel then
+        for _, accessory in ipairs(currentModel:GetDescendants()) do
+            if accessory:IsA("Accessory") then
+                local ok, source = pcall(function() return accessory.SourceAssetId end)
+                if ok and tonumber(source) == tonumber(assetId) then
+                    local copy = accessory:Clone()
+                    if copy then return copy end
+                end
+            end
+        end
+    end
+
+    -- Executor support varies. Both retrieval APIs are protected.
+    local loaded
+    local okObjects, objects = pcall(function()
+        return game:GetObjects("rbxassetid://" .. tostring(assetId))
+    end)
+    if okObjects and type(objects) == "table" then
+        loaded = objects[1]
+        for i = 2, #objects do
+            pcall(function() objects[i]:Destroy() end)
+        end
+    end
+    if not loaded then
+        local okInsert, result = pcall(function()
+            return game:GetService("InsertService"):LoadAsset(assetId)
+        end)
+        if okInsert then loaded = result end
+    end
+    if not loaded or typeof(loaded) ~= "Instance" then
+        return nil, "Asset cannot be loaded by this executor"
+    end
+    return loaded
+end
+
+function EH.openAssetPreview(assetId, assetName)
+    if EH.assetPreviewState then EH.closeAssetPreview() end
+    EH.assetPreviewToken = (EH.assetPreviewToken or 0) + 1
+    local token = EH.assetPreviewToken
+    local previousAvatar = currentModel
+    if not previousAvatar then
+        Status.Text = currentLanguage == "ru" and "Сначала выберите аватар" or "Select an avatar first"
+        return
+    end
+    Status.Text = currentLanguage == "ru" and "Загрузка 3D-предмета..." or "Loading 3D item..."
+    local asset, loadError = EH.loadItemGeometry(assetId)
+    if token ~= EH.assetPreviewToken or not ScreenGui.Parent then
+        if asset then pcall(function() asset:Destroy() end) end
+        return
+    end
+    if not asset then
+        Status.Text = currentLanguage == "ru"
+            and ("3D недоступно: " .. tostring(loadError))
+            or ("3D unavailable: " .. tostring(loadError))
+        return
+    end
+    local preview = Instance.new("Model")
+    preview.Name = "GlassLens_" .. tostring(assetId)
+    asset.Parent = preview
+    local pieces = 0
+    for _, child in ipairs(preview:GetDescendants()) do
+        if child:IsA("Script") or child:IsA("LocalScript") or child:IsA("ModuleScript") then
+            child:Destroy()
+        elseif child:IsA("BasePart") then
+            pieces += 1
+            child.Anchored = true
+            child.CanCollide = false
+        end
+    end
+    if pieces == 0 then
+        preview:Destroy()
+        Status.Text = currentLanguage == "ru"
+            and "Для этого ID нет отдельной 3D-модели"
+            or "This asset has no standalone 3D model"
+        return
+    end
+    local state = {
+        avatar = previousAvatar, item = preview, camera = Camera.CFrame,
+        fov = Camera.FieldOfView, yaw = orbitYaw, pitch = orbitPitch,
+        distance = orbitDistance, baseDistance = baseCameraDistance,
+        minimum = minimumCameraDistance, maximum = maximumCameraDistance,
+        mode = viewportMode, poseVisible = PoseBar.Visible,
+        viewVisible = ViewModeBar.Visible
+    }
+    EH.assetPreviewState = state
+    previousAvatar.Parent = nil
+    preview.Parent = World
+    currentModel = preview
+    local positioned = centerModel(preview)
+    if EH.assetPreviewState ~= state then return end
+    if not positioned then
+        EH.closeAssetPreview()
+        Status.Text = currentLanguage == "ru" and "Не удалось показать 3D-предмет"
+            or "Could not frame this 3D item"
+        return
+    end
+    orbitYaw, orbitPitch = 0, 0
+    ViewModeBar.Visible = false
+    PoseBar.Visible = false
+    EH.assetCloseButton.Visible = true
+    updateFreeOrbitCamera()
+    Status.Text = (currentLanguage == "ru" and "3D предмет: " or "3D item: ") .. tostring(assetName)
 end
 
 --==================================================
@@ -4135,7 +4304,7 @@ local function addItem(name, assetId, category)
     })
 
     local card = create("Frame", {
-        Size = UDim2.new(1, -4, 0, 76),
+        Size = UDim2.new(1, -4, 0, 84),
         BackgroundColor3 = LIGHT,
         BorderSizePixel = 0
     }, ItemList)
@@ -4182,8 +4351,8 @@ local function addItem(name, assetId, category)
 
     local copyButton = makeButton(
         card, "",
-        UDim2.fromOffset(32, 28),
-        UDim2.new(1, -42, 0, 37),
+        UDim2.fromOffset(29, 27),
+        UDim2.new(1, -38, 0, 53),
         Color3.fromRGB(39, 29, 42)
     )
 
@@ -4194,6 +4363,28 @@ local function addItem(name, assetId, category)
     copyButton.Activated:Connect(function()
         copyID(assetId)
     end)
+
+    if category ~= "Animations" then
+        local previewButton = makeButton(
+            card, "", UDim2.fromOffset(29, 27),
+            UDim2.new(1, -72, 0, 53), Color3.fromRGB(48, 36, 54)
+        )
+        previewButton.Name = "GlassLensPreviewButton"
+        EH.styleIconAction(previewButton)
+        EH.safeIcon(previewButton, "eye", UDim2.fromOffset(4, 3), 21)
+        previewButton.Activated:Connect(function()
+            task.spawn(function()
+                local ok, err = pcall(EH.openAssetPreview, assetId, name)
+                if not ok then
+                    warn("[Avatar Inspector] Glass Lens: " .. tostring(err))
+                    if EH.assetPreviewState then EH.closeAssetPreview() end
+                    Status.Text = currentLanguage == "ru"
+                        and "Ошибка загрузки 3D-предмета"
+                        or "3D item preview failed"
+                end
+            end)
+        end)
+    end
 end
 
 local function displaySavedItems(items)
