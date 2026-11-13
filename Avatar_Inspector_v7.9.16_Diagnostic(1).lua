@@ -1,16 +1,5 @@
 --[[
-    AVATAR INSPECTOR v7.9.71
-
-    CHANGES IN v7.9.71:
-    - Reverted extra OUTFITS TextLabel and local ModeText added in v7.9.70
-    - Restored previously running TextButton label implementation
-    - Kept search and ITEMS alignment changes
-
-    CHANGES IN v7.9.70:
-    - Aligned ITEMS title vertically with the unchanged 21 px icon
-    - Anchored OUTFITS label in a dedicated non-interactive text label next to hanger icon
-    - Fixed version shown in header and startup logs
-    - Preserved saved outfits, localization, click handling and search UI
+    AVATAR INSPECTOR v7.9.69
 
     CHANGES IN v7.9.69:
     - Restored a visible gap between OUTFITS label and unchanged hanger icon
@@ -1565,7 +1554,7 @@ if HeaderContour then
 end
 
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.71",
+    Header, "AVATAR INSPECTOR v7.9.62",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -2002,7 +1991,7 @@ EH.listNeon(ItemsPanel)
 
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
-    UDim2.new(1, -67, 0, 21), UDim2.fromOffset(38, 5), 12
+    UDim2.new(1, -64, 0, 24), UDim2.fromOffset(35, 8), 12
 )
 EH.ehSectionLabel(ItemsTitle)
 ItemsTitle.Font = Enum.Font.GothamBold
@@ -5405,7 +5394,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.71 loaded successfully")
+print("Avatar Inspector v7.9.60 loaded successfully")
 
 end
 
@@ -5428,7 +5417,7 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.71 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.62 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
