@@ -3166,6 +3166,51 @@ do
     end
     EH.refreshHomeText()
 
+    -- ESP page is navigation-only until the user approves specific ESP tools.
+    local espPage = create("Frame", {
+        Name = "HorizonESPPage",
+        Position = UDim2.fromOffset(8, 108),
+        Size = UDim2.new(1, -16, 1, -166),
+        BackgroundColor3 = BG,
+        BorderSizePixel = 0,
+        Active = true,
+        Visible = false,
+        ZIndex = 30
+    }, Main)
+    round(espPage, 12)
+    local espCard = create("Frame", {
+        Name = "HorizonESPWelcomeCard",
+        Position = UDim2.fromOffset(12, 14),
+        Size = UDim2.new(1, -24, 0, 151),
+        BackgroundColor3 = Color3.fromRGB(36, 31, 26),
+        BorderSizePixel = 0,
+        ZIndex = 31
+    }, espPage)
+    round(espCard, 13)
+    create("UIStroke", {Color = Color3.fromRGB(154, 113, 72),
+        Thickness = 1.2, Transparency = 0.17}, espCard)
+    local espTitle = makeLabel(espCard, "ESP",
+        UDim2.new(1, -30, 0, 34), UDim2.fromOffset(16, 16), 20)
+    espTitle.Font = Enum.Font.GothamBold
+    espTitle.TextColor3 = Color3.fromRGB(246, 220, 187)
+    espTitle.ZIndex = 32
+    local espDescription = makeLabel(espCard, "",
+        UDim2.new(1, -30, 0, 77), UDim2.fromOffset(16, 57), 13)
+    espDescription.TextColor3 = Color3.fromRGB(195, 181, 164)
+    espDescription.TextWrapped = true
+    espDescription.TextYAlignment = Enum.TextYAlignment.Top
+    espDescription.TextTruncate = Enum.TextTruncate.None
+    espDescription.ZIndex = 32
+    local refreshPlayerAndHome = EH.refreshHomeText
+    EH.refreshHomeText = function()
+        refreshPlayerAndHome()
+        espTitle.Text = "ESP"
+        espDescription.Text = currentLanguage == "ru"
+            and "Здесь появятся настройки подсветки игроков и объектов. Пока функции не добавлены."
+            or "Player and object highlighting options will appear here. No functions have been added yet."
+    end
+    EH.refreshHomeText()
+
     -- Dedicated navigation bar below the header, not inside its narrow title row.
     local nav = create("Frame", {
         Name = "HorizonNavigationBar",
@@ -3181,46 +3226,75 @@ do
         Thickness = 1.1, Transparency = 0.2}, nav)
 
     local homeTab = makeButton(nav, "Главная",
-        UDim2.new(1/3, -5, 1, -8), UDim2.fromOffset(4, 4),
+        UDim2.new(0.25, -5, 1, -8), UDim2.fromOffset(4, 4),
         Color3.fromRGB(47, 37, 29))
     homeTab.Name = "HorizonHomeTab"
     local avatarsTab = makeButton(nav, "Аватары",
-        UDim2.new(1/3, -5, 1, -8), UDim2.new(1/3, 2, 0, 4),
+        UDim2.new(0.25, -5, 1, -8), UDim2.new(0.25, 2, 0, 4),
         Color3.fromRGB(35, 30, 25))
     avatarsTab.Name = "HorizonAvatarsTab"
     local playerTab = makeButton(nav, "Игрок",
-        UDim2.new(1/3, -7, 1, -8), UDim2.new(2/3, 1, 0, 4),
+        UDim2.new(0.25, -5, 1, -8), UDim2.new(0.5, 0, 0, 4),
         Color3.fromRGB(35, 30, 25))
     playerTab.Name = "HorizonPlayerTab"
+    local espTab = makeButton(nav, "ESP",
+        UDim2.new(0.25, -5, 1, -8), UDim2.new(0.75, -2, 0, 4),
+        Color3.fromRGB(35, 30, 25))
+    espTab.Name = "HorizonESPTab"
 
-    for _, tab in ipairs({homeTab, avatarsTab, playerTab}) do
+    local tabs = {homeTab, avatarsTab, playerTab, espTab}
+    for _, tab in ipairs(tabs) do
         tab.ZIndex = 13
-        tab.TextSize = 13
+        tab.TextSize = 12
         tab.Font = Enum.Font.GothamBold
         tab.TextXAlignment = Enum.TextXAlignment.Left
         EH.styleIconAction(tab)
-        create("UIPadding", {PaddingLeft = UDim.new(0, 37)}, tab)
     end
-    EH.safeIcon(homeTab, "home", UDim2.fromOffset(10, 8), 23)
-    EH.safeIcon(avatarsTab, "shirt_tab", UDim2.fromOffset(10, 7), 24)
-    EH.safeIcon(playerTab, "user_round_cog", UDim2.fromOffset(10, 7), 24)
+    -- Use the existing native eye icon, not an extra PNG or asset download.
+    local glyphs = {
+        EH.safeIcon(homeTab, "home", UDim2.fromOffset(8, 9), 21),
+        EH.safeIcon(avatarsTab, "shirt_tab", UDim2.fromOffset(8, 8), 22),
+        EH.safeIcon(playerTab, "user_round_cog", UDim2.fromOffset(8, 8), 22),
+        EH.safeIcon(espTab, "eye", UDim2.fromOffset(8, 8), 22)
+    }
 
     EH.layoutHorizonTabs = function(mobile, windowWidth)
         local width = mobile and (windowWidth - 24) or 450
         nav.Size = UDim2.fromOffset(width, 48)
         nav.Position = UDim2.new(0.5, -width / 2, 0, 54)
-        for _, tab in ipairs({homeTab, avatarsTab, playerTab}) do
-            tab.TextSize = mobile and 12 or 13
+        for i, tab in ipairs(tabs) do
+            if mobile then
+                -- Stack the icon and label to keep Russian names readable on phones.
+                tab.TextSize = 11
+                tab.TextXAlignment = Enum.TextXAlignment.Center
+                tab.TextYAlignment = Enum.TextYAlignment.Bottom
+                tab.TextWrapped = false
+                local glyph = glyphs[i]
+                if glyph then glyph.Position = UDim2.new(0.5, -10, 0, 2) end
+            else
+                tab.TextSize = 12
+                tab.TextXAlignment = Enum.TextXAlignment.Left
+                tab.TextYAlignment = Enum.TextYAlignment.Center
+                local glyph = glyphs[i]
+                if glyph then glyph.Position = UDim2.fromOffset(8, 8) end
+            end
+            local oldPadding = tab:FindFirstChildOfClass("UIPadding")
+            if oldPadding then oldPadding:Destroy() end
+            create("UIPadding", mobile
+                and {PaddingBottom = UDim.new(0, 2)}
+                or {PaddingLeft = UDim.new(0, 34)}, tab)
         end
     end
 
     local function selectPage(page)
         layer.Visible = page == "Home"
         playerPage.Visible = page == "Player"
+        espPage.Visible = page == "ESP"
         for _, entry in ipairs({
             {button = homeTab, active = page == "Home"},
             {button = avatarsTab, active = page == "Avatars"},
-            {button = playerTab, active = page == "Player"}
+            {button = playerTab, active = page == "Player"},
+            {button = espTab, active = page == "ESP"}
         }) do
             local button = entry.button
             button:SetAttribute("SelectedControl", entry.active)
@@ -3233,6 +3307,7 @@ do
     homeTab.Activated:Connect(function() selectPage("Home") end)
     avatarsTab.Activated:Connect(function() selectPage("Avatars") end)
     playerTab.Activated:Connect(function() selectPage("Player") end)
+    espTab.Activated:Connect(function() selectPage("ESP") end)
     selectPage("Home")
 end
 
