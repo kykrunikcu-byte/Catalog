@@ -1326,6 +1326,15 @@ function EH.icon(parent, kind, position, size)
         strokeLine(18.3, 21.2, 18.3, 23, 1.4)
         strokeLine(13.2, 18, 15.0, 18, 1.4)
         strokeLine(21.3, 18, 23, 18, 1.4)
+    elseif kind == "ghost" then
+        -- Minimal bronze ghost pictogram, matching the native HORIZON line icons.
+        outline(4, 2.5, 16, 19, 8, 2)
+        dot(8, 10, 2.5)
+        dot(14, 10, 2.5)
+        strokeLine(5, 20, 8, 17.5, 2)
+        strokeLine(8, 17.5, 12, 21, 2)
+        strokeLine(12, 21, 16, 17.5, 2)
+        strokeLine(16, 17.5, 19, 20, 2)
     elseif kind == "fly" then
         -- Outline airplane for the player tools card.
         strokeLine(2.8, 12.2, 21, 4.5, 1.9)
@@ -3345,9 +3354,143 @@ do
             isEnabled = false
         end
 
+        -- Noclip: same Accent Corner card and Smooth Check animation as Fly.
+        -- It uses the already-loaded Player.lua controller, not a second loader.
+        local noclipCard = create("Frame", {
+            Name = "HorizonNoclipCard",
+            Position = UDim2.fromOffset(12, 272),
+            Size = UDim2.new(1, -24, 0, 78),
+            BackgroundColor3 = Color3.fromRGB(40, 37, 33),
+            BorderSizePixel = 0, ZIndex = 31
+        }, playerPage)
+        round(noclipCard, 10)
+        create("UIStroke", {
+            Color = Color3.fromRGB(69, 64, 58),
+            Thickness = 1, Transparency = 0
+        }, noclipCard)
+        local noclipAccent = create("Frame", {
+            Name = "BronzeCornerAccent",
+            Position = UDim2.fromOffset(13, 19),
+            Size = UDim2.fromOffset(3, 39),
+            BackgroundColor3 = Color3.fromRGB(190, 147, 107),
+            BorderSizePixel = 0, ZIndex = 32
+        }, noclipCard)
+        round(noclipAccent, 2)
+        EH.safeIcon(noclipCard, "ghost", UDim2.fromOffset(27, 26), 25)
+
+        local noclipTitle = makeLabel(noclipCard, "Noclip",
+            UDim2.new(1, -174, 0, 25), UDim2.fromOffset(64, 16), 16)
+        noclipTitle.Font = Enum.Font.GothamBold
+        noclipTitle.TextColor3 = Color3.fromRGB(242, 223, 205)
+        noclipTitle.ZIndex = 32
+        local noclipSubtitle = makeLabel(noclipCard, "Сквозь стены",
+            UDim2.new(1, -174, 0, 20), UDim2.fromOffset(64, 41), 11)
+        noclipSubtitle.TextColor3 = Color3.fromRGB(170, 160, 152)
+        noclipSubtitle.ZIndex = 32
+
+        local noclipToggle = create("TextButton", {
+            Name = "HorizonNoclipToggle",
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -15, 0.5, 0),
+            Size = UDim2.fromOffset(68, 34),
+            BackgroundColor3 = Color3.fromRGB(60, 58, 55),
+            BorderSizePixel = 0, Text = "",
+            AutoButtonColor = false, Active = true,
+            Selectable = true, ZIndex = 33
+        }, noclipCard)
+        round(noclipToggle, 17)
+        local noclipStroke = create("UIStroke", {
+            Color = Color3.fromRGB(109, 102, 95),
+            Thickness = 1, Transparency = 0
+        }, noclipToggle)
+        local noclipKnob = create("Frame", {
+            Name = "SmoothCheckKnob",
+            Position = UDim2.fromOffset(4, 4),
+            Size = UDim2.fromOffset(26, 26),
+            BackgroundColor3 = Color3.fromRGB(197, 190, 183),
+            BorderSizePixel = 0, Active = false, ZIndex = 34
+        }, noclipToggle)
+        round(noclipKnob, 13)
+        local noclipCheck = makeLabel(noclipKnob, "✓",
+            UDim2.fromScale(1, 1), UDim2.fromOffset(0, -1), 19)
+        noclipCheck.Name = "SmoothCheckMark"
+        noclipCheck.TextColor3 = Color3.fromRGB(40, 123, 59)
+        noclipCheck.TextXAlignment = Enum.TextXAlignment.Center
+        noclipCheck.TextYAlignment = Enum.TextYAlignment.Center
+        noclipCheck.TextTransparency = 1
+        noclipCheck.Font = Enum.Font.GothamBold
+        noclipCheck.Active = false
+        noclipCheck.ZIndex = 35
+
+        local noclipEnabled = false
+        local function setNoclipVisual(enabled)
+            noclipEnabled = enabled
+            noclipToggle:SetAttribute("NoclipEnabled", enabled)
+            local move = TweenInfo.new(0.43, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+            local color = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            TweenService:Create(noclipKnob, move, {
+                Position = UDim2.fromOffset(enabled and 38 or 4, 4)
+            }):Play()
+            TweenService:Create(noclipKnob, color, {
+                BackgroundColor3 = enabled and Color3.fromRGB(220, 255, 208)
+                    or Color3.fromRGB(197, 190, 183)
+            }):Play()
+            TweenService:Create(noclipToggle, color, {
+                BackgroundColor3 = enabled and Color3.fromRGB(80, 107, 74)
+                    or Color3.fromRGB(60, 58, 55)
+            }):Play()
+            TweenService:Create(noclipStroke, color, {
+                Color = enabled and Color3.fromRGB(164, 217, 146)
+                    or Color3.fromRGB(109, 102, 95)
+            }):Play()
+            TweenService:Create(noclipCheck, color, {
+                TextTransparency = enabled and 0 or 1
+            }):Play()
+        end
+        noclipToggle.Activated:Connect(function()
+            if noclipEnabled then
+                if flyController then
+                    local ok, err = pcall(function() flyController:disableNoclip() end)
+                    if not ok then
+                        warn("[HORIZON Noclip] Disable failed: " .. tostring(err))
+                        return
+                    end
+                end
+                setNoclipVisual(false)
+                return
+            end
+
+            local controller, err = getFlyController()
+            if not controller then
+                warn("[HORIZON Noclip] " .. tostring(err))
+                setNoclipVisual(false)
+                return
+            end
+            if type(controller.enableNoclip) ~= "function" then
+                warn("[HORIZON Noclip] Update Player.lua: missing enableNoclip")
+                return
+            end
+            local ok, problem = pcall(function() controller:enableNoclip() end)
+            if not ok then
+                warn("[HORIZON Noclip] Enable failed: " .. tostring(problem))
+                pcall(function() controller:disableNoclip() end)
+                setNoclipVisual(false)
+                return
+            end
+            setNoclipVisual(true)
+        end)
+
+        -- Reuse HORIZON's existing full-close cleanup for both player tools.
+        local stopPreviousPlayerTools = EH.stopFly
+        EH.stopFly = function()
+            if stopPreviousPlayerTools then stopPreviousPlayerTools() end
+            noclipEnabled = false
+        end
+
         -- The existing localization system can call the most recent page refresh.
         EH.refreshFlyCardText = function()
             flySubtitle.Text = currentLanguage == "ru" and "Режим полёта" or "Flight mode"
+            noclipSubtitle.Text = currentLanguage == "ru" and "Сквозь стены" or "Through walls"
         end
     end
 
@@ -3358,8 +3501,8 @@ do
         playerTitle.Text = ru and "Управление игроком" or "Player tools"
         if EH.refreshFlyCardText then EH.refreshFlyCardText() end
         playerDescription.Text = ru
-            and "Используйте Fly ниже для полёта. Остальные функции управления игроком добавим позже."
-            or "Use Fly below to control flight. More player tools are coming later."
+            and "Включайте Fly для полёта и Noclip для прохождения сквозь стены."
+            or "Use Fly to fly and Noclip to pass through walls."
     end
     EH.refreshHomeText()
 
