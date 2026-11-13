@@ -1,5 +1,10 @@
 --[[
-    AVATAR INSPECTOR v7.9.66
+    AVATAR INSPECTOR v7.9.67
+
+    CHANGES IN v7.9.67:
+    - Moved OUTFITS button label 14 px toward unchanged hanger icon via right text padding
+    - Raised ITEMS label 4 px to align with unchanged panel icon
+    - Preserved all other GUI behavior and styling
 
     CHANGES IN v7.9.66:
     - Raised ITEMS panel heading icon by 4 px for cleaner vertical alignment
@@ -1739,7 +1744,7 @@ local ModeButton = makeButton(
 )
 EH.styleIconAction(ModeButton)
 ModeButton.TextXAlignment = Enum.TextXAlignment.Right
-create("UIPadding", {PaddingRight = UDim.new(0, 14)}, ModeButton)
+create("UIPadding", {PaddingRight = UDim.new(0, 28)}, ModeButton)
 
 local PlayerList = create("ScrollingFrame", {
     Position = UDim2.fromOffset(12, 104),
@@ -1975,7 +1980,7 @@ EH.listNeon(ItemsPanel)
 
 local ItemsTitle = makeLabel(
     ItemsPanel, "ITEMS",
-    UDim2.new(1, -70, 0, 24), UDim2.fromOffset(41, 8), 12
+    UDim2.new(1, -70, 0, 24), UDim2.fromOffset(41, 4), 12
 )
 EH.ehSectionLabel(ItemsTitle)
 ItemsTitle.Font = Enum.Font.GothamBold
