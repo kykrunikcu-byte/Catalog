@@ -4410,7 +4410,7 @@ refreshPlayerList = function()
     EH.safeIcon(countHeader, "players", UDim2.fromOffset(8, 6), 23)
 
     local listTitle = makeLabel(countHeader, "PLAYERS",
-        UDim2.new(1, -56, 0, 18), UDim2.fromOffset(35, 8), 10)
+        UDim2.new(1, -56, 0, 18), UDim2.fromOffset(35, 8), 12)
     listTitle.Font = Enum.Font.GothamBold
     listTitle.TextColor3 = WHITE
 
@@ -4427,7 +4427,7 @@ refreshPlayerList = function()
     round(onlineDot, 7)
     local countText = makeLabel(countHeader,
         string.format("%02d ONLINE", serverPlayers),
-        UDim2.new(1, -18, 0, 22), UDim2.fromOffset(17, 29), 12)
+        UDim2.new(1, -18, 0, 22), UDim2.fromOffset(17, 29), 11)
     countText.ZIndex = countHeader.ZIndex + 3
     countText.Font = Enum.Font.GothamBold
     countText.TextColor3 = Color3.fromRGB(249, 193, 150)
