@@ -598,14 +598,7 @@ local function translateText(text)
 
     local onlineCount = text:match("^(%d+) ONLINE$")
     if onlineCount and currentLanguage == "ru" then
-        local number = tonumber(onlineCount) or 0
-        local lastTwo = number % 100
-        local lastOne = number % 10
-        local noun = (lastTwo >= 11 and lastTwo <= 14) and "ИГРОКОВ"
-            or lastOne == 1 and "ИГРОК"
-            or (lastOne >= 2 and lastOne <= 4) and "ИГРОКА"
-            or "ИГРОКОВ"
-        return onlineCount .. " " .. noun
+        return "СЕЙЧАС ОНЛАЙН: " .. onlineCount
     end
     local count = text:match("^PLAYERS ON SERVER: (%d+)$")
     if count then
@@ -2005,9 +1998,9 @@ EH.listNeon(ItemsPanel)
 -- Reuse the existing worn-items chip as one combined title/count block.
 -- No additional frames: icon, title and count all belong to this chip.
 EH.wornHeader = EH.statusChip(ItemsPanel, "EHWornCountPill",
-    UDim2.fromOffset(13, 4), UDim2.new(1, -26, 0, 52),
+    UDim2.fromOffset(13, 5), UDim2.new(1, -26, 0, 50),
     Color3.fromRGB(142, 222, 175))
-EH.wornHeader.EHStatusDot.Position = UDim2.fromOffset(9, 36)
+EH.wornHeader.EHStatusDot.Position = UDim2.fromOffset(9, 35)
 local ItemsTitle = makeLabel(
     EH.wornHeader, "ITEMS",
     UDim2.new(1, -48, 0, 21), UDim2.fromOffset(36, 7), 12
@@ -4417,12 +4410,20 @@ refreshPlayerList = function()
     listTitle.Font = Enum.Font.GothamBold
     listTitle.TextColor3 = WHITE
 
-    EH.statusChip(countHeader, "EHOnlinePill",
-        UDim2.fromOffset(9, 30), UDim2.fromOffset(115, 27),
-        Color3.fromRGB(142, 222, 175))
+    -- Single existing player-count header: no nested status chip/frame.
+    local onlineDot = create("Frame", {
+        Name = "EHOnlineDot",
+        Position = UDim2.fromOffset(12, 37),
+        Size = UDim2.fromOffset(7, 7),
+        BackgroundColor3 = Color3.fromRGB(142, 222, 175),
+        BorderSizePixel = 0,
+        Active = false,
+        ZIndex = countHeader.ZIndex + 2
+    }, countHeader)
+    round(onlineDot, 7)
     local countText = makeLabel(countHeader,
         string.format("%02d ONLINE", serverPlayers),
-        UDim2.fromOffset(92, 22), UDim2.fromOffset(28, 32), 10)
+        UDim2.new(1, -30, 0, 19), UDim2.fromOffset(25, 30), 9)
     countText.ZIndex = countHeader.ZIndex + 3
     countText.Font = Enum.Font.GothamBold
     countText.TextColor3 = Color3.fromRGB(249, 193, 150)
