@@ -4387,16 +4387,20 @@ refreshPlayerList = function()
 
     local countHeader = create("Frame", {
         Name = "ServerPlayerCount",
-        Size = UDim2.new(1, -4, 0, 64),
-        BackgroundColor3 = LIGHT,
+        Size = UDim2.new(1, -20, 0, 64),
+        BackgroundColor3 = Color3.fromRGB(45, 35, 49),
         BorderSizePixel = 0,
         LayoutOrder = 0
     }, PlayerList)
     EH.ehCard(countHeader)
+    -- Match the existing items status chip instead of the darker card gradient.
+    local headerGradient = countHeader:FindFirstChildOfClass("UIGradient")
+    if headerGradient then headerGradient:Destroy() end
     local headerEdge = countHeader:FindFirstChildOfClass("UIStroke")
     if headerEdge then
-        headerEdge.Color = Color3.fromRGB(153, 111, 160)
-        headerEdge.Transparency = 0.39
+        headerEdge.Color = Color3.fromRGB(177, 119, 119)
+        headerEdge.Transparency = 0.35
+        headerEdge.Thickness = 1
     end
 
     local listIcon = makeLabel(countHeader, "",
