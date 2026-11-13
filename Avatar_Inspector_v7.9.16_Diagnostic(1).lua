@@ -3243,46 +3243,45 @@ do
     espTab.Name = "HorizonESPTab"
 
     local tabs = {homeTab, avatarsTab, playerTab, espTab}
-    for _, tab in ipairs(tabs) do
+    -- Keep icons and captions in separate non-interactive layers.
+    -- TextButton.Text previously occupied the full control and overlapped the icon.
+    local captions = {"Главная", "Аватары", "Игрок", "ESP"}
+    for i, tab in ipairs(tabs) do
         tab.ZIndex = 13
-        tab.TextSize = 12
         tab.Font = Enum.Font.GothamBold
-        tab.TextXAlignment = Enum.TextXAlignment.Left
+        tab.Text = ""
         EH.styleIconAction(tab)
+
+        local caption = makeLabel(tab, captions[i],
+            UDim2.new(1, -6, 0, 15), UDim2.new(0, 3, 1, -18), 11)
+        caption.Name = "HorizonTabCaption"
+        caption.Font = Enum.Font.GothamBold
+        caption.TextColor3 = Color3.fromRGB(234, 216, 182)
+        caption.TextXAlignment = Enum.TextXAlignment.Center
+        caption.TextYAlignment = Enum.TextYAlignment.Center
+        caption.TextTruncate = Enum.TextTruncate.AtEnd
+        caption.Active = false
+        caption.ZIndex = tab.ZIndex + 2
     end
-    -- Use the existing native eye icon, not an extra PNG or asset download.
+
+    -- Original native icons, now centered in the upper half of each button.
     local glyphs = {
-        EH.safeIcon(homeTab, "home", UDim2.fromOffset(8, 9), 21),
-        EH.safeIcon(avatarsTab, "shirt_tab", UDim2.fromOffset(8, 8), 22),
-        EH.safeIcon(playerTab, "user_round_cog", UDim2.fromOffset(8, 8), 22),
-        EH.safeIcon(espTab, "eye", UDim2.fromOffset(8, 8), 22)
+        EH.safeIcon(homeTab, "home", UDim2.new(0.5, -10, 0, 3), 20),
+        EH.safeIcon(avatarsTab, "shirt_tab", UDim2.new(0.5, -10, 0, 3), 20),
+        EH.safeIcon(playerTab, "user_round_cog", UDim2.new(0.5, -10, 0, 3), 20),
+        EH.safeIcon(espTab, "eye", UDim2.new(0.5, -10, 0, 3), 20)
     }
 
     EH.layoutHorizonTabs = function(mobile, windowWidth)
         local width = mobile and (windowWidth - 24) or 450
         nav.Size = UDim2.fromOffset(width, 48)
         nav.Position = UDim2.new(0.5, -width / 2, 0, 54)
+        -- Both desktop and mobile use one stable stacked layout.
         for i, tab in ipairs(tabs) do
-            if mobile then
-                -- Stack the icon and label to keep Russian names readable on phones.
-                tab.TextSize = 11
-                tab.TextXAlignment = Enum.TextXAlignment.Center
-                tab.TextYAlignment = Enum.TextYAlignment.Bottom
-                tab.TextWrapped = false
-                local glyph = glyphs[i]
-                if glyph then glyph.Position = UDim2.new(0.5, -10, 0, 2) end
-            else
-                tab.TextSize = 12
-                tab.TextXAlignment = Enum.TextXAlignment.Left
-                tab.TextYAlignment = Enum.TextYAlignment.Center
-                local glyph = glyphs[i]
-                if glyph then glyph.Position = UDim2.fromOffset(8, 8) end
-            end
-            local oldPadding = tab:FindFirstChildOfClass("UIPadding")
-            if oldPadding then oldPadding:Destroy() end
-            create("UIPadding", mobile
-                and {PaddingBottom = UDim.new(0, 2)}
-                or {PaddingLeft = UDim.new(0, 34)}, tab)
+            local glyph = glyphs[i]
+            if glyph then glyph.Position = UDim2.new(0.5, -10, 0, 3) end
+            local caption = tab:FindFirstChild("HorizonTabCaption")
+            if caption then caption.TextSize = mobile and 10 or 11 end
         end
     end
 
