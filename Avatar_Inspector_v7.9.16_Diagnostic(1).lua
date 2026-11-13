@@ -5820,273 +5820,41 @@ end
 ModeButton.Activated:Connect(updateListMode)
 
 --==================================================
--- CASCADE PANELS / REVERSE CASCADE + DISSOLVE
+-- SMOOTH MAIN WINDOW TRANSITIONS
 --==================================================
--- Roblox GUI animation uses TweenService (not CSS or character AnimationTracks).
--- Do not reparent GUI, rebuild panels, alter 3D cameras, or create CanvasGroups:
--- CanvasGroups consume extra render memory on mobile devices.
--- Every animated transparency is restored after hiding or interruption.
--- Isolated function scope is essential: StartAvatarInspector is near Luau's
--- 200-local-per-function compiler limit. No new startup locals are declared.
-function EH.installCascadeTransitions()
-    local animationToken = 0
-    local targetVisible = Main.Visible
-    local basePosition = Main.Position
-    local runningTweens = {}
-    local runningRecords = nil
-    local panelScales = {}
 
-    local panels = {
-        {PlayerList},
-        {Viewport, PoseBar},
-        {ItemsPanel}
-    }
+local windowAnimationToken = 0
+local windowBasePosition = Main.Position
 
-    -- One UIScale per panel, not one animation loop per UI descendant.
-    for _, group in ipairs(panels) do
-        for _, panel in ipairs(group) do
-            local scale = panel:FindFirstChildOfClass("UIScale")
-            if not scale then
-                scale = create("UIScale", {Scale = 1}, panel)
-            end
-            panelScales[panel] = {object = scale, baseline = scale.Scale}
-        end
-    end
+local function setMainWindowVisible(shouldShow)
+    windowAnimationToken += 1
+    local token = windowAnimationToken
+    local baseScale = windowBaseScale
+    if baseScale <= 0 then baseScale = 1 end
 
-    local function insidePanel(obj, panel)
-        if obj == panel then return true end
-        if not obj:IsA("GuiObject") then return true end
-        if not obj.Visible then return false end
-        local p, q = obj.AbsolutePosition, obj.AbsoluteSize
-        local a, b = panel.AbsolutePosition, panel.AbsoluteSize
-        -- A hidden window may not have laid out its first frame yet.
-        if b.X <= 0 or b.Y <= 0 then return true end
-        -- Skip off-screen list entries: fewer tweens for long scrolling lists.
-        return p.X < a.X + b.X and p.X + q.X > a.X
-            and p.Y < a.Y + b.Y and p.Y + q.Y > a.Y
-    end
-
-    local function record(obj, records, clippingPanel)
-        if not obj.Parent then return end
-        local properties
-        if obj:IsA("GuiObject") then
-            if clippingPanel and not insidePanel(obj, clippingPanel) then return end
-            if not obj.Visible then return end
-            properties = {BackgroundTransparency = obj.BackgroundTransparency}
-            if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-                properties.TextTransparency = obj.TextTransparency
-                properties.TextStrokeTransparency = obj.TextStrokeTransparency
-            end
-            if obj:IsA("ImageLabel") or obj:IsA("ImageButton")
-                or obj:IsA("ViewportFrame") then
-                properties.ImageTransparency = obj.ImageTransparency
-            end
-            if obj:IsA("ScrollingFrame") then
-                properties.ScrollBarImageTransparency = obj.ScrollBarImageTransparency
-            end
-        elseif obj:IsA("UIStroke") then
-            if not obj.Enabled then return end
-            if clippingPanel and obj.Parent:IsA("GuiObject")
-                and not insidePanel(obj.Parent, clippingPanel) then return end
-            properties = {Transparency = obj.Transparency}
-        end
-        if properties then
-            records[#records + 1] = {object = obj, properties = properties}
-        end
-    end
-
-    local function captureTree(root, records, clippingPanel)
-        record(root, records, clippingPanel)
-        for _, descendant in ipairs(root:GetDescendants()) do
-            record(descendant, records, clippingPanel)
-        end
-    end
-
-    local function captureAll()
-        local snapshot = {shell = {}, groups = {{}, {}, {}}}
-        record(Main, snapshot.shell)
-        for _, child in ipairs(Main:GetChildren()) do
-            if child ~= PlayerList and child ~= Viewport
-                and child ~= ItemsPanel and child ~= PoseBar then
-                captureTree(child, snapshot.shell)
-            end
-        end
-        for i, group in ipairs(panels) do
-            for _, panel in ipairs(group) do
-                captureTree(panel, snapshot.groups[i], panel)
-            end
-        end
-        return snapshot
-    end
-
-    local function setAlpha(records, hidden)
-        for _, entry in ipairs(records) do
-            if entry.object.Parent then
-                for name, original in pairs(entry.properties) do
-                    entry.object[name] = hidden and 1 or original
-                end
-            end
-        end
-    end
-
-    local function animateAlpha(records, hidden, duration, direction)
-        local info = TweenInfo.new(duration, Enum.EasingStyle.Quad, direction)
-        for _, entry in ipairs(records) do
-            if entry.object.Parent then
-                local goals = {}
-                for name, original in pairs(entry.properties) do
-                    goals[name] = hidden and 1 or original
-                end
-                local ok, tween = pcall(function()
-                    return TweenService:Create(entry.object, info, goals)
-                end)
-                if ok and tween then
-                    runningTweens[#runningTweens + 1] = tween
-                    tween:Play()
-                end
-            end
-        end
-    end
-
-    local function animateProperty(obj, info, goals)
-        if not obj.Parent then return end
-        local tween = TweenService:Create(obj, info, goals)
-        runningTweens[#runningTweens + 1] = tween
-        tween:Play()
-    end
-
-    local function resetTransition()
-        for _, tween in ipairs(runningTweens) do
-            tween:Cancel()
-        end
-        table.clear(runningTweens)
-        if runningRecords then
-            setAlpha(runningRecords.shell, false)
-            for _, group in ipairs(runningRecords.groups) do
-                setAlpha(group, false)
-            end
-            runningRecords = nil
-        end
-        for _, entry in pairs(panelScales) do
-            if entry.object.Parent then
-                entry.object.Scale = entry.baseline
-            end
-        end
-        if Main.Parent then
-            Main.Position = basePosition
-            UIScale.Scale = windowBaseScale > 0 and windowBaseScale or 1
-        end
-    end
-
-    local function setMainWindowVisible(shouldShow)
-        if targetVisible == shouldShow then return end
-        animationToken += 1
-        local token = animationToken
-
-        local hadTransition = runningRecords ~= nil
-        -- Capture drag position BEFORE resetTransition restores the old anchor.
-        local draggedPosition = not hadTransition and Main.Visible
-            and Main.Position or nil
-        resetTransition()
-        if draggedPosition then
-            basePosition = draggedPosition
-            Main.Position = basePosition
-        end
-        targetVisible = shouldShow
-        local baseScale = windowBaseScale > 0 and windowBaseScale or 1
-        -- Layout/absolute bounds must be ready when starting from hidden.
-        if shouldShow then Main.Visible = true end
-        local snapshot = captureAll()
-        runningRecords = snapshot
-
-        local function valid()
-            return token == animationToken and Main.Parent ~= nil
-        end
-
-        if shouldShow then
-            -- #18 Cascade Panels: shell -> player list -> 3D -> items.
-            Main.Visible = true
-            Main.Position = basePosition + UDim2.fromOffset(0, 14)
-            UIScale.Scale = baseScale * 0.90
-            setAlpha(snapshot.shell, true)
-            for _, group in ipairs(snapshot.groups) do
-                setAlpha(group, true)
-            end
-            for _, entry in pairs(panelScales) do
-                if entry.object.Parent then entry.object.Scale = entry.baseline * 0.96 end
-            end
-
-            animateProperty(Main,
-                TweenInfo.new(0.40, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
-                {Position = basePosition})
-            animateProperty(UIScale,
-                TweenInfo.new(0.40, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
-                {Scale = baseScale})
-            animateAlpha(snapshot.shell, false, 0.36, Enum.EasingDirection.Out)
-
-            for i, group in ipairs(panels) do
-                task.delay(0.12 + (i - 1) * 0.15, function()
-                    if not valid() then return end
-                    animateAlpha(snapshot.groups[i], false, 0.29, Enum.EasingDirection.Out)
-                    for _, panel in ipairs(group) do
-                        local entry = panelScales[panel]
-                        animateProperty(entry.object,
-                            TweenInfo.new(0.32, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
-                            {Scale = entry.baseline})
-                    end
-                end)
-            end
-            task.delay(0.79, function()
-                if not valid() then return end
-                resetTransition()
-            end)
-        else
-            -- #18 Reverse Cascade: items -> 3D -> player list.
-            -- Then #13 Dissolve: fade shell + slight shrink, no world blur.
-            for order, index in ipairs({3, 2, 1}) do
-                task.delay((order - 1) * 0.15, function()
-                    if not valid() then return end
-                    animateAlpha(snapshot.groups[index], true, 0.24, Enum.EasingDirection.In)
-                    for _, panel in ipairs(panels[index]) do
-                        local entry = panelScales[panel]
-                        animateProperty(entry.object,
-                            TweenInfo.new(0.24, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-                            {Scale = entry.baseline * 0.95})
-                    end
-                end)
-            end
-
-            task.delay(0.54, function()
-                if not valid() then return end
-                animateAlpha(snapshot.shell, true, 0.30, Enum.EasingDirection.In)
-                local info = TweenInfo.new(0.30,
-                    Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-                animateProperty(Main, info,
-                    {Position = basePosition + UDim2.fromOffset(0, 10)})
-                animateProperty(UIScale, info, {Scale = baseScale * 0.94})
-            end)
-            task.delay(0.86, function()
-                if not valid() then return end
-                -- Restore before the next opening; no invisible buttons persist.
-                resetTransition()
-                Main.Visible = false
-            end)
-        end
-    end
-
-    EH.mainOpenAction = function()
-        setMainWindowVisible(not targetVisible)
+    if shouldShow then
+        Main.Visible = true
+        windowBasePosition = Main.Position
+        Main.Position = windowBasePosition + UDim2.fromOffset(0, 12)
+        UIScale.Scale = baseScale * 0.90
+        local info = TweenInfo.new(0.26, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+        TweenService:Create(Main, info, {Position = windowBasePosition}):Play()
+        TweenService:Create(UIScale, info, {Scale = baseScale}):Play()
+    else
+        if not Main.Visible then return end
+        local info = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        local move = TweenService:Create(Main, info, {Position = windowBasePosition + UDim2.fromOffset(0, 12)})
+        local shrink = TweenService:Create(UIScale, info, {Scale = baseScale * 0.92})
+        move:Play()
+        shrink:Play()
+        move.Completed:Connect(function()
+            if token ~= windowAnimationToken then return end
+            Main.Visible = false
+            Main.Position = windowBasePosition
+            UIScale.Scale = baseScale
+        end)
     end
 end
-
--- Install safely only after the GUI and floating control are created.
--- If a transition fails, Toggle.Activated keeps its original direct fallback.
-task.defer(function()
-    local ok, err = pcall(EH.installCascadeTransitions)
-    if not ok then
-        warn("[Avatar Inspector] Cascade transitions unavailable, using safe toggle: " .. tostring(err))
-    end
-end)
 
 --==================================================
 -- EVENTS
@@ -6130,7 +5898,9 @@ end))
 -- MAIN BUTTONS
 --==================================================
 
--- The floating button uses the Cascade handler installed above.
+EH.mainOpenAction = function()
+    setMainWindowVisible(not Main.Visible)
+end
 
 Close.Activated:Connect(function()
     showExitConfirmation()
