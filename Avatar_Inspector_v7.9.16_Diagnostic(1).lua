@@ -1307,7 +1307,14 @@ function EH.icon(parent, kind, position, size)
         return part
     end
 
-    if kind == "search" then
+    if kind == "home" then
+        strokeLine(3, 11, 12, 3.5, 2)
+        strokeLine(12, 3.5, 21, 11, 2)
+        strokeLine(5.5, 10, 5.5, 21, 2)
+        strokeLine(18.5, 10, 18.5, 21, 2)
+        strokeLine(5.5, 21, 18.5, 21, 2)
+        outline(10, 14, 4, 7, 1, 1.6)
+    elseif kind == "search" then
         outline(3.1, 2.8, 14.4, 14.4, 10, 2.2)
         strokeLine(16.3, 16.4, 21.5, 21.5, 2.5)
     elseif kind == "eye" then
@@ -1362,7 +1369,7 @@ function EH.icon(parent, kind, position, size)
     elseif kind == "close" then
         strokeLine(5, 5, 19, 19, 2.4)
         strokeLine(19, 5, 5, 19, 2.4)
-    elseif kind == "outfits" then
+    elseif kind == "outfits" or kind == "shirt_tab" then
         -- Native shirt outline when executor PNG loading is unavailable.
         strokeLine(8, 4, 6, 5, 1.9)
         strokeLine(6, 5, 2, 10, 1.9)
@@ -1960,7 +1967,7 @@ end -- short-lived HeaderContour scope
 
 do -- release construction-only local: HeaderTitle
 local HeaderTitle = makeLabel(
-    Header, "AVATAR INSPECTOR v7.9.62",
+    Header, "HORIZON",
     UDim2.new(1, -182, 1, 0),
     UDim2.fromOffset(16, 0), 15
 )
@@ -2979,6 +2986,7 @@ for index, option in ipairs(languageOptions) do
         applyLocalization(ScreenGui)
         LangButton.Text = currentLanguage:upper()
         EH.setModeButtonLabel(ModeButton, currentMode)
+        if EH.refreshHomeText then EH.refreshHomeText() end
         local preferenceSaved = saveLanguagePreference()
         if not preferenceSaved then
             Status.Text = "Language changed, but this executor cannot save language settings"
@@ -3006,6 +3014,135 @@ LangButton.Text = currentLanguage:upper()
 applyLocalization(ScreenGui)
 LangButton.Text = currentLanguage:upper()
 EH.setModeButtonLabel(ModeButton, currentMode)
+
+
+-- HORIZON: two tabs. Inspector GUI stays active; Home is an opaque overlay.
+do
+    local layer = create("Frame", {
+        Name = "HorizonHomePage",
+        Position = UDim2.fromOffset(8, 54),
+        Size = UDim2.new(1, -16, 1, -112),
+        BackgroundColor3 = BG,
+        BorderSizePixel = 0,
+        Active = true, Visible = true, ZIndex = 30
+    }, Main)
+    round(layer, 12)
+
+    local card = create("Frame", {
+        Name = "HorizonWelcomeCard",
+        Position = UDim2.fromOffset(12, 14),
+        Size = UDim2.new(1, -24, 0, 182),
+        BackgroundColor3 = Color3.fromRGB(36, 31, 26),
+        BorderSizePixel = 0, ZIndex = 31
+    }, layer)
+    round(card, 13)
+    create("UIStroke", {
+        Color = Color3.fromRGB(154, 113, 72),
+        Thickness = 1.2, Transparency = 0.17
+    }, card)
+    local stripe = create("Frame", {
+        Position = UDim2.fromOffset(14, 15),
+        Size = UDim2.fromOffset(4, 55),
+        BackgroundColor3 = Color3.fromRGB(201, 152, 97),
+        BorderSizePixel = 0, ZIndex = 32
+    }, card)
+    round(stripe, 3)
+
+    local welcome = makeLabel(card, "",
+        UDim2.new(1, -48, 0, 34), UDim2.fromOffset(29, 17), 21)
+    welcome.Name = "HorizonWelcomeTitle"
+    welcome.Font = Enum.Font.GothamBold
+    welcome.TextColor3 = Color3.fromRGB(246, 220, 187)
+    welcome.ZIndex = 32
+
+    local username = makeLabel(card, "",
+        UDim2.new(1, -48, 0, 23), UDim2.fromOffset(29, 57), 13)
+    username.TextColor3 = Color3.fromRGB(226, 189, 140)
+    username.ZIndex = 32
+
+    local intro = makeLabel(card, "",
+        UDim2.new(1, -48, 0, 65), UDim2.fromOffset(29, 91), 13)
+    intro.TextColor3 = Color3.fromRGB(195, 181, 164)
+    intro.TextWrapped = true
+    intro.TextYAlignment = Enum.TextYAlignment.Top
+    intro.TextTruncate = Enum.TextTruncate.None
+    intro.ZIndex = 32
+
+    local hint = create("Frame", {
+        Name = "HorizonHomeHint",
+        Position = UDim2.fromOffset(12, 208),
+        Size = UDim2.new(1, -24, 0, 98),
+        BackgroundColor3 = Color3.fromRGB(30, 27, 24),
+        BorderSizePixel = 0, ZIndex = 31
+    }, layer)
+    round(hint, 11)
+    create("UIStroke", {
+        Color = Color3.fromRGB(109, 83, 58),
+        Thickness = 1, Transparency = 0.34
+    }, hint)
+    local hintTitle = makeLabel(hint, "",
+        UDim2.new(1, -34, 0, 25), UDim2.fromOffset(17, 13), 14)
+    hintTitle.Font = Enum.Font.GothamBold
+    hintTitle.TextColor3 = Color3.fromRGB(229, 197, 155)
+    hintTitle.ZIndex = 32
+    local hintBody = makeLabel(hint, "",
+        UDim2.new(1, -34, 0, 44), UDim2.fromOffset(17, 42), 12)
+    hintBody.TextColor3 = Color3.fromRGB(187, 174, 156)
+    hintBody.TextWrapped = true
+    hintBody.TextYAlignment = Enum.TextYAlignment.Top
+    hintBody.TextTruncate = Enum.TextTruncate.None
+    hintBody.ZIndex = 32
+
+    EH.refreshHomeText = function()
+        local ru = currentLanguage == "ru"
+        welcome.Text = ru and "Добро пожаловать!" or "Welcome!"
+        username.Text = "@" .. tostring(LocalPlayer.Name)
+        intro.Text = ru
+            and "Рады видеть тебя в HORIZON. Все возможности в одном интерфейсе."
+            or "Welcome to HORIZON. Your tools, all in one place."
+        hintTitle.Text = ru and "Раздел «Аватары»" or "Avatar Inspector"
+        hintBody.Text = ru
+            and "Открой вторую вкладку, чтобы просматривать аватары, аксессуары и наряды."
+            or "Open the second tab to inspect avatars, accessories and outfits."
+    end
+    EH.refreshHomeText()
+
+    local homeTab = makeButton(Header, "Главная",
+        UDim2.fromOffset(70, 32), UDim2.new(0.5, -76, 0, 8),
+        Color3.fromRGB(47, 37, 29))
+    homeTab.Name = "HorizonHomeTab"
+    local avatarsTab = makeButton(Header, "Аватары",
+        UDim2.fromOffset(70, 32), UDim2.new(0.5, -4, 0, 8),
+        Color3.fromRGB(35, 30, 25))
+    avatarsTab.Name = "HorizonAvatarsTab"
+
+    for _, tab in ipairs({homeTab, avatarsTab}) do
+        tab.ZIndex = 15
+        tab.TextSize = 9
+        tab.TextXAlignment = Enum.TextXAlignment.Right
+        EH.styleIconAction(tab)
+        create("UIPadding", {PaddingRight = UDim.new(0, 4)}, tab)
+    end
+    EH.safeIcon(homeTab, "home", UDim2.fromOffset(4, 7), 18)
+    EH.safeIcon(avatarsTab, "shirt_tab", UDim2.fromOffset(3, 6), 19)
+
+    local function selectPage(page)
+        layer.Visible = page == "Home"
+        homeTab:SetAttribute("SelectedControl", page == "Home")
+        avatarsTab:SetAttribute("SelectedControl", page == "Avatars")
+        homeTab.BackgroundColor3 = page == "Home"
+            and Color3.fromRGB(93, 67, 43) or Color3.fromRGB(35, 30, 25)
+        avatarsTab.BackgroundColor3 = page == "Avatars"
+            and Color3.fromRGB(93, 67, 43) or Color3.fromRGB(35, 30, 25)
+        local homeStroke = homeTab:FindFirstChildOfClass("UIStroke")
+        local avatarsStroke = avatarsTab:FindFirstChildOfClass("UIStroke")
+        if homeStroke then homeStroke.Transparency = page == "Home" and 0.02 or 0.2 end
+        if avatarsStroke then avatarsStroke.Transparency = page == "Avatars" and 0.02 or 0.2 end
+    end
+    homeTab.Activated:Connect(function() selectPage("Home") end)
+    avatarsTab.Activated:Connect(function() selectPage("Avatars") end)
+    selectPage("Home")
+end
 
 --==================================================
 -- RESPONSIVE LAYOUT
