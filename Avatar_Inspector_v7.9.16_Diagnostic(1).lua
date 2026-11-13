@@ -165,6 +165,329 @@ end
 
 AIDiag("01 SCRIPT EXECUTION STARTED")
 
+--===============================================
+-- BUNDLED EVENT HORIZON ANIMATION CONTROLLER
+-- Static build of the private Luau module; no token or private HTTP request.
+-- This code runs only when the main GUI has finished its original startup.
+--===============================================
+local function AI_CreateBundledAnimationController()
+    local Controller = {}
+    Controller.__index = Controller
+    
+    local OPEN_DURATION = 0.80
+    local CLOSE_DURATION = 0.88
+    local PANEL_OPEN_DELAY = {0.13, 0.27, 0.41}
+    local PANEL_CLOSE_DELAY = {0.00, 0.15, 0.30}
+    local FADE_OPEN_TIME = 0.27
+    local FADE_CLOSE_TIME = 0.22
+    local MAX_FADE_OBJECTS_PER_GROUP = 65
+    
+    local function validGui(gui)
+        return typeof(gui) == "Instance" and gui:IsA("GuiObject")
+    end
+    
+    local function getScale(gui)
+        local scale = gui:FindFirstChild("AI_CascadeScale")
+        if scale and scale:IsA("UIScale") then return scale end
+        scale = Instance.new("UIScale")
+        scale.Name = "AI_CascadeScale"
+        scale.Scale = 1
+        scale.Parent = gui
+        return scale
+    end
+    
+    local function remember(entry, key, original)
+        if original ~= nil then
+            entry[key] = original
+        end
+    end
+    
+    local function snapshot(root, maximum)
+        local entries = {}
+        local function capture(obj)
+            if #entries >= maximum then return end
+            if not obj.Parent then return end
+            local props = {}
+            if obj:IsA("GuiObject") then
+                if not obj.Visible then return end
+                remember(props, "BackgroundTransparency", obj.BackgroundTransparency)
+                if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+                    remember(props, "TextTransparency", obj.TextTransparency)
+                    remember(props, "TextStrokeTransparency", obj.TextStrokeTransparency)
+                end
+                if obj:IsA("ImageLabel") or obj:IsA("ImageButton")
+                    or obj:IsA("ViewportFrame") then
+                    remember(props, "ImageTransparency", obj.ImageTransparency)
+                end
+                if obj:IsA("ScrollingFrame") then
+                    remember(props, "ScrollBarImageTransparency", obj.ScrollBarImageTransparency)
+                end
+            elseif obj:IsA("UIStroke") and obj.Enabled then
+                remember(props, "Transparency", obj.Transparency)
+            else
+                return
+            end
+            entries[#entries + 1] = {object = obj, props = props}
+        end
+        capture(root)
+        for _, child in ipairs(root:GetDescendants()) do
+            capture(child)
+            if #entries >= maximum then break end
+        end
+        return entries
+    end
+    
+    local function apply(entries, hidden)
+        for _, entry in ipairs(entries) do
+            local obj = entry.object
+            if obj.Parent then
+                for property, original in pairs(entry.props) do
+                    obj[property] = hidden and 1 or original
+                end
+            end
+        end
+    end
+    
+    function Controller.new(config)
+        assert(type(config) == "table", "Animation Controller: config required")
+        assert(config.TweenService, "Animation Controller: TweenService required")
+        assert(validGui(config.Main), "Animation Controller: Main required")
+        assert(config.UIScale and config.UIScale:IsA("UIScale"), "Animation Controller: UIScale required")
+        for _, name in ipairs({"PlayerList", "Viewport", "PoseBar", "ItemsPanel"}) do
+            assert(validGui(config[name]), "Animation Controller: " .. name .. " required")
+        end
+    
+        local self = setmetatable({}, Controller)
+        self.tweenService = config.TweenService
+        self.main = config.Main
+        self.mainScale = config.UIScale
+        self.baseScaleGetter = config.getBaseScale
+        self.savedBaseScale = config.UIScale.Scale
+        self.position = config.Main.Position
+        self.state = config.Main.Visible and "Visible" or "Hidden"
+        self.generation = 0
+        self.activeTweens = {}
+        self.captured = nil
+        self.groups = {
+            {config.PlayerList},
+            {config.Viewport, config.PoseBar},
+            {config.ItemsPanel},
+        }
+        self.scales = {}
+        for _, group in ipairs(self.groups) do
+            for _, panel in ipairs(group) do
+                local existingScale = getScale(panel)
+                self.scales[panel] = {scale = existingScale, initial = existingScale.Scale}
+            end
+        end
+        return self
+    end
+    
+    function Controller:_baseScale()
+        if type(self.baseScaleGetter) == "function" then
+            local ok, value = pcall(self.baseScaleGetter)
+            if ok and type(value) == "number" and value > 0 then return value end
+        end
+        return self.savedBaseScale > 0 and self.savedBaseScale or 1
+    end
+    
+    function Controller:_tween(object, duration, easing, direction, goals)
+        if not object.Parent then return end
+        local ok, result = pcall(function()
+            return self.tweenService:Create(object,
+                TweenInfo.new(duration, easing, direction), goals)
+        end)
+        if ok then
+            self.activeTweens[#self.activeTweens + 1] = result
+            result:Play()
+        end
+    end
+    
+    function Controller:_fade(entries, hidden, duration)
+        for _, entry in ipairs(entries) do
+            local goals = {}
+            for property, original in pairs(entry.props) do
+                goals[property] = hidden and 1 or original
+            end
+            self:_tween(entry.object, duration, Enum.EasingStyle.Quad,
+                hidden and Enum.EasingDirection.In or Enum.EasingDirection.Out, goals)
+        end
+    end
+    
+    function Controller:_restore()
+        for _, tween in ipairs(self.activeTweens) do
+            pcall(function() tween:Cancel() end)
+        end
+        table.clear(self.activeTweens)
+        if self.captured then
+            for _, group in ipairs(self.captured.groups) do
+                apply(group, false)
+            end
+            apply(self.captured.shell, false)
+            self.captured = nil
+        end
+        for _, info in pairs(self.scales) do
+            if info.scale.Parent then info.scale.Scale = info.initial end
+        end
+        if self.main.Parent then self.main.Position = self.position end
+        self.mainScale.Scale = self:_baseScale()
+    end
+    
+    function Controller:_capture()
+        local captured = {}
+        for i, group in ipairs(self.groups) do
+            local entries = {}
+            for _, panel in ipairs(group) do
+                local records = snapshot(panel, MAX_FADE_OBJECTS_PER_GROUP)
+                for _, entry in ipairs(records) do
+                    entries[#entries + 1] = entry
+                end
+            end
+            captured[i] = entries
+        end
+        local shell = snapshot(self.main, 1)
+        for _, child in ipairs(self.main:GetChildren()) do
+            local isPanel = false
+            for _, group in ipairs(self.groups) do
+                for _, panel in ipairs(group) do
+                    if child == panel then
+                        isPanel = true
+                        break
+                    end
+                end
+                if isPanel then break end
+            end
+            if not isPanel and child:IsA("GuiObject") then
+                for _, entry in ipairs(snapshot(child, 35)) do
+                    shell[#shell + 1] = entry
+                end
+            end
+        end
+        return captured, shell
+    end
+    
+    function Controller:_valid(generation)
+        return generation == self.generation and self.main.Parent ~= nil
+    end
+    
+    function Controller:show()
+        if self.state == "Visible" or self.state == "Opening" then return end
+        self.generation += 1
+        local generation = self.generation
+        local interrupted = self.captured ~= nil
+        local dragged = (not interrupted) and self.main.Visible
+            and self.main.Position or nil
+        self:_restore()
+        if dragged then self.position = dragged end
+    
+        self.main.Visible = true
+        self.state = "Opening"
+        local base = self:_baseScale()
+        local records, shell = self:_capture()
+        self.captured = {groups = records, shell = shell}
+        self.main.Position = self.position + UDim2.fromOffset(0, 13)
+        self.mainScale.Scale = base * 0.91
+    
+        apply(shell, true)
+        for i, entries in ipairs(records) do
+            apply(entries, true)
+            for _, panel in ipairs(self.groups[i]) do
+                local info = self.scales[panel]
+                info.initial = info.scale.Scale
+                info.scale.Scale = info.initial * 0.96
+            end
+        end
+    
+        self:_tween(self.main, 0.39, Enum.EasingStyle.Quart,
+            Enum.EasingDirection.Out, {Position = self.position})
+        self:_tween(self.mainScale, 0.39, Enum.EasingStyle.Quart,
+            Enum.EasingDirection.Out, {Scale = base})
+        self:_fade(shell, false, 0.36)
+    
+        for i, entries in ipairs(records) do
+            task.delay(PANEL_OPEN_DELAY[i], function()
+                if not self:_valid(generation) then return end
+                self:_fade(entries, false, FADE_OPEN_TIME)
+                for _, panel in ipairs(self.groups[i]) do
+                    local info = self.scales[panel]
+                    self:_tween(info.scale, 0.28, Enum.EasingStyle.Quart,
+                        Enum.EasingDirection.Out, {Scale = info.initial})
+                end
+            end)
+        end
+    
+        task.delay(OPEN_DURATION, function()
+            if not self:_valid(generation) then return end
+            self:_restore()
+            self.state = "Visible"
+        end)
+    end
+    
+    function Controller:hide()
+        if self.state == "Hidden" or self.state == "Closing" then return end
+        self.generation += 1
+        local generation = self.generation
+        local interrupted = self.captured ~= nil
+        local dragged = (not interrupted) and self.main.Position or nil
+        self:_restore()
+        if dragged then self.position = dragged end
+        self.state = "Closing"
+        local base = self:_baseScale()
+        local records, shell = self:_capture()
+        self.captured = {groups = records, shell = shell}
+    
+        for order, groupIndex in ipairs({3, 2, 1}) do
+            task.delay(PANEL_CLOSE_DELAY[order], function()
+                if not self:_valid(generation) then return end
+                self:_fade(records[groupIndex], true, FADE_CLOSE_TIME)
+                for _, panel in ipairs(self.groups[groupIndex]) do
+                    local info = self.scales[panel]
+                    self:_tween(info.scale, FADE_CLOSE_TIME,
+                        Enum.EasingStyle.Quad, Enum.EasingDirection.In,
+                        {Scale = info.initial * 0.95})
+                end
+            end)
+        end
+    
+        task.delay(0.53, function()
+            if not self:_valid(generation) then return end
+            self:_tween(self.mainScale, 0.32,
+                Enum.EasingStyle.Quad, Enum.EasingDirection.In,
+                {Scale = base * 0.93})
+            self:_tween(self.main, 0.32,
+                Enum.EasingStyle.Quad, Enum.EasingDirection.In,
+                {Position = self.position + UDim2.fromOffset(0, 11)})
+            self:_fade(shell, true, 0.32)
+        end)
+        task.delay(CLOSE_DURATION, function()
+            if not self:_valid(generation) then return end
+            self.main.Visible = false
+            self:_restore()
+            self.state = "Hidden"
+        end)
+    end
+    
+    function Controller:toggle()
+        if self.state == "Hidden" or self.state == "Closing" then
+            self:show()
+        else
+            self:hide()
+        end
+    end
+    
+    function Controller:getState()
+        return self.state
+    end
+    
+    function Controller:destroy()
+        self.generation += 1
+        self:_restore()
+        self.state = self.main.Visible and "Visible" or "Hidden"
+    end
+    
+    return Controller
+end
+
 local function StartAvatarInspector()
 
 AI_DIAG_STAGE = "START_FUNCTION_ENTERED"
@@ -5898,9 +6221,53 @@ end))
 -- MAIN BUTTONS
 --==================================================
 
+-- Preserve the proven opening routine as fallback; animate only after GUI startup.
 EH.mainOpenAction = function()
     setMainWindowVisible(not Main.Visible)
 end
+
+-- The module is embedded at build time; no private GitHub request at runtime.
+-- Installation runs after the window, floating toggle and all panels exist.
+task.defer(function()
+    if not Main.Parent or not Toggle.Parent then return end
+    local ok, result = pcall(function()
+        return AI_CreateBundledAnimationController().new({
+            TweenService = TweenService,
+            Main = Main,
+            UIScale = UIScale,
+            PlayerList = PlayerList,
+            Viewport = Viewport,
+            PoseBar = PoseBar,
+            ItemsPanel = ItemsPanel,
+            getBaseScale = function() return windowBaseScale end,
+        })
+    end)
+    if not ok then
+        warn("[Avatar Inspector] Animation init failed; original transition preserved: " .. tostring(result))
+        return
+    end
+
+    EH.animationController = result
+    EH.mainOpenAction = function()
+        local state = result:getState()
+        local wantVisible = state == "Hidden" or state == "Closing"
+        local animated, err = pcall(function()
+            result:toggle()
+        end)
+        if not animated then
+            warn("[Avatar Inspector] Animation failed; using direct safe fallback: " .. tostring(err))
+            pcall(function() result:destroy() end)
+            EH.animationController = nil
+            EH.mainOpenAction = function()
+                setMainWindowVisible(not Main.Visible)
+            end
+            -- The launcher must still work, even if an animation failed.
+            Main.Visible = wantVisible
+            UIScale.Scale = windowBaseScale > 0 and windowBaseScale or 1
+        end
+    end
+    print("[Avatar Inspector] Bundled Cascade Panels / Dissolve controller ready")
+end)
 
 Close.Activated:Connect(function()
     showExitConfirmation()
