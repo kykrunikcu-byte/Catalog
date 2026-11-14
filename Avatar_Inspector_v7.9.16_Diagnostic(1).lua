@@ -5282,6 +5282,170 @@ do
             local fullBrightSwitch=switchCard("FullBright",
                 "Осветлить карту и убрать туман",0,false,
                 function(v) fullBright:setEnabled(v) end,false,"lightbulb")
+
+            -- Dedicated settings for visible data; they never toggle ESP itself.
+            local function dataCard(kind)
+                local player=kind=="players"
+                local rows=player and {
+                    {"playerHealth","Здоровье","Health"},
+                    {"playerNames","Никнейм","Nickname"},
+                    {"playerDistance","Расстояние","Distance"}
+                } or {
+                    {"npcHealth","Здоровье","Health"},
+                    {"npcNames","Имя NPC","NPC name"},
+                    {"npcDistance","Расстояние","Distance"}
+                }
+                local card=create("Frame",{
+                    Name=player and "HorizonESPPlayerDataCard"
+                        or "HorizonESPNPCDataCard",
+                    Position=UDim2.fromOffset(12,0),
+                    Size=UDim2.new(1,-24,0,140),
+                    BackgroundColor3=Color3.fromRGB(37,34,31),
+                    BorderSizePixel=0,ZIndex=31
+                },espPage)
+                round(card,10)
+                create("UIStroke",{
+                    Color=Color3.fromRGB(79,67,56),
+                    Thickness=1,Transparency=.17
+                },card)
+                local title=makeLabel(card,"",
+                    UDim2.new(1,-30,0,23),
+                    UDim2.fromOffset(14,8),13)
+                title.Font=Enum.Font.GothamBold
+                title.TextColor3=Color3.fromRGB(230,190,141)
+                title.ZIndex=32
+                local texts={}
+                for i,def in ipairs(rows) do
+                    local key=def[1]
+                    local y=34+(i-1)*32
+                    local description=makeLabel(card,"",
+                        UDim2.new(1,-103,0,25),
+                        UDim2.fromOffset(16,y),12)
+                    description.Font=Enum.Font.GothamMedium
+                    description.TextColor3=Color3.fromRGB(234,216,195)
+                    description.ZIndex=32
+                    texts[i]=description
+                    local toggle=create("TextButton",{
+                        Name="Horizon"..key.."Toggle",
+                        Position=UDim2.new(1,-70,0,y),
+                        Size=UDim2.fromOffset(53,25),
+                        BackgroundColor3=Color3.fromRGB(64,61,57),
+                        BorderSizePixel=0,AutoButtonColor=false,
+                        Active=true,ZIndex=33,Text=""
+                    },card)
+                    round(toggle,13)
+                    local knob=create("Frame",{
+                        Name="DataSwitchKnob",
+                        Position=UDim2.fromOffset(3,3),
+                        Size=UDim2.fromOffset(19,19),
+                        BackgroundColor3=Color3.fromRGB(192,188,182),
+                        BorderSizePixel=0,Active=false,ZIndex=34
+                    },toggle)
+                    round(knob,10)
+                    local check=makeLabel(knob,"✓",
+                        UDim2.fromScale(1,1),UDim2.fromOffset(0,0),13)
+                    check.Font=Enum.Font.GothamBold
+                    check.TextColor3=Color3.fromRGB(34,108,48)
+                    check.TextXAlignment=Enum.TextXAlignment.Center
+                    check.TextYAlignment=Enum.TextYAlignment.Center
+                    check.Active=false;check.ZIndex=35
+                    local function refresh(animated)
+                        local on=cfg[key]==true
+                        local info=TweenInfo.new(animated and .19 or .001,
+                            Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
+                        TweenService:Create(toggle,info,{
+                            BackgroundColor3=on and Color3.fromRGB(78,103,72)
+                                or Color3.fromRGB(64,61,57)
+                        }):Play()
+                        TweenService:Create(knob,info,{
+                            Position=UDim2.fromOffset(on and 31 or 3,3),
+                            BackgroundColor3=on and Color3.fromRGB(220,255,208)
+                                or Color3.fromRGB(192,188,182)
+                        }):Play()
+                        check.Visible=on
+                    end
+                    refresh(false)
+                    toggle.Activated:Connect(function()
+                        cfg[key]=not cfg[key]
+                        refresh(true)
+                    end)
+                end
+                return {
+                    card=card,
+                    refresh=function()
+                        local ru=currentLanguage=="ru"
+                        title.Text=ru and "ОТОБРАЖЕНИЕ ДАННЫХ" or "VISIBLE INFORMATION"
+                        for i,def in ipairs(rows) do
+                            texts[i].Text=ru and def[2] or def[3]
+                        end
+                    end
+                }
+            end
+            local playerData=dataCard("players")
+            local npcData=dataCard("npcs")
+
+            -- Player-only Highlight presets, all using Roblox Highlight.
+            -- Neon and Balanced use the existing user-selected palette color.
+            -- RGB animates both fill and outline with the SAME single hue.
+            local highlightCard=create("Frame",{
+                Name="HorizonESPPlayerHighlightStyleCard",
+                Position=UDim2.fromOffset(12,0),
+                Size=UDim2.new(1,-24,0,78),
+                BackgroundColor3=Color3.fromRGB(40,37,33),
+                BorderSizePixel=0,ZIndex=31
+            },espPage)
+            round(highlightCard,10)
+            create("UIStroke",{
+                Color=Color3.fromRGB(82,68,55),Thickness=1
+            },highlightCard)
+            local highlightTitle=makeLabel(highlightCard,"",
+                UDim2.new(1,-28,0,23),
+                UDim2.fromOffset(14,8),13)
+            highlightTitle.Font=Enum.Font.GothamBold
+            highlightTitle.TextColor3=Color3.fromRGB(230,190,141)
+            highlightTitle.ZIndex=32
+            local names={
+                {"Неон","Neon"},
+                {"Баланс","Balanced"},
+                {"Радуга RGB","Rainbow RGB"}
+            }
+            local options={}
+            local function paintSelection()
+                for i,button in ipairs(options) do
+                    local selected=cfg.highlightStyle==i
+                    button.BackgroundColor3=selected and Color3.fromRGB(103,77,49)
+                        or Color3.fromRGB(54,47,42)
+                    button.TextColor3=selected and Color3.fromRGB(255,233,198)
+                        or Color3.fromRGB(207,194,180)
+                end
+            end
+            for i,labels in ipairs(names) do
+                local option=create("TextButton",{
+                    Name="HorizonESPHighlightStyle"..i,
+                    Position=UDim2.new((i-1)/3,10,0,39),
+                    Size=UDim2.new(1/3,-14,0,29),
+                    BackgroundColor3=Color3.fromRGB(54,47,42),
+                    BorderSizePixel=0,Text=labels[1],
+                    TextSize=12,Font=Enum.Font.GothamBold,
+                    TextColor3=Color3.fromRGB(207,194,180),
+                    AutoButtonColor=false,Active=true,ZIndex=33
+                },highlightCard)
+                round(option,7)
+                options[i]=option
+                option.Activated:Connect(function()
+                    cfg.highlightStyle=i
+                    paintSelection()
+                end)
+            end
+            paintSelection()
+            local function refreshHighlight()
+                local ru=currentLanguage=="ru"
+                highlightTitle.Text=ru and "СТИЛЬ ПОДСВЕТКИ ИГРОКОВ"
+                    or "PLAYER HIGHLIGHT STYLE"
+                for i,button in ipairs(options) do
+                    button.Text=ru and names[i][1] or names[i][2]
+                end
+            end
             local selectorCard=create("Frame",{
                 Name="HorizonESPFrameStyleCard",
                 Position=UDim2.fromOffset(12,431),
@@ -5299,7 +5463,7 @@ do
             selectorTitle.Font=Enum.Font.GothamBold
             selectorTitle.TextColor3=Color3.fromRGB(230,190,141)
             selectorTitle.ZIndex=32
-            local selector=makeButton(selectorCard,"Corner Box ▾",
+            local selector=makeButton(selectorCard,"Precision Corners ▾",
                 UDim2.new(1,-28,0,34),UDim2.fromOffset(14,35),
                 Color3.fromRGB(59,48,37))
             selector.Name="HorizonESPBoxStyleSelector"
@@ -5307,8 +5471,8 @@ do
             local menu=create("ScrollingFrame",{
                 Name="HorizonESPBoxStyleList",
                 Position=UDim2.fromOffset(26,515),
-                Size=UDim2.new(1,-52,0,216),
-                CanvasSize=UDim2.fromOffset(0,373),
+                Size=UDim2.new(1,-52,0,82),
+                CanvasSize=UDim2.fromOffset(0,82),
                 ScrollBarThickness=3,
                 ScrollBarImageColor3=Color3.fromRGB(191,147,94),
                 BackgroundColor3=Color3.fromRGB(32,29,26),
@@ -5722,6 +5886,10 @@ do
                 local y=180
                 playerSwitch.card.Position=UDim2.fromOffset(12,y)
                 y+=86
+                playerData.card.Position=UDim2.fromOffset(12,y)
+                y+=152
+                highlightCard.Position=UDim2.fromOffset(12,y)
+                y+=90
                 playerDisclosure.button.Position=UDim2.fromOffset(12,y)
                 y+=52
                 playerColors.card.Visible=playerDisclosure.expanded
@@ -5731,6 +5899,8 @@ do
                 end
                 npcSwitch.card.Position=UDim2.fromOffset(12,y)
                 y+=86
+                npcData.card.Position=UDim2.fromOffset(12,y)
+                y+=152
                 npcDisclosure.button.Position=UDim2.fromOffset(12,y)
                 y+=52
                 monsterColors.card.Visible=npcDisclosure.expanded
@@ -5746,7 +5916,7 @@ do
                 menu.Position=UDim2.fromOffset(26,y+84)
                 y+=88
                 espPage.CanvasSize=UDim2.fromOffset(0,y+
-                    (menu.Visible and 224 or 22))
+                    (menu.Visible and 95 or 22))
                 playerDisclosure.arrow.Text=
                     playerDisclosure.expanded and "▴" or "▾"
                 npcDisclosure.arrow.Text=
@@ -5769,14 +5939,17 @@ do
                 oldRefresh()
                 local ru=currentLanguage=="ru"
                 espDescription.Text=ru
-                    and "ESP игроков и монстров, 10 рамок, цвета и освещение карты."
-                    or "Player/monster ESP, ten frames, colors and map lighting."
+                    and "ESP игроков и монстров, 3 подсветки, 2 рамки и индивидуальные настройки."
+                    or "Player/monster ESP, 3 highlights, 2 frames and separate settings."
                 playerSwitch.subtitle.Text=ru and "Обнаружение других игроков" or "Detect other players"
                 npcSwitch.subtitle.Text=ru and "Обнаружение NPC и монстров" or "Detect NPCs and monsters"
                 boxSwitch.subtitle.Text=ru and "Включить или скрыть рамки" or "Show or hide frames"
                 fullBrightSwitch.subtitle.Text=ru and "Осветлить карту и убрать туман"
                     or "Brighten the map and remove fog"
                 selectorTitle.Text=ru and "СТИЛЬ РАМКИ / BOX STYLE" or "BOX STYLE"
+                playerData.refresh()
+                npcData.refresh()
+                refreshHighlight()
                 playerColors.title.Text=ru and "ЦВЕТ ИГРОКОВ" or "PLAYER COLOR"
                 monsterColors.title.Text=ru and "ЦВЕТ NPC И МОНСТРОВ" or "NPC / MONSTER COLOR"
                 playerDisclosure.title.Text=ru and "Настроить цвет игроков"
