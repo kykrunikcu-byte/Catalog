@@ -2880,10 +2880,11 @@ EH.statusChip(StatusConsole, "EHMessagePill",
 local Status = makeLabel(
     Main, "Select a player",
     UDim2.new(1, -234, 0, 30),
-    UDim2.new(0, 181, 1, -45), 11
+    UDim2.new(0, 181, 1, -45), 13
 )
 Status.ZIndex = StatusConsole.ZIndex + 3
-Status.TextColor3 = MUTED
+Status.TextColor3 = Color3.fromRGB(214, 195, 175)
+Status.Font = Enum.Font.GothamMedium
 Status.TextTruncate = Enum.TextTruncate.AtEnd
 
 -- Compact confirmation toast for completed copy/save actions.
@@ -3233,13 +3234,14 @@ do
     welcome.ZIndex = 32
 
     local username = makeLabel(card, "",
-        UDim2.new(1, -48, 0, 23), UDim2.fromOffset(29, 57), 13)
+        UDim2.new(1, -48, 0, 23), UDim2.fromOffset(29, 57), 15)
     username.TextColor3 = Color3.fromRGB(226, 189, 140)
     username.ZIndex = 32
 
     local intro = makeLabel(card, "",
-        UDim2.new(1, -48, 0, 65), UDim2.fromOffset(29, 91), 13)
-    intro.TextColor3 = Color3.fromRGB(195, 181, 164)
+        UDim2.new(1, -48, 0, 65), UDim2.fromOffset(29, 91), 15)
+    intro.TextColor3 = Color3.fromRGB(220, 194, 169)
+    intro.Font = Enum.Font.GothamMedium
     intro.TextWrapped = true
     intro.TextYAlignment = Enum.TextYAlignment.Top
     intro.TextTruncate = Enum.TextTruncate.None
@@ -3258,13 +3260,14 @@ do
         Thickness = 1, Transparency = 0.34
     }, hint)
     local hintTitle = makeLabel(hint, "",
-        UDim2.new(1, -34, 0, 25), UDim2.fromOffset(17, 13), 14)
+        UDim2.new(1, -34, 0, 25), UDim2.fromOffset(17, 13), 17)
     hintTitle.Font = Enum.Font.GothamBold
     hintTitle.TextColor3 = Color3.fromRGB(229, 197, 155)
     hintTitle.ZIndex = 32
     local hintBody = makeLabel(hint, "",
-        UDim2.new(1, -34, 0, 44), UDim2.fromOffset(17, 42), 12)
-    hintBody.TextColor3 = Color3.fromRGB(187, 174, 156)
+        UDim2.new(1, -34, 0, 44), UDim2.fromOffset(17, 42), 14)
+    hintBody.TextColor3 = Color3.fromRGB(222, 191, 160)
+    hintBody.Font = Enum.Font.GothamMedium
     hintBody.TextWrapped = true
     hintBody.TextYAlignment = Enum.TextYAlignment.Top
     hintBody.TextTruncate = Enum.TextTruncate.None
@@ -3276,7 +3279,7 @@ do
         local json = HttpService or game:GetService("HttpService")
         local busy, serial = false, 0
         local heading = makeLabel(layer, "",
-            UDim2.new(1, -30, 0, 24), UDim2.fromOffset(16, 317), 15)
+            UDim2.new(1, -30, 0, 24), UDim2.fromOffset(16, 317), 17)
         heading.Font = Enum.Font.GothamBold
         heading.TextColor3 = Color3.fromRGB(229, 197, 155)
         heading.ZIndex = 32
@@ -3301,13 +3304,14 @@ do
             icon.TextXAlignment = Enum.TextXAlignment.Center
             icon.ZIndex = 33
             local title = makeLabel(button, "",
-                UDim2.new(1, -60, 0, 21), UDim2.fromOffset(50, 8), 14)
+                UDim2.new(1, -60, 0, 23), UDim2.fromOffset(50, 7), 16)
             title.Font = Enum.Font.GothamBold
             title.TextColor3 = Color3.fromRGB(241, 216, 184)
             title.ZIndex = 33
             local details = makeLabel(button, "",
-                UDim2.new(1, -60, 0, 18), UDim2.fromOffset(50, 33), 11)
-            details.TextColor3 = Color3.fromRGB(178, 163, 144)
+                UDim2.new(1, -60, 0, 19), UDim2.fromOffset(50, 32), 13)
+            details.TextColor3 = Color3.fromRGB(222, 187, 151)
+            details.Font = Enum.Font.GothamMedium
             details.ZIndex = 33
             EH.bindPhysicalPress(button, button, true)
             return button, title, details
@@ -3317,7 +3321,7 @@ do
         local other, otherTitle, otherDetails =
             newAction("HorizonJoinDifferentServer", 411, "⇄")
         local notice = makeLabel(layer, "",
-            UDim2.new(1, -36, 0, 40), UDim2.fromOffset(17, 479), 11)
+            UDim2.new(1, -36, 0, 40), UDim2.fromOffset(17, 479), 13)
         notice.TextColor3 = Color3.fromRGB(188, 168, 142)
         notice.TextWrapped = true
         notice.TextYAlignment = Enum.TextYAlignment.Top
@@ -3523,8 +3527,9 @@ do
     playerTitle.TextColor3 = Color3.fromRGB(246, 220, 187)
     playerTitle.ZIndex = 32
     local playerDescription = makeLabel(playerCard, "",
-        UDim2.new(1, -30, 0, 77), UDim2.fromOffset(16, 57), 13)
-    playerDescription.TextColor3 = Color3.fromRGB(195, 181, 164)
+        UDim2.new(1, -30, 0, 77), UDim2.fromOffset(16, 57), 15)
+    playerDescription.TextColor3 = Color3.fromRGB(221, 190, 159)
+    playerDescription.Font = Enum.Font.GothamMedium
     playerDescription.TextWrapped = true
     playerDescription.TextYAlignment = Enum.TextYAlignment.Top
     playerDescription.TextTruncate = Enum.TextTruncate.None
@@ -3561,14 +3566,15 @@ do
         EH.safeIcon(flyCard, "fly", UDim2.fromOffset(27, 26), 25)
 
         local flyTitle = makeLabel(flyCard, "Fly",
-            UDim2.new(1, -174, 0, 25), UDim2.fromOffset(64, 16), 16)
+            UDim2.new(1, -174, 0, 25), UDim2.fromOffset(64, 16), 18)
         flyTitle.Font = Enum.Font.GothamBold
         flyTitle.TextColor3 = Color3.fromRGB(242, 223, 205)
         flyTitle.ZIndex = 32
 
         local flySubtitle = makeLabel(flyCard, "Режим полёта",
-            UDim2.new(1, -174, 0, 20), UDim2.fromOffset(64, 41), 11)
-        flySubtitle.TextColor3 = Color3.fromRGB(170, 160, 152)
+            UDim2.new(1, -174, 0, 20), UDim2.fromOffset(64, 41), 14)
+        flySubtitle.TextColor3 = Color3.fromRGB(224, 187, 146)
+        flySubtitle.Font = Enum.Font.GothamMedium
         flySubtitle.ZIndex = 32
 
         local flyToggle = create("TextButton", {
@@ -3749,13 +3755,14 @@ do
         EH.safeIcon(noclipCard, "ghost", UDim2.fromOffset(27, 26), 25)
 
         local noclipTitle = makeLabel(noclipCard, "Noclip",
-            UDim2.new(1, -174, 0, 25), UDim2.fromOffset(64, 16), 16)
+            UDim2.new(1, -174, 0, 25), UDim2.fromOffset(64, 16), 18)
         noclipTitle.Font = Enum.Font.GothamBold
         noclipTitle.TextColor3 = Color3.fromRGB(242, 223, 205)
         noclipTitle.ZIndex = 32
         local noclipSubtitle = makeLabel(noclipCard, "Сквозь стены",
-            UDim2.new(1, -174, 0, 20), UDim2.fromOffset(64, 41), 11)
-        noclipSubtitle.TextColor3 = Color3.fromRGB(170, 160, 152)
+            UDim2.new(1, -174, 0, 20), UDim2.fromOffset(64, 41), 14)
+        noclipSubtitle.TextColor3 = Color3.fromRGB(224, 187, 146)
+        noclipSubtitle.Font = Enum.Font.GothamMedium
         noclipSubtitle.ZIndex = 32
 
         local noclipToggle = create("TextButton", {
@@ -3885,14 +3892,15 @@ do
             iconLabel.TextColor3 = Color3.fromRGB(216, 173, 115)
             iconLabel.TextXAlignment = Enum.TextXAlignment.Center
             iconLabel.ZIndex = 32
-            local caption = makeLabel(card, title, UDim2.new(1, -178, 0, 24),
-                UDim2.fromOffset(64, 11), 15)
+            local caption = makeLabel(card, title, UDim2.new(1, -178, 0, 25),
+                UDim2.fromOffset(64, 10), 18)
             caption.Font = Enum.Font.GothamBold
-            caption.TextColor3 = Color3.fromRGB(242, 223, 205)
+            caption.TextColor3 = Color3.fromRGB(248, 236, 222)
             caption.ZIndex = 32
-            local description = makeLabel(card, "", UDim2.new(1, -174, 0, 18),
-                UDim2.fromOffset(64, 36), 11)
-            description.TextColor3 = Color3.fromRGB(170, 160, 152)
+            local description = makeLabel(card, "", UDim2.new(1, -92, 0, 21),
+                UDim2.fromOffset(64, 37), 14)
+            description.TextColor3 = Color3.fromRGB(224, 187, 146)
+            description.Font = Enum.Font.GothamMedium
             description.ZIndex = 32
 
             local character = LocalPlayer.Character
@@ -3907,7 +3915,7 @@ do
                     or humanoid.JumpHeight) or 50
             end
             local readout = makeLabel(card, tostring(initial),
-                UDim2.fromOffset(101, 25), UDim2.new(1, -112, 0, 17), 13)
+                UDim2.fromOffset(101, 27), UDim2.new(1, -112, 0, 14), 17)
             readout.Font = Enum.Font.GothamBold
             readout.TextColor3 = Color3.fromRGB(229, 187, 138)
             readout.TextXAlignment = Enum.TextXAlignment.Right
@@ -3942,21 +3950,24 @@ do
             }, slider)
             round(knob, 8)
             local low = makeLabel(card, "0", UDim2.fromOffset(40, 16),
-                UDim2.fromOffset(16, 91), 10)
-            low.TextColor3 = Color3.fromRGB(179, 166, 148)
+                UDim2.fromOffset(16, 91), 12)
+            low.TextColor3 = Color3.fromRGB(207, 187, 168)
+            low.Font = Enum.Font.GothamMedium
             low.ZIndex = 32
             local high = makeLabel(card, "500", UDim2.fromOffset(50, 16),
-                UDim2.new(1, -66, 0, 91), 10)
+                UDim2.new(1, -66, 0, 91), 12)
             high.TextXAlignment = Enum.TextXAlignment.Right
-            high.TextColor3 = Color3.fromRGB(179, 166, 148)
+            high.TextColor3 = Color3.fromRGB(207, 187, 168)
+            high.Font = Enum.Font.GothamMedium
             high.ZIndex = 32
 
             -- Gravity is slider-only (0–500); manual entry remains for speed/jump.
             local manualLabel, manual
             if kind ~= "gravity" then
                 manualLabel = makeLabel(card, "", UDim2.new(1, -28, 0, 18),
-                    UDim2.fromOffset(16, 109), 11)
-                manualLabel.TextColor3 = Color3.fromRGB(201, 184, 162)
+                    UDim2.fromOffset(16, 109), 13)
+                manualLabel.TextColor3 = Color3.fromRGB(223, 199, 174)
+                manualLabel.Font = Enum.Font.GothamMedium
                 manualLabel.ZIndex = 32
                 manual = create("TextBox", {
                     Name = kind == "speed" and "HorizonSpeedInput" or "HorizonJumpInput",
@@ -3968,7 +3979,7 @@ do
                     ClearTextOnFocus = false,
                     TextColor3 = Color3.fromRGB(242, 223, 205),
                     PlaceholderColor3 = Color3.fromRGB(163, 150, 134),
-                    Font = Enum.Font.Gotham, TextSize = 13,
+                    Font = Enum.Font.GothamMedium, TextSize = 15,
                     TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33
                 }, card)
                 round(manual, 7)
@@ -3984,7 +3995,7 @@ do
                 BackgroundColor3 = Color3.fromRGB(76, 62, 50),
                 BorderSizePixel = 0,
                 TextColor3 = Color3.fromRGB(239, 216, 188),
-                Font = Enum.Font.GothamMedium, TextSize = 11,
+                Font = Enum.Font.GothamBold, TextSize = 13,
                 AutoButtonColor = true, Active = true, ZIndex = 33
             }, card)
             round(reset, 7)
@@ -4980,14 +4991,16 @@ do
                 local title=makeLabel(card,name,
                     UDim2.new(1,-166,0,22),
                     UDim2.fromOffset(small and 27 or 64,small and 7 or 16),
-                    small and 13 or 16)
+                    small and 15 or 18)
                 title.Font=Enum.Font.GothamBold
+                title.TextColor3=Color3.fromRGB(248,236,222)
                 title.ZIndex=32
                 local sub=makeLabel(card,desc,
-                    UDim2.new(1,-165,0,19),
+                    UDim2.new(1,small and -110 or -165,0,19),
                     UDim2.fromOffset(small and 27 or 64,small and 30 or 41),
-                    small and 10 or 11)
-                sub.TextColor3=Color3.fromRGB(170,160,152)
+                    small and 12 or 13)
+                sub.TextColor3=Color3.fromRGB(224,187,146)
+                sub.Font=Enum.Font.GothamMedium
                 sub.ZIndex=32
                 local toggle=create("TextButton",{
                     Name="Horizon"..name:gsub("%W","").."Toggle",
@@ -5077,7 +5090,7 @@ do
             },selectorCard)
             local selectorTitle=makeLabel(selectorCard,
                 "СТИЛЬ РАМКИ / BOX STYLE",
-                UDim2.new(1,-28,0,23),UDim2.fromOffset(14,8),13)
+                UDim2.new(1,-28,0,23),UDim2.fromOffset(14,8),15)
             selectorTitle.Font=Enum.Font.GothamBold
             selectorTitle.TextColor3=Color3.fromRGB(230,190,141)
             selectorTitle.ZIndex=32
@@ -5189,7 +5202,7 @@ do
                 round(accent,2)
                 local title=makeLabel(card,titleText,
                     UDim2.new(1,-125,0,24),
-                    UDim2.fromOffset(25,10),14)
+                    UDim2.fromOffset(25,10),16)
                 title.Font=Enum.Font.GothamBold
                 title.TextColor3=Color3.fromRGB(240,212,183)
                 title.ZIndex=32
@@ -5198,12 +5211,13 @@ do
                     UDim2.new(1,-89,0,9),
                     Color3.fromRGB(77,54,38))
                 reset.Name="ESPReset"..key
-                reset.TextSize=11
+                reset.TextSize=13
                 reset.ZIndex=34
                 local subtitle=makeLabel(card,"10 цветов · оттенок · HEX",
                     UDim2.new(1,-28,0,19),
-                    UDim2.fromOffset(16,37),11)
-                subtitle.TextColor3=Color3.fromRGB(179,167,154)
+                    UDim2.fromOffset(16,37),13)
+                subtitle.TextColor3=Color3.fromRGB(222,191,160)
+                subtitle.Font=Enum.Font.GothamMedium
                 subtitle.ZIndex=32
                 local chosenSwatches={}
                 local swatchMarkers={}
@@ -5608,8 +5622,9 @@ do
     espTitle.TextColor3 = Color3.fromRGB(246, 220, 187)
     espTitle.ZIndex = 32
     local espDescription = makeLabel(espCard, "",
-        UDim2.new(1, -30, 0, 77), UDim2.fromOffset(16, 57), 13)
-    espDescription.TextColor3 = Color3.fromRGB(195, 181, 164)
+        UDim2.new(1, -30, 0, 77), UDim2.fromOffset(16, 57), 15)
+    espDescription.TextColor3 = Color3.fromRGB(221, 190, 159)
+    espDescription.Font = Enum.Font.GothamMedium
     espDescription.TextWrapped = true
     espDescription.TextYAlignment = Enum.TextYAlignment.Top
     espDescription.TextTruncate = Enum.TextTruncate.None
@@ -5621,8 +5636,8 @@ do
     -- Visual-only change: all four button callbacks and all pages stay unchanged.
     local nav = create("Frame", {
         Name = "HorizonNavigationBar",
-        Position = UDim2.new(0.5, -260, 0, 56),
-        Size = UDim2.fromOffset(520, 46),
+        Position = UDim2.new(0.5, -260, 0, 52),
+        Size = UDim2.fromOffset(520, 52),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ZIndex = 12,
@@ -5669,10 +5684,10 @@ do
         if edge then edge.Enabled = false end
 
         local caption = makeLabel(tab, captions[i],
-            UDim2.new(1, -6, 0, 15), UDim2.new(0, 3, 1, -19), 11)
+            UDim2.new(1, -6, 0, 19), UDim2.new(0, 3, 1, -24), 14)
         caption.Name = "HorizonTabCaption"
         caption.Font = Enum.Font.GothamBold
-        caption.TextColor3 = Color3.fromRGB(234, 216, 182)
+        caption.TextColor3 = Color3.fromRGB(226, 199, 171)
         caption.TextXAlignment = Enum.TextXAlignment.Center
         caption.TextYAlignment = Enum.TextYAlignment.Center
         caption.TextTruncate = Enum.TextTruncate.AtEnd
@@ -5701,15 +5716,15 @@ do
 
     EH.layoutHorizonTabs = function(mobile, windowWidth)
         local width = mobile and (windowWidth - 24) or 520
-        nav.Size = UDim2.fromOffset(width, 46)
-        nav.Position = UDim2.new(0.5, -width / 2, 0, 56)
+        nav.Size = UDim2.fromOffset(width, 52)
+        nav.Position = UDim2.new(0.5, -width / 2, 0, 52)
         -- Centered on both desktop and mobile; ends 6px before page content.
         -- Keep the existing icon-over-caption layout and the click targets.
         for i, tab in ipairs(tabs) do
             local glyph = glyphs[i]
             if glyph then glyph.Position = UDim2.new(0.5, -10, 0, 2) end
             local caption = tab:FindFirstChild("HorizonTabCaption")
-            if caption then caption.TextSize = mobile and 10 or 11 end
+            if caption then caption.TextSize = mobile and 12 or 14 end
         end
     end
 
@@ -5733,7 +5748,7 @@ do
             local caption = button:FindFirstChild("HorizonTabCaption")
             if caption then
                 caption.TextColor3 = entry.active
-                    and Color3.fromRGB(241, 196, 145) or Color3.fromRGB(197, 175, 151)
+                    and Color3.fromRGB(247, 208, 162) or Color3.fromRGB(223, 197, 172)
             end
         end
     end
