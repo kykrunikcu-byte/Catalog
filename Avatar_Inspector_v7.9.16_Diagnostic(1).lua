@@ -4574,65 +4574,88 @@ do
             billboard.AlwaysOnTop=true
             billboard.LightInfluence=0
             billboard.ClipsDescendants=false
-            -- Reserve a real HUD margin INSIDE the BillboardGui canvas.
-            -- Fully outside GuiObjects are culled by Roblox even when
-            -- BillboardGui.ClipsDescendants=false.
-            billboard.Size=UDim2.new(3,12,6,174)
+            -- Body bounds are independent of the information HUD.
+            billboard.Size=UDim2.new(3,6,6,10)
             billboard.Parent=model
 
             local node=create("Frame",{
-                Name="ESPTargetFrame",Position=UDim2.fromOffset(0,82),
-                Size=UDim2.new(1,0,1,-164),
+                Name="ESPTargetFrame",Position=UDim2.fromScale(0,0),
+                Size=UDim2.fromScale(1,1),
                 BackgroundTransparency=1,BorderSizePixel=0,
                 ClipsDescendants=false,
                 Visible=true,Active=false,ZIndex=2
             },billboard)
+
+            -- A dedicated pixel-sized BillboardGui keeps player/NPC labels
+            -- visible even if the body box is disabled or bounds are invalid.
+            -- Parent under PlayerGui, and use a world Adornee; this is the
+            -- documented Roblox pattern for client-owned in-world HUDs.
+            local infoBillboard=Instance.new("BillboardGui")
+            infoBillboard.Name="HorizonESPInformation"
+            infoBillboard.Adornee=root
+            infoBillboard.AlwaysOnTop=true
+            infoBillboard.LightInfluence=0
+            infoBillboard.Size=UDim2.fromOffset(228,94)
+            infoBillboard.SizeOffset=Vector2.new(0,-.5)
+            infoBillboard.StudsOffsetWorldSpace=Vector3.new(0,3,0)
+            infoBillboard.ClipsDescendants=false
+            infoBillboard.Parent=PlayerGui
+            local infoCanvas=create("Frame",{
+                Name="ESPInformationCanvas",
+                Position=UDim2.fromScale(0,0),
+                Size=UDim2.fromScale(1,1),
+                BackgroundTransparency=1,BorderSizePixel=0,
+                ClipsDescendants=false,Active=false,ZIndex=2
+            },infoBillboard)
             local entry={
                 model=model,kind=kind,player=player,
-                rootPart=root,billboard=billboard,node=node
+                rootPart=root,billboard=billboard,node=node,
+                infoBillboard=infoBillboard,infoCanvas=infoCanvas
             }
             entry.name=create("TextLabel",{
                 Name="ESPWorldName",
-                AnchorPoint=Vector2.new(.5,1),
-                Position=UDim2.new(.5,0,0,-8),
-                Size=UDim2.fromOffset(180,22),
+                AnchorPoint=Vector2.new(.5,0),
+                Position=UDim2.new(.5,0,0,6),
+                Size=UDim2.fromOffset(224,22),
                 BackgroundTransparency=1,BorderSizePixel=0,
                 Text="",TextSize=13,Font=Enum.Font.GothamBold,
+                TextTruncate=Enum.TextTruncate.AtEnd,
                 TextColor3=Color3.new(1,1,1),
-                TextStrokeTransparency=.25,
+                TextStrokeTransparency=.2,
                 Active=false,ZIndex=4
-            },node)
+            },infoCanvas)
             entry.role=create("TextLabel",{
                 Name="ESPCharacterType",
-                AnchorPoint=Vector2.new(.5,1),
-                Position=UDim2.new(.5,0,0,-32),
-                Size=UDim2.fromOffset(134,20),
+                AnchorPoint=Vector2.new(.5,0),
+                Position=UDim2.new(.5,0,0,28),
+                Size=UDim2.fromOffset(142,19),
                 BackgroundColor3=Color3.fromRGB(24,23,23),
                 BackgroundTransparency=.24,
                 Text="PLAYER",TextSize=11,Font=Enum.Font.GothamBold,
-                BorderSizePixel=0,TextStrokeTransparency=.35,
+                BorderSizePixel=0,TextStrokeTransparency=.32,
                 Active=false,ZIndex=4
-            },node)
+            },infoCanvas)
             round(entry.role,5)
             entry.hpText=create("TextLabel",{
                 Name="ESPHealthNumber",
                 AnchorPoint=Vector2.new(.5,0),
-                Position=UDim2.new(.5,0,1,22),
-                Size=UDim2.fromOffset(146,18),
+                Position=UDim2.new(.5,0,0,49),
+                Size=UDim2.fromOffset(216,19),
                 BackgroundTransparency=1,BorderSizePixel=0,
-                Text="",TextSize=11,Font=Enum.Font.GothamBold,
+                Text="",TextSize=12,Font=Enum.Font.GothamBold,
                 TextColor3=Color3.fromRGB(220,235,220),
-                TextStrokeTransparency=.3,Active=false,ZIndex=4
-            },node)
+                TextStrokeTransparency=.22,Active=false,ZIndex=4
+            },infoCanvas)
             entry.dist=create("TextLabel",{
                 Name="ESPWorldDistance",
-                Position=UDim2.new(0,0,1,41),
-                Size=UDim2.new(1,0,0,18),
+                AnchorPoint=Vector2.new(.5,0),
+                Position=UDim2.new(.5,0,0,70),
+                Size=UDim2.fromOffset(210,19),
                 BackgroundTransparency=1,BorderSizePixel=0,
-                Text="",TextSize=11,Font=Enum.Font.GothamMedium,
+                Text="",TextSize=12,Font=Enum.Font.GothamMedium,
                 TextColor3=Color3.fromRGB(242,234,222),
-                TextStrokeTransparency=.3,Active=false,ZIndex=4
-            },node)
+                TextStrokeTransparency=.23,Active=false,ZIndex=4
+            },infoCanvas)
             entry.hp=create("Frame",{
                 Name="ESPWorldHealth",
                 Position=UDim2.new(1,-8,0,0),
@@ -4675,10 +4698,12 @@ do
             clearTracer(entry)
             if entry.hl then entry.hl:Destroy();entry.hl=nil end
             if entry.billboard then entry.billboard:Destroy() end
+            if entry.infoBillboard then entry.infoBillboard:Destroy() end
             engine.entries[model]=nil
         end
         local function hide(entry)
             if entry.billboard then entry.billboard.Enabled=false end
+            if entry.infoBillboard then entry.infoBillboard.Enabled=false end
             if entry.hl then entry.hl.Enabled=false end
             if entry.beam then entry.beam.Enabled=false end
         end
@@ -4780,13 +4805,24 @@ do
             end
             entry.frameWidth,entry.frameHeight=smoothedWidth,smoothedHeight
             entry.billboard.Adornee=root
-            -- The +164 pixels are symmetric top/bottom HUD margins.
-            -- Body frame still covers exactly the measured character bounds.
-            entry.billboard.Size=UDim2.new(smoothedWidth,6,smoothedHeight,174)
+            -- Body-only BillboardGui: information is its own fixed-pixel UI.
+            entry.billboard.Size=UDim2.new(smoothedWidth,6,smoothedHeight,10)
             local offset=center-rootPos
             entry.smoothedOffset=entry.smoothedOffset
                 and entry.smoothedOffset:Lerp(offset,.18) or offset
             entry.billboard.StudsOffsetWorldSpace=entry.smoothedOffset
+            if entry.infoBillboard then
+                local desiredHeight=math.clamp(maxY-rootPos.Y+1.1,1.5,22)
+                local previous=entry.infoHeight or desiredHeight
+                local nextHeight=previous+(desiredHeight-previous)*.22
+                if math.abs(nextHeight-previous)<.03 then
+                    nextHeight=previous
+                end
+                entry.infoHeight=nextHeight
+                entry.infoBillboard.Adornee=root
+                entry.infoBillboard.StudsOffsetWorldSpace=
+                    Vector3.new(0,nextHeight,0)
+            end
             return true
         end
         local function renderTarget(entry,ownPosition,ownRoot,highlightAllowed)
@@ -4805,6 +4841,9 @@ do
             if root~=entry.rootPart then
                 entry.rootPart=root
                 clearTracer(entry)
+                if entry.infoBillboard then
+                    entry.infoBillboard.Adornee=root
+                end
             end
             local characterType,color=classifyTarget(model,entry.player)
             -- Repair model highlighting before processing the optional frame.
@@ -4861,14 +4900,11 @@ do
                 entry.hl=nil
             end
 
-            if not updateWorldBounds(entry,root) then
-                entry.billboard.Enabled=false
-                renderTracer(entry,ownRoot,color)
-                return
-            end
-            entry.billboard.Enabled=true
-            entry.node.Visible=true
-            if cfg.box then
+            local frameReady=updateWorldBounds(entry,root)
+            -- Bounds failure may suppress the frame, but NEVER the text HUD.
+            entry.billboard.Enabled=frameReady
+            entry.node.Visible=frameReady
+            if frameReady and cfg.box then
                 local pixels=entry.node.AbsoluteSize
                 if pixels.X>0 and pixels.Y>0 then
                     renderFrame(entry,pixels.X,pixels.Y,color)
@@ -4888,25 +4924,51 @@ do
                 showDistance=cfg.npcDistance
                 showHealth=cfg.npcHealth
             end
-            entry.name.Visible=showNames
-            entry.name.Text=entry.player and entry.player.DisplayName or model.Name
+            -- All information lives in the independent pixel-sized GUI.
+            -- Reflow visible rows instead of leaving blank gaps.
+            local hudVisible=showNames or showDistance or showHealth
+            if entry.infoBillboard then
+                entry.infoBillboard.Enabled=hudVisible
+            end
+            local rowY=4
+            local function showInfoRow(label,show,step)
+                label.Visible=show
+                if show then
+                    label.Position=UDim2.new(.5,0,0,rowY)
+                    rowY+=step
+                end
+            end
+            showInfoRow(entry.name,showNames,22)
+            showInfoRow(entry.role,hudVisible,20)
+            showInfoRow(entry.hpText,showHealth,20)
+            showInfoRow(entry.dist,showDistance,19)
+            local displayName=model.Name
+            if entry.player then
+                local username=entry.player.Name
+                local nickname=entry.player.DisplayName
+                displayName=nickname~=username
+                    and (nickname.." (@"..username..")")
+                    or ("@"..username)
+            end
+            if entry.name.Text~=displayName then entry.name.Text=displayName end
             entry.name.TextColor3=color
-            entry.role.Visible=true
-            entry.role.Text=currentLanguage=="ru"
+            local roleText=currentLanguage=="ru"
                 and (characterType=="MONSTER" and "МОНСТР"
                     or (characterType=="PLAYER" and "ИГРОК" or "NPC"))
                 or characterType
+            if entry.role.Text~=roleText then entry.role.Text=roleText end
             entry.role.TextColor3=color
-            entry.dist.Visible=showDistance
-            entry.dist.Text=string.format("%d studs",math.floor(distance+.5))
+            local distText=string.format("%d studs",math.floor(distance+.5))
+            if entry.dist.Text~=distText then entry.dist.Text=distText end
             local hum=model:FindFirstChildOfClass("Humanoid")
+                or model:FindFirstChildOfClass("Humanoid",true)
             local hp=hum and hum.Health or 0
             local maxHp=hum and hum.MaxHealth or 0
-            entry.hp.Visible=showHealth and maxHp>0
-            entry.hpText.Visible=showHealth
-            entry.hpText.Text=maxHp>0
+            entry.hp.Visible=frameReady and showHealth and maxHp>0
+            local hpLabel=maxHp>0
                 and string.format("HP %d / %d",math.floor(hp+.5),math.floor(maxHp+.5))
                 or "HP —"
+            if entry.hpText.Text~=hpLabel then entry.hpText.Text=hpLabel end
             if maxHp>0 then
                 local ratio=math.clamp(hp/maxHp,0,1)
                 entry.hpFill.Size=UDim2.fromScale(1,ratio)
