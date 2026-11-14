@@ -4364,9 +4364,11 @@ do
         local RunService = game:GetService("RunService")
         local CollectionService = game:GetService("CollectionService")
         -- Each main ESP switch owns its own model highlighting; no separate toggle.
-        local cfg = {players=false,npcs=false,box=true,
-            names=true,distance=true,health=true,tracer=false,arrows=false,
-            style=1,maxDistance=3000000,
+        local cfg = {players=false,npcs=false,box=false,
+            playerNames=true,playerDistance=true,playerHealth=true,
+            npcNames=true,npcDistance=true,npcHealth=true,
+            tracer=false,arrows=false,
+            style=1,highlightStyle=2,maxDistance=3000000,
             playerColor=Color3.fromRGB(89,228,133),
             monsterColor=Color3.fromRGB(245,87,97)}
         local palette = {
@@ -4374,9 +4376,7 @@ do
             danger=Color3.fromRGB(245,87,97),
             unknown=Color3.fromRGB(245,189,92)
         }
-        local styles = {"Corner Box","Full Box","Double Box","Dashed Box",
-            "Bracket Box","Tactical Box","Diamond Box","Neon Box",
-            "Minimal Box","Crosshair Box"}
+        local styles = {"Precision Corners","Clean Box"}
         local engine = {entries={},npcs={},heartbeat=nil,npcEvent=nil,
             serial=0,overlay=nil,root=nil,errorTime=0}
         EH.espSettings=cfg
@@ -4465,117 +4465,86 @@ do
             end
             if partOf(model) then engine.npcs[model]=true end
         end
-        local function line(parent,parts,i,x1,y1,x2,y2,thickness,color,alpha)
-            local obj=parts[i]
-            if not obj then
-                obj=create("Frame",{Name="ESPLine",
-                    AnchorPoint=Vector2.new(0,0.5),
-                    BorderSizePixel=0,Active=false,ZIndex=3
+        -- Native Roblox UIStroke borders replace the old manually rotated
+        -- pixel-line segments. Precision Corners is a cropped native outline.
+        local function newNativeOutline(parent)
+            local function layer(name,thick,z)
+                local surface=create("Frame",{
+                    Name=name,Size=UDim2.fromOffset(1,1),
+                    BackgroundTransparency=1,BorderSizePixel=0,
+                    Active=false,ZIndex=z
                 },parent)
-                -- One reusable dark border per line keeps the thin geometry
-                -- legible on bright and complex backgrounds without a HUD.
-                create("UIStroke",{
-                    Color=Color3.fromRGB(12,11,10),
-                    Thickness=1.25,Transparency=.13,
-                    ApplyStrokeMode=Enum.ApplyStrokeMode.Border
-                },obj)
-                parts[i]=obj
+                local border=create("UIStroke",{
+                    ApplyStrokeMode=Enum.ApplyStrokeMode.Border,
+                    LineJoinMode=Enum.LineJoinMode.Miter,
+                    Color=Color3.fromRGB(10,15,16),
+                    Thickness=thick,Transparency=0
+                },surface)
+                return {surface=surface,border=border}
             end
-            local dx,dy=x2-x1,y2-y1
-            obj.Position=UDim2.fromOffset(x1,y1)
-            obj.Size=UDim2.fromOffset(math.sqrt(dx*dx+dy*dy),thickness)
-            obj.Rotation=math.deg(math.atan2(dy,dx))
-            obj.BackgroundColor3=color
-            obj.BackgroundTransparency=alpha or 0
-            obj.Visible=true
+            return {shadow=layer("ESPOutlineContrast",4,2),
+                inner=layer("ESPOutlineColor",1.8,3)}
         end
-        -- Ten purpose-designed, low-clutter line patterns around the WORLD target.
-        -- No screen-space overlay; every line belongs to the model's BillboardGui.
+        local function newNativeFrame(entry)
+            local root=create("Frame",{
+                Name="HorizonESPFrameNative",
+                Position=UDim2.fromScale(0,0),Size=UDim2.fromScale(1,1),
+                BackgroundTransparency=1,BorderSizePixel=0,
+                Active=false,ZIndex=2,Visible=false
+            },entry.node)
+            local full=newNativeOutline(root)
+            local corners={}
+            for i=1,4 do
+                local clip=create("Frame",{
+                    Name="HorizonESPPrecisionCorner"..i,
+                    Size=UDim2.fromOffset(16,16),
+                    BackgroundTransparency=1,BorderSizePixel=0,
+                    ClipsDescendants=true,Active=false,ZIndex=2,
+                    Visible=false
+                },root)
+                corners[i]={clip=clip,outline=newNativeOutline(clip)}
+            end
+            return {root=root,full=full,corners=corners}
+        end
+        local function paintNativeOutline(pair,w,h,x,y,color)
+            local size=UDim2.fromOffset(math.max(1,w-4),math.max(1,h-4))
+            local position=UDim2.fromOffset(2-x,2-y)
+            for _,item in ipairs({pair.shadow,pair.inner}) do
+                item.surface.Size=size
+                item.surface.Position=position
+            end
+            if pair.inner.border.Color~=color then
+                pair.inner.border.Color=color
+            end
+        end
         local function renderFrame(entry,w,h,color)
-            -- Recompute geometry only when the apparent size/style/color changes.
-            -- This avoids flicker from subpixel animations and reduces mobile work.
-            w=math.floor(w+.5)
-            h=math.floor(h+.5)
-            local style=cfg.style
+            local native=entry.nativeFrame
+            if not native then
+                native=newNativeFrame(entry)
+                entry.nativeFrame=native
+            end
+            native.root.Visible=true
+            w=math.max(6,math.floor(w+.5))
+            h=math.max(6,math.floor(h+.5))
+            local style=cfg.style==2 and 2 or 1
             if entry.frameStyle==style and entry.frameColor==color
-                and math.abs((entry.renderedW or 0)-w)<2
-                and math.abs((entry.renderedH or 0)-h)<2 then return end
-            local segments={}
-            local len=math.clamp(math.min(w,h)*.20,7,27)
-            local stroke=math.clamp(math.min(w,h)*.018,2,3)
-            local function L(a,b,c,d,t,alpha)
-                segments[#segments+1]={a,b,c,d,t or stroke,alpha or 0}
+                and entry.renderedW==w and entry.renderedH==h then return end
+            native.full.shadow.surface.Visible=style==2
+            native.full.inner.surface.Visible=style==2
+            if style==2 then
+                paintNativeOutline(native.full,w,h,0,0,color)
             end
-            local function corners(inset,scale,opacity)
-                local t=stroke*(scale or 1)
-                L(inset,inset,inset+len,inset,t,opacity)
-                L(inset,inset,inset,inset+len,t,opacity)
-                L(w-inset,inset,w-inset-len,inset,t,opacity)
-                L(w-inset,inset,w-inset,inset+len,t,opacity)
-                L(inset,h-inset,inset+len,h-inset,t,opacity)
-                L(inset,h-inset,inset,h-inset-len,t,opacity)
-                L(w-inset,h-inset,w-inset-len,h-inset,t,opacity)
-                L(w-inset,h-inset,w-inset,h-inset-len,t,opacity)
-            end
-            local function outline(inset,t,alpha)
-                L(inset,inset,w-inset,inset,t,alpha)
-                L(w-inset,inset,w-inset,h-inset,t,alpha)
-                L(w-inset,h-inset,inset,h-inset,t,alpha)
-                L(inset,h-inset,inset,inset,t,alpha)
-            end
-            if style==1 then
-                corners(0,1)
-            elseif style==2 then
-                outline(0,stroke)
-            elseif style==3 then
-                outline(0,stroke)
-                outline(5,math.max(.9,stroke*.55),.25)
-            elseif style==4 then
-                for n=0,3 do
-                    local a=n/4
-                    local b=(n+.6)/4
-                    L(w*a,0,w*b,0)
-                    L(w*a,h,w*b,h)
-                    L(0,h*a,0,h*b)
-                    L(w,h*a,w,h*b)
+            local side=math.min(w,h,math.clamp(
+                math.floor(math.min(w,h)*.24+.5),10,24))
+            local corners={{0,0},{w-side,0},{0,h-side},{w-side,h-side}}
+            for i,section in ipairs(native.corners) do
+                section.clip.Visible=style==1
+                if style==1 then
+                    local x,y=corners[i][1],corners[i][2]
+                    section.clip.Position=UDim2.fromOffset(x,y)
+                    section.clip.Size=UDim2.fromOffset(side,side)
+                    paintNativeOutline(section.outline,w,h,x,y,color)
                 end
-            elseif style==5 then
-                L(0,0,0,h,stroke*1.2)
-                L(w,0,w,h,stroke*1.2)
-                L(0,0,len,0);L(0,h,len,h)
-                L(w,0,w-len,0);L(w,h,w-len,h)
-            elseif style==6 then
-                corners(0,1.2)
-                L(w*.43,0,w*.57,0)
-                L(w*.43,h,w*.57,h)
-                L(0,h*.45,0,h*.55)
-                L(w,h*.45,w,h*.55)
-            elseif style==7 then
-                L(w*.5,0,w,h*.5)
-                L(w,h*.5,w*.5,h)
-                L(w*.5,h,0,h*.5)
-                L(0,h*.5,w*.5,0)
-            elseif style==8 then
-                outline(0,stroke*2.8,.78)
-                outline(0,stroke,0)
-            elseif style==9 then
-                L(w*.2,0,w*.8,0,stroke)
-                L(w*.2,h,w*.8,h,stroke)
-                L(0,h*.34,0,h*.66,stroke)
-                L(w,h*.34,w,h*.66,stroke)
-            else
-                corners(0,1)
-                L(w*.5-8,0,w*.5+8,0)
-                L(w*.5-8,h,w*.5+8,h)
-                L(0,h*.5-8,0,h*.5+8)
-                L(w,h*.5-8,w,h*.5+8)
-            end
-            for i,d in ipairs(segments) do
-                line(entry.node,entry.lines,i,d[1],d[2],d[3],d[4],
-                    d[5],color,d[6])
-            end
-            for i=#segments+1,#entry.lines do
-                entry.lines[i].Visible=false
             end
             entry.frameStyle=style
             entry.frameColor=color
@@ -4606,7 +4575,7 @@ do
             },billboard)
             local entry={
                 model=model,kind=kind,player=player,
-                rootPart=root,billboard=billboard,node=node,lines={}
+                rootPart=root,billboard=billboard,node=node
             }
             entry.name=create("TextLabel",{
                 Name="ESPWorldName",
@@ -4848,17 +4817,26 @@ do
                 if hl.DepthMode~=Enum.HighlightDepthMode.AlwaysOnTop then
                     hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
                 end
-                -- Strong fill for occluded targets; engine-depth artefacts are
-                -- outside the script's full control, so preserve the same
-                -- Highlight rather than recreating it every tick.
+                -- Neon, Balanced and synchronized Rainbow RGB for players.
+                -- Existing color settings apply to Neon, Balanced and NPCs.
+                local effectColor=color
                 local opacity=entry.kind=="players" and .07 or .1
+                if entry.kind=="players" then
+                    if cfg.highlightStyle==2 then
+                        opacity=.72
+                    elseif cfg.highlightStyle==3 then
+                        opacity=.66
+                        effectColor=Color3.fromHSV((os.clock()*.11)%1,.82,1)
+                    end
+                end
                 if hl.FillTransparency~=opacity then
                     hl.FillTransparency=opacity
                 end
                 if hl.OutlineTransparency~=0 then hl.OutlineTransparency=0 end
-                if hl.FillColor~=color then hl.FillColor=color end
-                local outline=color:Lerp(Color3.new(1,1,1),.4)
-                if hl.OutlineColor~=outline then hl.OutlineColor=outline end
+                if hl.FillColor~=effectColor then hl.FillColor=effectColor end
+                if hl.OutlineColor~=effectColor then
+                    hl.OutlineColor=effectColor
+                end
                 if not hl.Enabled then hl.Enabled=true end
             elseif entry.hl then
                 -- Disabled Highlights still consume engine slots. Release
@@ -4880,10 +4858,14 @@ do
                     renderFrame(entry,pixels.X,pixels.Y,color)
                 end
             else
-                for _,segment in ipairs(entry.lines) do segment.Visible=false end
+                if entry.nativeFrame then entry.nativeFrame.root.Visible=false end
                 entry.frameStyle=nil -- Redraw immediately if Box ESP is re-enabled.
             end
-            entry.name.Visible=cfg.names
+            local isPlayer=entry.kind=="players"
+            local showNames=isPlayer and cfg.playerNames or cfg.npcNames
+            local showDistance=isPlayer and cfg.playerDistance or cfg.npcDistance
+            local showHealth=isPlayer and cfg.playerHealth or cfg.npcHealth
+            entry.name.Visible=showNames
             entry.name.Text=entry.player and entry.player.DisplayName or model.Name
             entry.name.TextColor3=color
             entry.role.Visible=true
@@ -4892,13 +4874,13 @@ do
                     or (characterType=="PLAYER" and "ИГРОК" or "NPC"))
                 or characterType
             entry.role.TextColor3=color
-            entry.dist.Visible=cfg.distance
+            entry.dist.Visible=showDistance
             entry.dist.Text=string.format("%d studs",math.floor(distance+.5))
             local hum=model:FindFirstChildOfClass("Humanoid")
             local hp=hum and hum.Health or 0
             local maxHp=hum and hum.MaxHealth or 0
-            entry.hp.Visible=cfg.health and maxHp>0
-            entry.hpText.Visible=cfg.health
+            entry.hp.Visible=showHealth and maxHp>0
+            entry.hpText.Visible=showHealth
             entry.hpText.Text=maxHp>0
                 and string.format("HP %d / %d",math.floor(hp+.5),math.floor(maxHp+.5))
                 or "HP —"
