@@ -8117,9 +8117,9 @@ local function scanPlayer(player)
                 wornItemCount += 1
                 local id
                 pcall(function() id = object.SourceAssetId end)
-                id = liveAssetId(id) or liveAssetId(object:GetAttribute("AssetId"))
+                id = accessoryIdByInstance[object] or liveAssetId(id)
+                    or liveAssetId(object:GetAttribute("AssetId"))
                     or liveAssetId(object:GetAttribute("OriginalAssetId"))
-                    or accessoryIdByInstance[object]
                 if id then
                     add(object.Name, id, "Items")
                 end
