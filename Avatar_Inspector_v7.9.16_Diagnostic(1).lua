@@ -1,5 +1,10 @@
 --[[
-    AVATAR INSPECTOR v7.9.69
+    AVATAR INSPECTOR v7.9.70
+
+    CHANGES IN v7.9.70:
+    - Added Freecam in Player tools using native Roblox camera and movement controls
+    - Restores camera and character state on disable, respawn and full shutdown
+    - Guarded module loading, repeated launches and stale saved-avatar builds
 
     NEW: Glass Lens accessory preview
     - Optional eye button next to copy for equipped items
@@ -3363,12 +3368,12 @@ do
             return ticket
         end
 
-        teleport.TeleportInitFailed:Connect(function(player, _, errorMessage)
+        trackExternalConnection(teleport.TeleportInitFailed:Connect(function(player, _, errorMessage)
             if player == LocalPlayer and busy and ScreenGui.Parent then
                 stop("Не удалось подключиться: " .. tostring(errorMessage),
                     "Teleport failed: " .. tostring(errorMessage))
             end
-        end)
+        end))
 
         local function join(id, ticket)
             if ticket ~= serial or not busy then return end
@@ -3493,7 +3498,7 @@ do
         Name = "HorizonPlayerPage",
         Position = UDim2.fromOffset(8, 108),
         Size = UDim2.new(1, -16, 1, -166),
-        CanvasSize = UDim2.fromOffset(0, 926),
+        CanvasSize = UDim2.fromOffset(0, 1018),
         ScrollBarThickness = 3,
         ScrollBarImageColor3 = Color3.fromRGB(166, 125, 87),
         ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -3530,7 +3535,7 @@ do
     playerDescription.ZIndex = 32
 
     -- HORIZON / Accent Corner #10 + Smooth Check #7.
-    -- UI control only: the flight controller is not connected yet.
+    -- Player tools share one lazily loaded controller.
     do
         local flyCard = create("Frame", {
             Name = "HorizonFlyCard",
@@ -3643,14 +3648,20 @@ do
         -- A private GitHub repository cannot be read via anonymous HttpGet:
         -- this guarded loader fails without affecting the main UI.
         local flyController = nil
+        local playerModuleLoading = false
         local flyRetryAt, flyRetryReason = 0, nil
         local flyModuleURL =
             "https://raw.githubusercontent.com/kykrunikcu-byte/Functions/main/Player.lua"
 
         local function getFlyController()
+            if EH.shuttingDown or not ScreenGui.Parent then
+                return nil, "HORIZON is closed"
+            end
             if flyController then return flyController end
+            if playerModuleLoading then return nil, "Player.lua is loading; please retry" end
             if os.clock() < flyRetryAt then return nil, flyRetryReason end
             local function failed(reason)
+                playerModuleLoading = false
                 flyRetryAt = os.clock() + 6
                 flyRetryReason = reason
                 EH.logDiagnostic("Player controller", reason)
@@ -3659,9 +3670,13 @@ do
             if not EH.capabilities.compile then
                 return failed("loadstring is unavailable")
             end
+            playerModuleLoading = true
             local fetched, contents = pcall(function()
                 return game:HttpGet(flyModuleURL)
             end)
+            if EH.shuttingDown or not ScreenGui.Parent then
+                return failed("HORIZON closed while Player.lua was loading")
+            end
             if not fetched or type(contents) ~= "string"
                 or contents:sub(1, 2) ~= "--" then
                 return failed("Player.lua cannot be downloaded (check repository visibility)")
@@ -3674,16 +3689,27 @@ do
             if not ran or type(result) ~= "table" or type(result.new) ~= "function" then
                 return failed("Player.lua did not provide its module interface")
             end
+            if EH.shuttingDown or not ScreenGui.Parent then
+                return failed("HORIZON closed while Player.lua was initializing")
+            end
             local initialized, controller = pcall(result.new, {
                 screenGui = ScreenGui,
                 player = LocalPlayer,
                 userInput = UserInputService,
-                tweens = TweenService
+                tweens = TweenService,
+                onFreecamChanged = function(enabled)
+                    if EH.setFreecamVisual then EH.setFreecamVisual(enabled) end
+                end
             })
             if not initialized or type(controller) ~= "table" then
                 return failed("Player.lua initialization failed: " .. tostring(controller))
             end
+            if EH.shuttingDown or not ScreenGui.Parent then
+                pcall(function() controller:destroy() end)
+                return failed("HORIZON closed while Player.lua was initializing")
+            end
             flyController = controller
+            playerModuleLoading = false
             flyRetryAt, flyRetryReason = 0, nil
             EH.registerController("Player", controller)
             return controller
@@ -3856,6 +3882,128 @@ do
         EH.stopFly = function()
             if stopPreviousPlayerTools then stopPreviousPlayerTools() end
             noclipEnabled = false
+        end
+
+        -- Freecam uses Roblox's normal camera and movement controls; no extra panel.
+        do
+            local card = create("Frame", {
+                Name = "HorizonFreecamCard",
+                Position = UDim2.fromOffset(12, 916),
+                Size = UDim2.new(1, -24, 0, 78),
+                BackgroundColor3 = Color3.fromRGB(40, 37, 33),
+                BorderSizePixel = 0, ZIndex = 31
+            }, playerPage)
+            round(card, 10)
+            create("UIStroke", {
+                Color = Color3.fromRGB(69, 64, 58), Thickness = 1
+            }, card)
+            local accent = create("Frame", {
+                Position = UDim2.fromOffset(13, 19),
+                Size = UDim2.fromOffset(3, 39),
+                BackgroundColor3 = Color3.fromRGB(190, 147, 107),
+                BorderSizePixel = 0, Active = false, ZIndex = 32
+            }, card)
+            round(accent, 2)
+            EH.safeIcon(card, "viewer", UDim2.fromOffset(27, 26), 25)
+            local title = makeLabel(card, "Freecam",
+                UDim2.new(1, -174, 0, 25), UDim2.fromOffset(64, 16), 18)
+            title.Font = Enum.Font.GothamBold
+            title.TextColor3 = Color3.fromRGB(242, 223, 205)
+            title.ZIndex = 32
+            local subtitle = makeLabel(card, "",
+                UDim2.new(1, -174, 0, 20), UDim2.fromOffset(64, 41), 14)
+            subtitle.Font = Enum.Font.GothamMedium
+            subtitle.TextColor3 = Color3.fromRGB(224, 187, 146)
+            subtitle.ZIndex = 32
+            local toggle = create("TextButton", {
+                Name = "HorizonFreecamToggle",
+                AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -15, 0.5, 0),
+                Size = UDim2.fromOffset(68, 34),
+                BackgroundColor3 = Color3.fromRGB(60, 58, 55),
+                BorderSizePixel = 0, Text = "", AutoButtonColor = false,
+                Active = true, Selectable = true, ZIndex = 33
+            }, card)
+            round(toggle, 17)
+            local stroke = create("UIStroke", {
+                Color = Color3.fromRGB(109, 102, 95), Thickness = 1
+            }, toggle)
+            local knob = create("Frame", {
+                Position = UDim2.fromOffset(4, 4),
+                Size = UDim2.fromOffset(26, 26),
+                BackgroundColor3 = Color3.fromRGB(197, 190, 183),
+                BorderSizePixel = 0, Active = false, ZIndex = 34
+            }, toggle)
+            round(knob, 13)
+            local check = makeLabel(knob, "✓",
+                UDim2.fromScale(1, 1), UDim2.fromOffset(0, -1), 19)
+            check.TextColor3 = Color3.fromRGB(40, 123, 59)
+            check.TextXAlignment = Enum.TextXAlignment.Center
+            check.TextYAlignment = Enum.TextYAlignment.Center
+            check.TextTransparency = 1
+            check.Font = Enum.Font.GothamBold
+            check.Active = false
+            check.ZIndex = 35
+            local enabled = false
+            EH.setFreecamVisual = function(value)
+                enabled = value == true
+                if EH.shuttingDown or not toggle.Parent then return end
+                toggle:SetAttribute("FreecamEnabled", enabled)
+                local move = TweenInfo.new(0.43, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                local color = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                TweenService:Create(knob, move, {
+                    Position = UDim2.fromOffset(enabled and 38 or 4, 4)
+                }):Play()
+                TweenService:Create(knob, color, {
+                    BackgroundColor3 = enabled and Color3.fromRGB(220, 255, 208)
+                        or Color3.fromRGB(197, 190, 183)
+                }):Play()
+                TweenService:Create(toggle, color, {
+                    BackgroundColor3 = enabled and Color3.fromRGB(80, 107, 74)
+                        or Color3.fromRGB(60, 58, 55)
+                }):Play()
+                TweenService:Create(stroke, color, {
+                    Color = enabled and Color3.fromRGB(164, 217, 146)
+                        or Color3.fromRGB(109, 102, 95)
+                }):Play()
+                TweenService:Create(check, color, {
+                    TextTransparency = enabled and 0 or 1
+                }):Play()
+            end
+            toggle:SetAttribute("FreecamEnabled", false)
+            toggle.Activated:Connect(function()
+                if EH.shuttingDown then return end
+                if enabled then
+                    if flyController then
+                        local ok, err = pcall(function() flyController:disableFreecam() end)
+                        if not ok then EH.logDiagnostic("Freecam", err) end
+                    end
+                    EH.setFreecamVisual(false)
+                    return
+                end
+                local controller, err = getFlyController()
+                if not controller then
+                    EH.logDiagnostic("Freecam", err)
+                    return
+                end
+                if type(controller.enableFreecam) ~= "function" then
+                    EH.logDiagnostic("Freecam", "Update Player.lua: missing enableFreecam")
+                    return
+                end
+                local ok, started, reason = pcall(controller.enableFreecam, controller)
+                if not ok or not started then
+                    pcall(function() controller:disableFreecam() end)
+                    EH.setFreecamVisual(false)
+                    EH.logDiagnostic("Freecam", ok and reason or started)
+                    return
+                end
+                EH.setFreecamVisual(true)
+            end)
+            EH.refreshFreecamText = function()
+                subtitle.Text = currentLanguage == "ru" and "Свободная камера"
+                    or "Detached camera"
+            end
+            EH.refreshFreecamText()
         end
 
         -- All numerical player controls share one in-page card, no extra panels.
@@ -4113,6 +4261,7 @@ do
         EH.refreshFlyCardText = function()
             flySubtitle.Text = currentLanguage == "ru" and "Режим полёта" or "Flight mode"
             noclipSubtitle.Text = currentLanguage == "ru" and "Сквозь стены" or "Through walls"
+            if EH.refreshFreecamText then EH.refreshFreecamText() end
             refreshStatCards()
         end
     end
@@ -4124,8 +4273,8 @@ do
         playerTitle.Text = ru and "Управление игроком" or "Player tools"
         if EH.refreshFlyCardText then EH.refreshFlyCardText() end
         playerDescription.Text = ru
-            and "Скорость, прыжок, гравитация, Fly и Noclip — всё в одном разделе."
-            or "Speed, jumping, gravity, Fly and Noclip — all in one place."
+            and "Скорость, прыжок, гравитация, Fly, Noclip и свободная камера — всё в одном разделе."
+            or "Speed, jumping, gravity, Fly, Noclip and Freecam — all in one place."
     end
     EH.refreshHomeText()
 
@@ -6556,10 +6705,14 @@ local function cancelPoseTweens()
     table.clear(poseTweens)
 end
 
-shutdownAvatarInspector = function()
+shutdownAvatarInspector = function(destroying)
+    if EH.shuttingDown then return end
+    EH.shuttingDown = true
     -- Cancel pending async scans and prevent stale results from rebuilding GUI.
     EH.avatarScanToken = (EH.avatarScanToken or 0) + 1
     EH.lastAvatarScan = nil
+    -- Glass Lens may hold the avatar outside the GUI while an item is previewed.
+    if EH.closeAssetPreview then pcall(EH.closeAssetPreview) end
     if EH.animationController then
         pcall(function() EH.animationController:destroy() end)
         EH.animationController = nil
@@ -6582,10 +6735,15 @@ shutdownAvatarInspector = function()
 
     -- Destroying the ScreenGui removes all interface-owned event connections,
     -- modal elements, viewport models and the floating toggle in one operation.
-    if ScreenGui and ScreenGui.Parent then
+    if not destroying and ScreenGui and ScreenGui.Parent then
         ScreenGui:Destroy()
     end
 end
+
+-- Rerunning the loader or externally removing the GUI must restore player tools too.
+ScreenGui.Destroying:Connect(function()
+    shutdownAvatarInspector(true)
+end)
 
 local function updatePoseButtons(pose)
     for key, button in pairs({T = TPoseButton, A = APoseButton, N = NeutralButton}) do
@@ -8642,7 +8800,12 @@ local function buildDescriptionFromSnapshot(snapshot)
     return description
 end
 
-local function showSavedAvatarAppearance(favorite)
+local function showSavedAvatarAppearance(favorite, scanToken)
+    local function isCurrent()
+        return not EH.shuttingDown and ScreenGui.Parent ~= nil
+            and scanToken == EH.avatarScanToken and selectedFavorite == favorite
+    end
+    if not isCurrent() then return false end
     clearViewport()
 
     if type(favorite.appearance) ~= "table" then
@@ -8671,6 +8834,14 @@ local function showSavedAvatarAppearance(favorite)
         local asyncOk, asyncModel = pcall(function()
             return Players:CreateHumanoidModelFromDescriptionAsync(description, rigType)
         end)
+        -- Asset construction yields: another selection or shutdown may win.
+        if not isCurrent() then
+            if asyncOk and asyncModel then
+                pcall(function() asyncModel:Destroy() end)
+            end
+            pcall(function() description:Destroy() end)
+            return false
+        end
         if asyncOk and asyncModel then
             model = asyncModel
         else
@@ -8682,6 +8853,13 @@ local function showSavedAvatarAppearance(favorite)
         local syncOk, syncModel = pcall(function()
             return Players:CreateHumanoidModelFromDescription(description, rigType)
         end)
+        if not isCurrent() then
+            if syncOk and syncModel then
+                pcall(function() syncModel:Destroy() end)
+            end
+            pcall(function() description:Destroy() end)
+            return false
+        end
         if syncOk and syncModel then
             model = syncModel
         else
@@ -8802,15 +8980,18 @@ end
 
 
 showFavorite = function(favorite)
-    if not favorite then return end
+    if not favorite or EH.shuttingDown or not ScreenGui.Parent then return end
 
     EH.avatarScanToken = (EH.avatarScanToken or 0) + 1
+    local token = EH.avatarScanToken
     EH.lastAvatarScan = nil
     selectedPlayer = nil
     selectedFavorite = favorite
 
     -- Restore the saved appearance snapshot from JSON into the 3D viewport.
-    local appearanceLoaded = showSavedAvatarAppearance(favorite)
+    local appearanceLoaded = showSavedAvatarAppearance(favorite, token)
+    if token ~= EH.avatarScanToken or selectedFavorite ~= favorite
+        or EH.shuttingDown or not ScreenGui.Parent then return end
 
     -- Keep the saved asset and animation ID list visible alongside the model.
     displaySavedItems(favorite.items, favorite.appearance)
@@ -9247,7 +9428,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.60 loaded successfully")
+print("Avatar Inspector v7.9.70 loaded successfully")
 
 end
 
@@ -9270,11 +9451,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.62 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.70 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.63 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.70 INITIALIZATION FINISHED")
 end
