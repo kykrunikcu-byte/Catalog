@@ -4574,13 +4574,17 @@ do
             billboard.AlwaysOnTop=true
             billboard.LightInfluence=0
             billboard.ClipsDescendants=false
-            billboard.Size=UDim2.new(3,12,6,20)
+            -- Reserve a real HUD margin INSIDE the BillboardGui canvas.
+            -- Fully outside GuiObjects are culled by Roblox even when
+            -- BillboardGui.ClipsDescendants=false.
+            billboard.Size=UDim2.new(3,12,6,174)
             billboard.Parent=model
 
             local node=create("Frame",{
-                Name="ESPTargetFrame",Position=UDim2.fromScale(0,0),
-                Size=UDim2.fromScale(1,1),
+                Name="ESPTargetFrame",Position=UDim2.fromOffset(0,82),
+                Size=UDim2.new(1,0,1,-164),
                 BackgroundTransparency=1,BorderSizePixel=0,
+                ClipsDescendants=false,
                 Visible=true,Active=false,ZIndex=2
             },billboard)
             local entry={
@@ -4631,7 +4635,7 @@ do
             },node)
             entry.hp=create("Frame",{
                 Name="ESPWorldHealth",
-                Position=UDim2.new(1,6,0,0),
+                Position=UDim2.new(1,-8,0,0),
                 Size=UDim2.new(0,5,1,0),
                 BackgroundColor3=Color3.fromRGB(66,52,50),
                 BorderSizePixel=0,Active=false,ZIndex=3
@@ -4776,7 +4780,9 @@ do
             end
             entry.frameWidth,entry.frameHeight=smoothedWidth,smoothedHeight
             entry.billboard.Adornee=root
-            entry.billboard.Size=UDim2.new(smoothedWidth,6,smoothedHeight,10)
+            -- The +164 pixels are symmetric top/bottom HUD margins.
+            -- Body frame still covers exactly the measured character bounds.
+            entry.billboard.Size=UDim2.new(smoothedWidth,6,smoothedHeight,174)
             local offset=center-rootPos
             entry.smoothedOffset=entry.smoothedOffset
                 and entry.smoothedOffset:Lerp(offset,.18) or offset
