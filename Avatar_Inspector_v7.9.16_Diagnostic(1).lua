@@ -4117,13 +4117,10 @@ do
     -- are controlled here. Existing preview camera and Fly/Noclip are untouched.
     do
         local RunService=game:GetService("RunService")
-        local freecam={
-            enabled=false,connections={},held={},speed=60,
+        local freecam={enabled=false,connections={},held={},
             camera=nil,originalType=nil,originalSubject=nil,
             rightMouse=false,lookPointer=nil,lastLook=nil,
-            yaw=0,pitch=0,cframe=nil,controls=nil,moveAction=nil,
-            modernMoveData=nil,renderName="HorizonFreecam_"..tostring(LocalPlayer.UserId)
-        }
+            yaw=0,pitch=0,cframe=nil,controls=nil}
         local function playerToolCard(name,y,height)
             local card=create("Frame",{
                 Name="Horizon"..name.."Card",
@@ -4152,187 +4149,116 @@ do
             subtitle.ZIndex=32
             return card,title,subtitle
         end
-        -- Freecam has an isolated, protected initializer. A failed control
-        -- or camera setup must never prevent the floating HORIZON UI from loading.
-        local cameraTitle,cameraSubtitle
-        local freecamReady,freecamError=pcall(function()
-        -- Freecam uses the native Roblox thumbstick and world touch gestures.
-        -- There is no custom D-pad, touch-look overlay, or input disabling.
-        local cameraCard
-        cameraCard,cameraTitle,cameraSubtitle=
+        local cameraCard,cameraTitle,cameraSubtitle=
             playerToolCard("Freecam",918,78)
         local cameraToggle=create("TextButton",{
-            Name="HorizonFreecamToggle",AnchorPoint=Vector2.new(1,.5),
-            Position=UDim2.new(1,-15,.5,0),Size=UDim2.fromOffset(68,34),
+            Name="HorizonFreecamToggle",
+            AnchorPoint=Vector2.new(1,.5),
+            Position=UDim2.new(1,-15,.5,0),
+            Size=UDim2.fromOffset(68,34),
             BackgroundColor3=Color3.fromRGB(60,58,55),
             BorderSizePixel=0,Text="",AutoButtonColor=false,
-            Active=true,Selectable=true,ZIndex=33
+            Active=true,ZIndex=33
         },cameraCard)
         round(cameraToggle,17)
         local toggleStroke=create("UIStroke",{
             Color=Color3.fromRGB(109,102,95),Thickness=1
         },cameraToggle)
-        local knob=create("Frame",{
-            Name="SmoothCheckKnob",Position=UDim2.fromOffset(4,4),
-            Size=UDim2.fromOffset(26,26),
+        local toggleKnob=create("Frame",{
+            Name="SmoothCheckKnob",
+            Position=UDim2.fromOffset(4,4),Size=UDim2.fromOffset(26,26),
             BackgroundColor3=Color3.fromRGB(197,190,183),
             BorderSizePixel=0,Active=false,ZIndex=34
         },cameraToggle)
-        round(knob,13)
-        local tick=makeLabel(knob,"✓",UDim2.fromScale(1,1),
+        round(toggleKnob,13)
+        local toggleTick=makeLabel(toggleKnob,"✓",UDim2.fromScale(1,1),
             UDim2.fromOffset(0,-1),19)
-        tick.Font=Enum.Font.GothamBold
-        tick.TextXAlignment=Enum.TextXAlignment.Center
-        tick.TextYAlignment=Enum.TextYAlignment.Center
-        tick.TextColor3=Color3.fromRGB(40,123,59)
-        tick.Active=false;tick.ZIndex=35
-        local function paintToggle(on)
+        toggleTick.Font=Enum.Font.GothamBold
+        toggleTick.TextXAlignment=Enum.TextXAlignment.Center
+        toggleTick.TextYAlignment=Enum.TextYAlignment.Center
+        toggleTick.TextColor3=Color3.fromRGB(40,123,59)
+        toggleTick.ZIndex=35
+        toggleTick.Active=false
+        local function updateCameraSwitch(on)
             cameraToggle:SetAttribute("FreecamEnabled",on)
-            local info=TweenInfo.new(.25,Enum.EasingStyle.Quad,
-                Enum.EasingDirection.Out)
-            TweenService:Create(knob,info,{
+            local info=TweenInfo.new(.24,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
+            TweenService:Create(toggleKnob,info,{
                 Position=UDim2.fromOffset(on and 38 or 4,4),
                 BackgroundColor3=on and Color3.fromRGB(220,255,208)
-                    or Color3.fromRGB(197,190,183)}):Play()
+                    or Color3.fromRGB(197,190,183)
+            }):Play()
             TweenService:Create(cameraToggle,info,{
                 BackgroundColor3=on and Color3.fromRGB(80,107,74)
-                    or Color3.fromRGB(60,58,55)}):Play()
+                    or Color3.fromRGB(60,58,55)
+            }):Play()
             TweenService:Create(toggleStroke,info,{
                 Color=on and Color3.fromRGB(164,217,146)
-                    or Color3.fromRGB(109,102,95)}):Play()
-            tick.TextTransparency=on and 0 or 1
+                    or Color3.fromRGB(109,102,95)
+            }):Play()
+            toggleTick.TextTransparency=on and 0 or 1
         end
-        paintToggle(false)
-        local function listen(connection)
+        updateCameraSwitch(false)
+        local function addCameraConnection(connection)
             freecam.connections[#freecam.connections+1]=connection
         end
-        local function lookDelta(dx,dy)
+        local function rotateFreecam(dx,dy)
             freecam.yaw-=dx*.0032
             freecam.pitch=math.clamp(freecam.pitch-dy*.0032,-1.48,1.48)
-        end
-        local function discoverMovement(self)
-            self.controls=nil;self.moveAction=nil;self.modernMoveData=nil
-            local scripts=LocalPlayer:FindFirstChild("PlayerScripts")
-            local module=scripts and scripts:FindFirstChild("PlayerModule")
-            if module and module:IsA("ModuleScript") then
-                local ok,api=pcall(require,module)
-                if ok and type(api)=="table" and
-                    type(api.GetControls)=="function" then
-                    local worked,controls=pcall(api.GetControls,api)
-                    if worked and controls and
-                        type(controls.GetMoveVector)=="function" then
-                        self.controls=controls
-                        return
-                    end
-                end
-            end
-            local starter=game:GetService("StarterPlayer")
-            local newModule=starter:FindFirstChild("PlayerModule")
-            for _,root in ipairs({scripts or LocalPlayer,newModule or starter}) do
-                local action=root:FindFirstChild("MoveAction",true)
-                if action and action:IsA("InputAction") then
-                    self.moveAction=action
-                    return
-                end
-            end
-            if newModule then
-                local control=newModule:FindFirstChild("ControlModule")
-                if control and control:IsA("ModuleScript") then
-                    local ok,obj=pcall(require,control)
-                    if ok and type(obj)=="table" then
-                        self.modernMoveData=obj
-                    end
-                end
-            end
-        end
-        local function movementVector(self)
-            if self.controls then
-                local ok,value=pcall(function()
-                    return self.controls:GetMoveVector()
-                end)
-                if ok and typeof(value)=="Vector3" then
-                    return Vector3.new(value.X,0,value.Z)
-                end
-            end
-            if self.moveAction and self.moveAction.Parent then
-                local ok,value=pcall(function() return self.moveAction:GetState() end)
-                if ok then
-                    if typeof(value)=="Vector3" then
-                        return Vector3.new(value.X,0,value.Z)
-                    elseif typeof(value)=="Vector2" then
-                        return Vector3.new(value.X,0,value.Y)
-                    end
-                end
-            end
-            local data=self.modernMoveData and
-                self.modernMoveData.playerData
-            local value=data and data.moveVector
-            if typeof(value)=="Vector3" then
-                return Vector3.new(value.X,0,value.Z)
-            elseif typeof(value)=="Vector2" then
-                return Vector3.new(value.X,0,value.Y)
-            end
-            return Vector3.zero
-        end
-        local function onInspectorGui(pos)
-            if not Main.Parent or not Main.Visible then return false end
-            local origin=Main.AbsolutePosition
-            local size=Main.AbsoluteSize
-            return pos.X>=origin.X and pos.X<=origin.X+size.X
-                and pos.Y>=origin.Y and pos.Y<=origin.Y+size.Y
         end
         function freecam:disable()
             if not self.enabled then return end
             self.enabled=false
-            pcall(function()
-                RunService:UnbindFromRenderStep(self.renderName)
-            end)
-            for _,conn in ipairs(self.connections) do conn:Disconnect() end
+            for _,connection in ipairs(self.connections) do
+                connection:Disconnect()
+            end
             table.clear(self.connections)
             table.clear(self.held)
-            self.rightMouse=false;self.lookPointer=nil;self.lastLook=nil
-            local cam=workspace.CurrentCamera
-            local char=LocalPlayer.Character
-            local hum=char and char:FindFirstChildOfClass("Humanoid")
-            if cam then
-                local subject=self.originalSubject
-                if subject and not subject.Parent then subject=nil end
-                cam.CameraSubject=hum or subject or cam.CameraSubject
-                local restored=self.originalType or Enum.CameraType.Custom
-                if restored==Enum.CameraType.Scriptable then
-                    restored=Enum.CameraType.Custom
+            self.rightMouse=false
+            self.lookPointer=nil
+            self.lastLook=nil
+            local camera=workspace.CurrentCamera
+            if camera then
+                local humanoid=LocalPlayer.Character and
+                    LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                local oldSubject=self.originalSubject
+                if oldSubject and not oldSubject.Parent then oldSubject=nil end
+                camera.CameraSubject=humanoid or oldSubject or camera.CameraSubject
+                camera.CameraType=self.originalType or Enum.CameraType.Custom
+                -- If the previous camera was scriptable, return to character
+                -- control rather than leaving the view permanently detached.
+                if camera.CameraType==Enum.CameraType.Scriptable and humanoid then
+                    camera.CameraType=Enum.CameraType.Custom
                 end
-                cam.CameraType=restored
             end
-            -- Never called :Disable() on the native controls. Re-enable
-            -- legacy input defensively in case another controller stole it.
-            if hum and self.controls and type(self.controls.Enable)=="function" then
-                pcall(self.controls.Enable,self.controls,true)
-            end
-            self.camera=nil;self.cframe=nil
-            self.moveAction=nil;self.modernMoveData=nil
-            paintToggle(false)
+            self.camera=nil
+            self.cframe=nil
+            updateCameraSwitch(false)
         end
         function freecam:enable()
             if self.enabled then return true end
-            local cam=workspace.CurrentCamera
-            if not cam then return false,"Камера не найдена" end
-            discoverMovement(self)
-            if UserInputService.TouchEnabled and
-                not self.controls and not self.moveAction
-                and not self.modernMoveData then
-                return false,"Стандартный джойстик Roblox недоступен"
-            end
+            local camera=workspace.CurrentCamera
+            if not camera then return false,"Камера игры недоступна" end
             self.enabled=true
-            self.camera=cam
-            self.originalType=cam.CameraType
-            self.originalSubject=cam.CameraSubject
-            self.cframe=cam.CFrame
-            local forward=self.cframe.LookVector
-            self.yaw=math.atan2(-forward.X,-forward.Z)
-            self.pitch=math.asin(math.clamp(forward.Y,-1,1))
-            cam.CameraType=Enum.CameraType.Scriptable
-            listen(UserInputService.InputBegan:Connect(function(input,processed)
+            self.camera=camera
+            self.originalType=camera.CameraType
+            self.originalSubject=camera.CameraSubject
+            self.cframe=camera.CFrame
+            -- Read the existing Roblox joystick only when this mode is enabled.
+            local scripts=LocalPlayer:FindFirstChild("PlayerScripts")
+            local playerModule=scripts and scripts:FindFirstChild("PlayerModule")
+            self.controls=nil
+            if playerModule and playerModule:IsA("ModuleScript") then
+                local ok,module=pcall(require,playerModule)
+                if ok and module then
+                    local got,controls=pcall(function() return module:GetControls() end)
+                    if got and controls then self.controls=controls end
+                end
+            end
+            local direction=self.cframe.LookVector
+            self.yaw=math.atan2(-direction.X,-direction.Z)
+            self.pitch=math.asin(math.clamp(direction.Y,-1,1))
+            camera.CameraType=Enum.CameraType.Scriptable
+            addCameraConnection(UserInputService.InputBegan:Connect(function(input,processed)
                 if not self.enabled then return end
                 if input.UserInputType==Enum.UserInputType.MouseButton2 then
                     self.rightMouse=true
@@ -4341,76 +4267,83 @@ do
                     self.held[input.KeyCode]=true
                 end
             end))
-            listen(UserInputService.InputEnded:Connect(function(input)
+            addCameraConnection(UserInputService.InputEnded:Connect(function(input)
                 if input.UserInputType==Enum.UserInputType.MouseButton2 then
                     self.rightMouse=false
-                elseif input.UserInputType==Enum.UserInputType.Keyboard then
+                end
+                if input.UserInputType==Enum.UserInputType.Keyboard then
                     self.held[input.KeyCode]=nil
                 end
+                if self.lookPointer==input then
+                    self.lookPointer=nil
+                    self.lastLook=nil
+                end
             end))
-            listen(UserInputService.WindowFocusReleased:Connect(function()
-                self.rightMouse=false
-                self.lookPointer=nil;self.lastLook=nil
+            addCameraConnection(UserInputService.WindowFocusReleased:Connect(function()
                 table.clear(self.held)
+                self.rightMouse=false
             end))
-            listen(UserInputService.InputChanged:Connect(function(input)
-                if self.enabled and self.rightMouse
-                    and input.UserInputType==Enum.UserInputType.MouseMovement then
-                    lookDelta(input.Delta.X,input.Delta.Y)
+            addCameraConnection(UserInputService.InputChanged:Connect(function(input)
+                if not self.enabled then return end
+                if input.UserInputType==Enum.UserInputType.MouseMovement
+                    and self.rightMouse then
+                    rotateFreecam(input.Delta.X,input.Delta.Y)
+                elseif self.lookPointer==input and self.lastLook then
+                    local pos=input.Position
+                    rotateFreecam(pos.X-self.lastLook.X,pos.Y-self.lastLook.Y)
+                    self.lastLook=pos
                 end
             end))
-            -- Swipe across the world, not a separate tiny control rectangle.
-            -- Ignore the native dynamic thumbstick on the lower left.
-            listen(UserInputService.TouchStarted:Connect(function(input,processed)
-                if not self.enabled or self.lookPointer then return end
-                local camera=workspace.CurrentCamera
-                if not camera or onInspectorGui(input.Position) then return end
-                local point=input.Position
-                if point.X<camera.ViewportSize.X*.4
-                    and point.Y>camera.ViewportSize.Y*.45 then return end
-                if processed then return end
-                self.lookPointer=input;self.lastLook=point
-            end))
-            listen(UserInputService.TouchMoved:Connect(function(input)
-                if not self.enabled or input~=self.lookPointer then return end
-                if self.lastLook then
-                    local point=input.Position
-                    lookDelta(point.X-self.lastLook.X,point.Y-self.lastLook.Y)
-                    self.lastLook=point
+            -- Normal Roblox camera swipe over the world, not a special panel.
+            addCameraConnection(UserInputService.TouchStarted:Connect(function(input,processed)
+                if not self.enabled or self.lookPointer or processed then return end
+                local view=workspace.CurrentCamera
+                if not view then return end
+                local pos=input.Position
+                -- Leave the default lower-left thumbstick alone.
+                if pos.X<view.ViewportSize.X*.4 and
+                    pos.Y>view.ViewportSize.Y*.45 then return end
+                if Main.Visible and Main.Parent then
+                    local at=Main.AbsolutePosition
+                    local size=Main.AbsoluteSize
+                    if pos.X>=at.X and pos.X<=at.X+size.X and
+                        pos.Y>=at.Y and pos.Y<=at.Y+size.Y then return end
                 end
+                self.lookPointer=input
+                self.lastLook=pos
             end))
-            listen(UserInputService.TouchEnded:Connect(function(input)
-                if input==self.lookPointer then
-                    self.lookPointer=nil;self.lastLook=nil
-                end
-            end))
-            listen(LocalPlayer.CharacterAdded:Connect(function(character)
+            addCameraConnection(LocalPlayer.CharacterAdded:Connect(function(character)
                 self:disable()
+                -- On respawn Roblox may create the Humanoid after CharacterAdded.
                 task.defer(function()
                     local hum=character:WaitForChild("Humanoid",4)
-                    local camera=workspace.CurrentCamera
-                    if hum and camera and not self.enabled
-                        and LocalPlayer.Character==character then
-                        camera.CameraSubject=hum
-                        camera.CameraType=Enum.CameraType.Custom
+                    local cam=workspace.CurrentCamera
+                    if hum and cam and not self.enabled and character==LocalPlayer.Character then
+                        cam.CameraSubject=hum
+                        if cam.CameraType==Enum.CameraType.Scriptable then
+                            cam.CameraType=Enum.CameraType.Custom
+                        end
                     end
                 end)
             end))
-            listen(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+            addCameraConnection(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
                 if self.enabled and workspace.CurrentCamera then
                     self.camera=workspace.CurrentCamera
                     self.camera.CameraType=Enum.CameraType.Scriptable
                 end
             end))
-            RunService:BindToRenderStep(self.renderName,
-                Enum.RenderPriority.Camera.Value+2,function(dt)
-                if not self.enabled or not self.cframe then return end
-                local camera=workspace.CurrentCamera
-                if not camera then return end
-                local motion=movementVector(self)
-                if not self.controls and not self.moveAction
-                    and not self.modernMoveData then
-                    motion=Vector3.new(
+            addCameraConnection(RunService.RenderStepped:Connect(function(dt)
+                if not self.enabled then return end
+                local cam=workspace.CurrentCamera
+                if not cam or not self.cframe then return end
+                local movement=Vector3.zero
+                if self.controls then
+                    local ok,v=pcall(function()
+                        return self.controls:GetMoveVector()
+                    end)
+                    if ok and typeof(v)=="Vector3" then movement=v end
+                else
+                    movement=Vector3.new(
                         (self.held[Enum.KeyCode.D] and 1 or 0)
                         -(self.held[Enum.KeyCode.A] and 1 or 0),0,
                         (self.held[Enum.KeyCode.S] and 1 or 0)
@@ -4418,44 +4351,41 @@ do
                 end
                 local up=(self.held[Enum.KeyCode.E] and 1 or 0)
                     -(self.held[Enum.KeyCode.Q] and 1 or 0)
-                local facing=CFrame.Angles(0,self.yaw,0)
+                local orientation=CFrame.Angles(0,self.yaw,0)
                     *CFrame.Angles(self.pitch,0,0)
-                local direction=facing:VectorToWorldSpace(motion)
+                local direction=orientation:VectorToWorldSpace(movement)
                     +Vector3.new(0,up,0)
                 if direction.Magnitude>1 then direction=direction.Unit end
                 local boost=(self.held[Enum.KeyCode.LeftShift]
                     or self.held[Enum.KeyCode.RightShift]) and 2.5 or 1
-                self.cframe=CFrame.new(self.cframe.Position
-                    +direction*self.speed*boost*math.min(dt,.08))*facing
-                if camera.CameraType~=Enum.CameraType.Scriptable then
-                    camera.CameraType=Enum.CameraType.Scriptable
+                local speed=60
+                local position=self.cframe.Position
+                    +direction*speed*boost*math.min(dt,.08)
+                self.cframe=CFrame.new(position)*orientation
+                if cam.CameraType~=Enum.CameraType.Scriptable then
+                    cam.CameraType=Enum.CameraType.Scriptable
                 end
-                camera.CFrame=self.cframe
-                camera.Focus=self.cframe*CFrame.new(0,0,-20)
-            end)
-            paintToggle(true)
+                cam.CFrame=self.cframe
+                cam.Focus=self.cframe*CFrame.new(0,0,-20)
+            end))
+            updateCameraSwitch(true)
             return true
         end
-        function freecam:destroy() self:disable() end
+        function freecam:destroy()
+            self:disable()
+        end
         EH.registerController("Freecam",freecam)
         ScreenGui.Destroying:Connect(function() freecam:destroy() end)
         cameraToggle.Activated:Connect(function()
-            if freecam.enabled then
-                freecam:disable()
+            if freecam.enabled then freecam:disable()
             else
-                local ok,result,err=pcall(function()
-                    return freecam:enable()
-                end)
+                local ok,result=pcall(function() return freecam:enable() end)
                 if not ok or result==false then
-                    EH.logDiagnostic("Freecam",ok and err or result)
+                    EH.logDiagnostic("Freecam",result)
                     freecam:disable()
                 end
             end
         end)
-        end)
-        if not freecamReady then
-            EH.logDiagnostic("Freecam setup",freecamError)
-        end
 
         -- Teleport to a selected server player (never tied to avatar inspector
         -- selection or the separate server-hopping TeleportService).
@@ -4644,11 +4574,9 @@ do
         end)
         EH.refreshPlayerExtras=function()
             local ru=currentLanguage=="ru"
-            if cameraTitle and cameraSubtitle then
-                cameraTitle.Text="Freecam"
-                cameraSubtitle.Text=ru and "Джойстик Roblox · свайп для обзора"
-                    or "Roblox thumbstick · swipe to look"
-            end
+            cameraTitle.Text="Freecam"
+            cameraSubtitle.Text=ru and "Джойстик Roblox · свайп для обзора"
+                or "Roblox thumbstick · swipe to look"
             teleportTitle.Text=ru and "К игроку" or "Teleport to Player"
             teleportSubtitle.Text=ru and "Выбери игрока и нажми телепорт"
                 or "Choose a player, then teleport"
