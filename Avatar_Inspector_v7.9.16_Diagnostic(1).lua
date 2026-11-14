@@ -4812,7 +4812,9 @@ do
                 and entry.smoothedOffset:Lerp(offset,.18) or offset
             entry.billboard.StudsOffsetWorldSpace=entry.smoothedOffset
             if entry.infoBillboard then
-                local desiredHeight=math.clamp(maxY-rootPos.Y+1.1,1.5,22)
+                -- Works for standard R6/R15 and custom NPC model bounds.
+                local topY=center.Y+height*.5
+                local desiredHeight=math.clamp(topY-rootPos.Y+1.1,1.5,22)
                 local previous=entry.infoHeight or desiredHeight
                 local nextHeight=previous+(desiredHeight-previous)*.22
                 if math.abs(nextHeight-previous)<.03 then
@@ -4961,7 +4963,7 @@ do
             local distText=string.format("%d studs",math.floor(distance+.5))
             if entry.dist.Text~=distText then entry.dist.Text=distText end
             local hum=model:FindFirstChildOfClass("Humanoid")
-                or model:FindFirstChildOfClass("Humanoid",true)
+                or model:FindFirstChildWhichIsA("Humanoid",true)
             local hp=hum and hum.Health or 0
             local maxHp=hum and hum.MaxHealth or 0
             entry.hp.Visible=frameReady and showHealth and maxHp>0
@@ -5494,8 +5496,9 @@ do
                 end)
                 function controller.refresh()
                     local ru=currentLanguage=="ru"
-                    title.Text=ru and "ОТОБРАЖАЕМЫЕ ДАННЫЕ"
-                        or "VISIBLE INFORMATION"
+                    title.Text=ru
+                        and (player and "ДАННЫЕ ИГРОКОВ" or "ДАННЫЕ NPC")
+                        or (player and "PLAYER INFORMATION" or "NPC INFORMATION")
                     for i,def in ipairs(rows) do
                         texts[i].Text=ru and def[2] or def[3]
                     end
