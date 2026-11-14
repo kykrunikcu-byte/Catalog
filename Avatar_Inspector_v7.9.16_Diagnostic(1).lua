@@ -4131,7 +4131,7 @@ do
         local CollectionService = game:GetService("CollectionService")
         local cfg = {players=false,npcs=false,highlight=true,box=true,
             names=true,distance=true,health=true,tracer=false,arrows=true,
-            roleColors=true,style=1,maxDistance=1200}
+            roleColors=true,style=1,maxDistance=3000000}
         local palette = {
             safe=Color3.fromRGB(89,228,133),
             danger=Color3.fromRGB(245,87,97),
@@ -4756,32 +4756,9 @@ do
                 "Обнаружение NPC и монстров",271,false,
                 function(v) EH.espController:setEnabled("npcs",v) end,
                 false,"ghost")
-            local subtitle=makeLabel(espPage,"НАСТРОЙКИ ОТОБРАЖЕНИЯ",
-                UDim2.new(1,-30,0,24),UDim2.fromOffset(20,361),14)
-            subtitle.TextColor3=Color3.fromRGB(226,186,131)
-            subtitle.Font=Enum.Font.GothamBold
-            subtitle.ZIndex=31
-            local opts={
-                {"Highlight","Подсветка сквозь стены","Through-wall highlight","highlight"},
-                {"Box ESP","Рамка вокруг персонажа","Bounding frame","box"},
-                {"Name ESP","Имя над рамкой","Player/NPC name","names"},
-                {"Distance ESP","Расстояние до цели","Target distance","distance"},
-                {"Health ESP","Индикатор здоровья","Health bar","health"},
-                {"Tracer ESP","Линии направления","Tracer lines","tracer"},
-                {"Target Marker","Стрелка над персонажем","Marker above target","arrows"},
-                {"Role Colors","Зелёный / красный / жёлтый","Role-based colors","roleColors"}
-            }
-            local optionSwitches={}
-            for i,info in ipairs(opts) do
-                local key=info[4]
-                optionSwitches[i]=switchCard(info[1],info[2],
-                    390+(i-1)*63,cfg[key],
-                    function(v) cfg[key]=v end,true,nil)
-            end
-
             local selectorCard=create("Frame",{
                 Name="HorizonESPFrameStyleCard",
-                Position=UDim2.fromOffset(12,910),
+                Position=UDim2.fromOffset(12,372),
                 Size=UDim2.new(1,-24,0,78),
                 BackgroundColor3=Color3.fromRGB(40,37,33),
                 BorderSizePixel=0,ZIndex=31
@@ -4803,7 +4780,7 @@ do
             selector.ZIndex=33
             local menu=create("ScrollingFrame",{
                 Name="HorizonESPBoxStyleList",
-                Position=UDim2.fromOffset(26,993),
+                Position=UDim2.fromOffset(26,457),
                 Size=UDim2.new(1,-52,0,216),
                 CanvasSize=UDim2.fromOffset(0,373),
                 ScrollBarThickness=3,
@@ -4849,107 +4826,9 @@ do
                 if menu.Visible then
                     espPage.CanvasPosition=Vector2.new(
                         espPage.CanvasPosition.X,
-                        math.max(espPage.CanvasPosition.Y,765))
+                        math.max(espPage.CanvasPosition.Y,370))
                 end
             end)
-
-            local rangeCard=create("Frame",{
-                Name="HorizonESPDistanceCard",
-                Position=UDim2.fromOffset(12,1025),
-                Size=UDim2.new(1,-24,0,105),
-                BackgroundColor3=Color3.fromRGB(40,37,33),
-                BorderSizePixel=0,ZIndex=31
-            },espPage)
-            round(rangeCard,10)
-            create("UIStroke",{
-                Color=Color3.fromRGB(69,64,58),Thickness=1
-            },rangeCard)
-            local rangeTitle=makeLabel(rangeCard,"ДАЛЬНОСТЬ ESP",
-                UDim2.new(1,-125,0,23),UDim2.fromOffset(14,10),13)
-            rangeTitle.Font=Enum.Font.GothamBold
-            rangeTitle.ZIndex=32
-            local readout=makeLabel(rangeCard,"1200 studs",
-                UDim2.fromOffset(115,23),
-                UDim2.new(1,-130,0,10),12)
-            readout.TextXAlignment=Enum.TextXAlignment.Right
-            readout.TextColor3=Color3.fromRGB(226,186,131)
-            readout.ZIndex=32
-            local slider=create("TextButton",{
-                Name="HorizonESPDistanceSlider",
-                Text="",Size=UDim2.new(1,-32,0,28),
-                Position=UDim2.fromOffset(16,43),
-                BackgroundTransparency=1,
-                BorderSizePixel=0,Active=true,ZIndex=34
-            },rangeCard)
-            local track=create("Frame",{
-                Size=UDim2.new(1,0,0,6),
-                Position=UDim2.new(0,0,.5,-3),
-                BackgroundColor3=Color3.fromRGB(84,72,60),
-                BorderSizePixel=0,Active=false,ZIndex=34
-            },slider)
-            round(track,3)
-            local fill=create("Frame",{
-                Size=UDim2.fromScale(cfg.maxDistance/5000,1),
-                BackgroundColor3=Color3.fromRGB(204,159,111),
-                BorderSizePixel=0,Active=false,ZIndex=35
-            },track)
-            round(fill,3)
-            local knob=create("Frame",{
-                AnchorPoint=Vector2.new(.5,.5),
-                Position=UDim2.fromScale(cfg.maxDistance/5000,.5),
-                Size=UDim2.fromOffset(16,16),
-                BackgroundColor3=Color3.fromRGB(227,190,151),
-                BorderSizePixel=0,Active=false,ZIndex=36
-            },slider)
-            round(knob,8)
-            local moveConnection,releaseConnection
-            local function release()
-                if moveConnection then
-                    moveConnection:Disconnect();moveConnection=nil
-                end
-                if releaseConnection then
-                    releaseConnection:Disconnect();releaseConnection=nil
-                end
-                espPage.ScrollingEnabled=true
-            end
-            local function selectDistance(x)
-                local width=slider.AbsoluteSize.X
-                if width<=0 then return end
-                local ratio=math.clamp(
-                    (x-slider.AbsolutePosition.X)/width,0,1)
-                cfg.maxDistance=math.clamp(
-                    math.floor(ratio*50+.5)*100,100,5000)
-                local t=cfg.maxDistance/5000
-                fill.Size=UDim2.fromScale(t,1)
-                knob.Position=UDim2.fromScale(t,.5)
-                readout.Text=tostring(cfg.maxDistance).." studs"
-            end
-            slider.InputBegan:Connect(function(input)
-                if input.UserInputType~=Enum.UserInputType.MouseButton1
-                    and input.UserInputType~=Enum.UserInputType.Touch then return end
-                release()
-                espPage.ScrollingEnabled=false
-                selectDistance(input.Position.X)
-                moveConnection=UserInputService.InputChanged:Connect(function(changed)
-                    if changed==input or (input.UserInputType==Enum.UserInputType.MouseButton1
-                        and changed.UserInputType==Enum.UserInputType.MouseMovement) then
-                        selectDistance(changed.Position.X)
-                    end
-                end)
-                releaseConnection=UserInputService.InputEnded:Connect(function(changed)
-                    if changed==input or (input.UserInputType==Enum.UserInputType.MouseButton1
-                        and changed.UserInputType==Enum.UserInputType.MouseButton1) then
-                        release()
-                    end
-                end)
-            end)
-            ScreenGui.Destroying:Connect(release)
-            local note=makeLabel(espPage,
-                "Роли определяются по доступным атрибутам, командам и тегам игры.",
-                UDim2.new(1,-32,0,35),UDim2.fromOffset(18,1144),11)
-            note.TextWrapped=true
-            note.TextColor3=Color3.fromRGB(180,164,145)
-            note.ZIndex=31
 
             local oldRefresh=EH.refreshHomeText
             EH.refreshHomeText=function()
@@ -4960,26 +4839,19 @@ do
                     or "Player/NPC detection with 10 box styles, highlight and role colors. Unknown roles are yellow."
                 playerSwitch.subtitle.Text=ru and "Обнаружение других игроков" or "Detect other players"
                 npcSwitch.subtitle.Text=ru and "Обнаружение NPC и монстров" or "Detect NPCs and monsters"
-                subtitle.Text=ru and "НАСТРОЙКИ ОТОБРАЖЕНИЯ" or "DISPLAY SETTINGS"
                 selectorTitle.Text=ru and "СТИЛЬ РАМКИ / BOX STYLE" or "BOX STYLE"
-                rangeTitle.Text=ru and "ДАЛЬНОСТЬ ESP" or "ESP DISTANCE"
-                note.Text=ru and "Роли определяются по атрибутам, командам и тегам игры."
-                    or "Roles are inferred from game attributes, teams and tags."
-                for i,control in ipairs(optionSwitches) do
-                    control.subtitle.Text=ru and opts[i][2] or opts[i][3]
-                end
             end
             EH.refreshHomeText()
 
         end
     end
 
-    -- Scrollable ESP settings, following the existing Clean Bronze design.
+    -- Compact ESP page: Player/NPC switches and one ten-style box selector.
     local espPage = create("ScrollingFrame", {
         Name = "HorizonESPPage",
         Position = UDim2.fromOffset(8, 108),
         Size = UDim2.new(1, -16, 1, -166),
-        CanvasSize = UDim2.fromOffset(0, 1320),
+        CanvasSize = UDim2.fromOffset(0, 710),
         ScrollBarThickness = 3,
         ScrollBarImageColor3 = Color3.fromRGB(166, 125, 87),
         ScrollingDirection = Enum.ScrollingDirection.Y,
