@@ -4152,9 +4152,14 @@ do
             subtitle.ZIndex=32
             return card,title,subtitle
         end
+        -- Freecam has an isolated, protected initializer. A failed control
+        -- or camera setup must never prevent the floating HORIZON UI from loading.
+        local cameraTitle,cameraSubtitle
+        local freecamReady,freecamError=pcall(function()
         -- Freecam uses the native Roblox thumbstick and world touch gestures.
         -- There is no custom D-pad, touch-look overlay, or input disabling.
-        local cameraCard,cameraTitle,cameraSubtitle=
+        local cameraCard
+        cameraCard,cameraTitle,cameraSubtitle=
             playerToolCard("Freecam",918,78)
         local cameraToggle=create("TextButton",{
             Name="HorizonFreecamToggle",AnchorPoint=Vector2.new(1,.5),
@@ -4447,6 +4452,10 @@ do
                 end
             end
         end)
+        end)
+        if not freecamReady then
+            EH.logDiagnostic("Freecam setup",freecamError)
+        end
 
         -- Teleport to a selected server player (never tied to avatar inspector
         -- selection or the separate server-hopping TeleportService).
@@ -4635,9 +4644,11 @@ do
         end)
         EH.refreshPlayerExtras=function()
             local ru=currentLanguage=="ru"
-            cameraTitle.Text="Freecam"
-            cameraSubtitle.Text=ru and "Джойстик Roblox · свайп для обзора"
-                or "Roblox thumbstick · swipe to look"
+            if cameraTitle and cameraSubtitle then
+                cameraTitle.Text="Freecam"
+                cameraSubtitle.Text=ru and "Джойстик Roblox · свайп для обзора"
+                    or "Roblox thumbstick · swipe to look"
+            end
             teleportTitle.Text=ru and "К игроку" or "Teleport to Player"
             teleportSubtitle.Text=ru and "Выбери игрока и нажми телепорт"
                 or "Choose a player, then teleport"
