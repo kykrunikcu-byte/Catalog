@@ -4117,7 +4117,6 @@ do
     -- are controlled here. Existing preview camera and Fly/Noclip are untouched.
     do
         local RunService=game:GetService("RunService")
-        local nativeCamera=workspace.CurrentCamera
         local freecam={enabled=false,connections={},held={},touchHeld={},
             speedOptions={30,60,120,200},speedIndex=2,
             camera=nil,originalType=nil,originalSubject=nil,
@@ -4350,6 +4349,10 @@ do
                     self.lastLook=nil
                 end
             end))
+            addCameraConnection(UserInputService.WindowFocusReleased:Connect(function()
+                table.clear(self.held)
+                self.rightMouse=false
+            end))
             addCameraConnection(UserInputService.InputChanged:Connect(function(input)
                 if not self.enabled then return end
                 if input.UserInputType==Enum.UserInputType.MouseMovement
@@ -4538,6 +4541,7 @@ do
         local function safeLanding(targetRoot,ownCharacter,targetCharacter)
             local ignore=RaycastParams.new()
             ignore.FilterType=Enum.RaycastFilterType.Exclude
+            ignore.IgnoreWater=true
             ignore.FilterDescendantsInstances={ownCharacter,targetCharacter}
             local overlap=OverlapParams.new()
             overlap.FilterType=Enum.RaycastFilterType.Exclude
