@@ -8070,13 +8070,10 @@ local function scanPlayer(player)
                 or value:match("(%d+)")
             return tonumber(digits)
         end
-        -- The live Accessory.SourceAssetId is often absent after a game morph.
-        -- Resolve verified catalog IDs from the applied HumanoidDescription.
+        -- MORPH: only worn accessories and clothing from the current character.
+        -- Do not invent accessory IDs by pairing unrelated lists or add animations.
+        -- Description IDs are accepted only when tied to an applied instance.
         local accessoryIdByInstance = {}
-        local describedAccessories = {}
-        pcall(function()
-            describedAccessories = description:GetAccessories(true)
-        end)
         pcall(function()
             for _, descriptor in ipairs(description:GetChildren()) do
                 if descriptor:IsA("AccessoryDescription") then
@@ -8088,32 +8085,13 @@ local function scanPlayer(player)
                 end
             end
         end)
-        local liveAccessories = {}
-        for _, object in ipairs(character:GetDescendants()) do
-            if object:IsA("Accessory") then
-                liveAccessories[#liveAccessories + 1] = object
-            end
-        end
-        -- Only map by position when counts coincide. Avoid assigning unrelated
-        -- catalog art to a completely custom morph with a different item count.
-        if #describedAccessories == #liveAccessories then
-            for index, accessory in ipairs(liveAccessories) do
-                if not accessoryIdByInstance[accessory] then
-                    local descriptor = describedAccessories[index]
-                    local id = descriptor and tonumber(descriptor.AssetId)
-                    if id and id > 0 then
-                        accessoryIdByInstance[accessory] = id
-                    end
-                end
-            end
-        end
         local hasFace = false
         for _, object in ipairs(character:GetDescendants()) do
             if token ~= EH.avatarScanToken then
                 description:Destroy()
                 return
             end
-            if object:IsA("Accessory") then
+            if object:IsA("Accessory") and object.Parent == character then
                 wornItemCount += 1
                 local id
                 pcall(function() id = object.SourceAssetId end)
@@ -8123,20 +8101,20 @@ local function scanPlayer(player)
                 if id then
                     add(object.Name, id, "Items")
                 end
-            elseif object:IsA("Shirt") then
+            elseif object:IsA("Shirt") and object.Parent == character then
                 wornItemCount += 1
                 add("Shirt", liveAssetId(object.ShirtTemplate), "Items", true,
                     object.ShirtTemplate)
-            elseif object:IsA("Pants") then
+            elseif object:IsA("Pants") and object.Parent == character then
                 wornItemCount += 1
                 add("Pants", liveAssetId(object.PantsTemplate), "Items", true,
                     object.PantsTemplate)
-            elseif object:IsA("ShirtGraphic") then
+            elseif object:IsA("ShirtGraphic") and object.Parent == character then
                 wornItemCount += 1
                 add("T-Shirt", liveAssetId(object.Graphic), "Items", true,
                     object.Graphic)
             elseif object:IsA("Decal") and object.Parent
-                and object.Parent.Name == "Head"
+                and object.Parent == character:FindFirstChild("Head")
                 and string.lower(object.Name) == "face" then
                 if not hasFace then
                     wornItemCount += 1
@@ -8144,21 +8122,7 @@ local function scanPlayer(player)
                 end
                 add("Face", liveAssetId(object.Texture), "Items", false,
                     object.Texture)
-            elseif object:IsA("Animation") then
-                add(object.Name .. " Animation",
-                    liveAssetId(object.AnimationId), "Animations")
             end
-        end
-        -- Some morph systems replace the description rather than creating
-        -- Animation instances; these live IDs are useful when available.
-        for _, property in ipairs({
-            "IdleAnimation", "WalkAnimation", "RunAnimation",
-            "JumpAnimation", "FallAnimation", "ClimbAnimation",
-            "SwimAnimation", "MoodAnimation"
-        }) do
-            local value = description[property]
-            add(property:gsub("Animation", "") .. " Animation",
-                value, "Animations")
         end
     else
         add("Shirt", description.Shirt, "Items", true)
