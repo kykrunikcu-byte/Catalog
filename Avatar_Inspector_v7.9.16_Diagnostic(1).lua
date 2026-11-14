@@ -4210,6 +4210,14 @@ do
             if not cfg.npcs or not model or not model:IsA("Model")
                 or not model:IsDescendantOf(workspace)
                 or playerOwner(model) then return end
+            -- Bound discoveries before allocating overlays on mobile.
+            if not engine.npcs[model] then
+                local count=0
+                for _ in pairs(engine.npcs) do
+                    count+=1
+                    if count>=60 then return end
+                end
+            end
             if not model:FindFirstChildOfClass("Humanoid") then
                 local name=model.Name:lower()
                 local likely=CollectionService:HasTag(model,"NPC")
@@ -4411,7 +4419,7 @@ do
                     12+14*math.sin(angle+offset),3,color,0)
             end
         end
-        local function renderTarget(entry,camera,vp,localPart)
+        local function renderTarget(entry,camera,vp,localPart,highlightAllowed)
             local model=entry.model
             if not model:IsDescendantOf(workspace) then removeEntry(model);return end
             if entry.kind=="npcs" and playerOwner(model) then
@@ -4423,7 +4431,7 @@ do
             if d>cfg.maxDistance then hide(entry);return end
             local point,onScreen=camera:WorldToScreenPoint(root.Position)
             local color=roleColor(model,entry.player)
-            if cfg.highlight then
+            if cfg.highlight and highlightAllowed then
                 if not entry.hl then
                     local hl=Instance.new("Highlight")
                     hl.Name="HorizonESPHighlight"
@@ -4509,8 +4517,13 @@ do
                 end
             end
             local vp=camera.ViewportSize
+            -- Roblox limits active Highlights; reserve capacity for nearby targets.
+            local availableHighlights=24
             for _,entry in pairs(self.entries) do
-                renderTarget(entry,camera,vp,ownPart)
+                renderTarget(entry,camera,vp,ownPart,availableHighlights>0)
+                if entry.hl and entry.hl.Enabled then
+                    availableHighlights-=1
+                end
             end
         end
         function engine:stop()
@@ -4580,6 +4593,11 @@ do
             cfg.players=false;cfg.npcs=false
             self:stop()
         end
+        -- Re-running the loader destroys the old GUI; clean orphaned overlays
+        -- and all ESP listeners in that case, too.
+        ScreenGui.Destroying:Connect(function()
+            engine:destroy()
+        end)
 
         -- UI controls are installed immediately below, in the original ESP tab.
         EH.espBuildUI = function(espPage,espDescription)
