@@ -4129,7 +4129,8 @@ do
     do
         local RunService = game:GetService("RunService")
         local CollectionService = game:GetService("CollectionService")
-        local cfg = {players=false,npcs=false,highlight=true,box=true,
+        -- Each main ESP switch owns its own model highlighting; no separate toggle.
+        local cfg = {players=false,npcs=false,box=true,
             names=true,distance=true,health=true,tracer=false,arrows=true,
             roleColors=true,style=1,maxDistance=3000000}
         local palette = {
@@ -4464,27 +4465,52 @@ do
                 entry.rootPart=root
                 clearTracer(entry)
             end
-            if not updateWorldBounds(entry,root) then hide(entry);return end
-            entry.billboard.Enabled=true
-            entry.node.Visible=true
             local color=roleColor(model,entry.player)
-            -- True character highlight, attached to the target model itself.
-            if cfg.highlight and highlightAllowed then
-                if not entry.hl then
-                    local hl=Instance.new("Highlight")
-                    hl.Name="HorizonESPHighlight"
-                    hl.Adornee=model
-                    hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
-                    hl.FillTransparency=.56
-                    hl.OutlineTransparency=0
-                    hl.Parent=model
+            -- Repair model highlighting before processing the optional frame.
+            -- Billboard calculation failure must not suppress the actual ESP.
+            -- Restore missing/disabled/reparented Highlights on every scan.
+            -- The main Player ESP/NPC ESP switches enable these directly.
+            if highlightAllowed then
+                local hl=entry.hl
+                if hl and hl.Parent~=model then
+                    pcall(function() hl:Destroy() end)
+                    hl=nil
+                    entry.hl=nil
+                end
+                if not hl then
+                    local candidate=model:FindFirstChild("HorizonESPHighlight")
+                    if candidate and candidate:IsA("Highlight") then
+                        hl=candidate
+                    else
+                        hl=Instance.new("Highlight")
+                        hl.Name="HorizonESPHighlight"
+                        hl.Parent=model
+                    end
                     entry.hl=hl
                 end
-                entry.hl.FillColor=color
-                entry.hl.OutlineColor=color
-                entry.hl.Enabled=true
-            elseif entry.hl then entry.hl.Enabled=false end
+                if hl.Adornee~=model then hl.Adornee=model end
+                if hl.DepthMode~=Enum.HighlightDepthMode.AlwaysOnTop then
+                    hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+                end
+                local opacity=entry.kind=="players" and .08 or .14
+                if hl.FillTransparency~=opacity then
+                    hl.FillTransparency=opacity
+                end
+                if hl.OutlineTransparency~=0 then hl.OutlineTransparency=0 end
+                hl.FillColor=color
+                hl.OutlineColor=color:Lerp(Color3.new(1,1,1),.3)
+                if not hl.Enabled then hl.Enabled=true end
+            elseif entry.hl then
+                entry.hl.Enabled=false
+            end
 
+            if not updateWorldBounds(entry,root) then
+                entry.billboard.Enabled=false
+                renderTracer(entry,ownRoot,color)
+                return
+            end
+            entry.billboard.Enabled=true
+            entry.node.Visible=true
             if cfg.box then
                 local pixels=entry.node.AbsoluteSize
                 if pixels.X>0 and pixels.Y>0 then
@@ -4556,17 +4582,35 @@ do
                     end
                 end
             end
-            -- Limit active Highlight count; all entries can still display
-            -- world-anchored boxes and labels independently.
-            local availableHighlights=24
+            -- One repeatable scan, nearest players first, then NPCs.
+            -- Avoid random pairs() order starving nearby players of Highlight slots.
+            local ordered={}
             for _,entry in pairs(self.entries) do
+                local targetRoot=partOf(entry.model)
+                ordered[#ordered+1]={
+                    entry=entry,
+                    distance=targetRoot and
+                        (targetRoot.Position-ownPosition).Magnitude or math.huge
+                }
+            end
+            table.sort(ordered,function(a,b)
+                local aPlayer=a.entry.kind=="players"
+                local bPlayer=b.entry.kind=="players"
+                if aPlayer~=bPlayer then return aPlayer end
+                return a.distance<b.distance
+            end)
+            -- Leave room for Highlight instances created by the game itself.
+            local availableHighlights=24
+            for _,target in ipairs(ordered) do
+                local entry=target.entry
                 local ok,err=pcall(renderTarget,entry,
                     ownPosition,ownRoot,availableHighlights>0)
                 if not ok and os.clock()-self.errorTime>5 then
                     self.errorTime=os.clock()
                     EH.logDiagnostic("World ESP target",err)
                 end
-                if entry.hl and entry.hl.Enabled then
+                if entry.hl and entry.hl.Parent==entry.model
+                    and entry.hl.Enabled then
                     availableHighlights-=1
                 end
             end
