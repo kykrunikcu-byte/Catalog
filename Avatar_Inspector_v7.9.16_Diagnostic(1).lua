@@ -7829,7 +7829,61 @@ local function addSectionHeader(text)
     return header
 end
 
-local function addItem(name, assetId, category, classicClothing, previewTexture)
+-- MORPH only: render raw classic clothing texture on a small R6 mannequin.
+local function makeMorphClassicThumbnail(image, garmentClass, texture)
+    if garmentClass ~= "Shirt" and garmentClass ~= "Pants" then return end
+    if type(texture) ~= "string" or texture == "" then return end
+    local ok, err = pcall(function()
+        local view = create("ViewportFrame", {
+            Name = "EHMorphClothingPreview", Size = image.Size,
+            Position = image.Position, BackgroundColor3 = PANEL,
+            BorderSizePixel = 0, Ambient = Color3.fromRGB(220, 220, 220),
+            LightColor = Color3.fromRGB(255, 245, 230),
+            LightDirection = Vector3.new(-1, -1, -2),
+            ZIndex = image.ZIndex + 1
+        }, image.Parent)
+        round(view, 6)
+        local world = Instance.new("WorldModel")
+        world.Parent = view
+        local rig = Instance.new("Model")
+        rig.Name = "ClassicClothingMannequin"
+        rig.Parent = world
+        local function part(name, size, pos)
+            local p = Instance.new("Part")
+            p.Name, p.Size, p.CFrame = name, size, CFrame.new(pos)
+            p.Anchored, p.CanCollide = true, false
+            p.Material = Enum.Material.SmoothPlastic
+            p.Color = Color3.fromRGB(199, 181, 164)
+            p.Parent = rig
+            return p
+        end
+        part("Torso", Vector3.new(2, 2, 1), Vector3.new(0, 2.5, 0))
+        part("Left Arm", Vector3.new(1, 2, 1), Vector3.new(-1.5, 2.5, 0))
+        part("Right Arm", Vector3.new(1, 2, 1), Vector3.new(1.5, 2.5, 0))
+        part("Left Leg", Vector3.new(1, 2, 1), Vector3.new(-0.5, 0.5, 0))
+        part("Right Leg", Vector3.new(1, 2, 1), Vector3.new(0.5, 0.5, 0))
+        local head = part("Head", Vector3.new(1, 1, 1), Vector3.new(0, 4, 0))
+        head.Shape = Enum.PartType.Ball
+        local humanoid = Instance.new("Humanoid")
+        humanoid.Parent = rig
+        local garment = Instance.new(garmentClass)
+        if garmentClass == "Shirt" then
+            garment.ShirtTemplate = texture
+        else
+            garment.PantsTemplate = texture
+        end
+        garment.Parent = rig
+        local cam = Instance.new("Camera")
+        cam.FieldOfView = 36
+        cam.CFrame = CFrame.lookAt(Vector3.new(3, 2.5, -7.5), Vector3.new(0, 2.2, 0))
+        cam.Parent = view
+        view.CurrentCamera = cam
+        image.Visible = false
+    end)
+    if not ok then warn("[HORIZON] Morph clothing preview: " .. tostring(err)) end
+end
+
+local function addItem(name, assetId, category, classicClothing, previewTexture, morphClassicPreview)
     assetId = tonumber(assetId)
 
     if not assetId or assetId <= 0 then
@@ -7843,7 +7897,8 @@ local function addItem(name, assetId, category, classicClothing, previewTexture)
         id = assetId,
         category = category,
         classicClothing = classicClothing == true,
-        previewTexture = previewTexture
+        previewTexture = previewTexture,
+        morphClassicPreview = morphClassicPreview
     })
 
     local card = create("Frame", {
@@ -7878,6 +7933,9 @@ local function addItem(name, assetId, category, classicClothing, previewTexture)
     round(image, 6)
     create("UIStroke", {Color = OUTLINE, Transparency = 0.45,
         Thickness = 1}, image)
+    if morphClassicPreview then
+        makeMorphClassicThumbnail(image, morphClassicPreview, previewTexture)
+    end
 
     local itemMarker = makeLabel(
         card, "◦",
@@ -7972,7 +8030,7 @@ local function displaySavedItems(items, appearance)
                 or id == tonumber(slots.GraphicTShirt)) or false
         end
         addItem(item.name, item.id, category, isClassic,
-            item.previewTexture)
+            item.previewTexture, item.morphClassicPreview)
     end
 end
 
@@ -8032,7 +8090,7 @@ local function scanPlayer(player)
     local identifiers = {}
     local seen = {}
 
-    local function add(name, id, category, classicClothing, previewTexture)
+    local function add(name, id, category, classicClothing, previewTexture, morphClassicPreview)
         id = tonumber(id)
 
         if id and id > 0 then
@@ -8051,7 +8109,8 @@ local function scanPlayer(player)
                     id = id,
                     category = category,
                     classicClothing = classicClothing == true,
-                    previewTexture = previewTexture
+                    previewTexture = previewTexture,
+                    morphClassicPreview = morphClassicPreview
                 })
             end
         end
@@ -8085,6 +8144,19 @@ local function scanPlayer(player)
                 end
             end
         end)
+        -- Description gives catalog IDs. Live ShirtTemplate/PantsTemplate
+        -- can instead point to a flattened UV texture.
+        local function addWornClothing(label, slot, template)
+            local textureId = liveAssetId(template)
+            local catalogId = tonumber(description[slot])
+            if catalogId and catalogId > 0 then
+                add(label, catalogId, "Items", true)
+            elseif textureId then
+                local kind = label == "Shirt" and "Shirt"
+                    or (label == "Pants" and "Pants" or nil)
+                add(label, textureId, "Items", true, template, kind)
+            end
+        end
         local hasFace = false
         for _, object in ipairs(character:GetDescendants()) do
             if token ~= EH.avatarScanToken then
@@ -8103,16 +8175,13 @@ local function scanPlayer(player)
                 end
             elseif object:IsA("Shirt") and object.Parent == character then
                 wornItemCount += 1
-                add("Shirt", liveAssetId(object.ShirtTemplate), "Items", true,
-                    object.ShirtTemplate)
+                addWornClothing("Shirt", "Shirt", object.ShirtTemplate)
             elseif object:IsA("Pants") and object.Parent == character then
                 wornItemCount += 1
-                add("Pants", liveAssetId(object.PantsTemplate), "Items", true,
-                    object.PantsTemplate)
+                addWornClothing("Pants", "Pants", object.PantsTemplate)
             elseif object:IsA("ShirtGraphic") and object.Parent == character then
                 wornItemCount += 1
-                add("T-Shirt", liveAssetId(object.Graphic), "Items", true,
-                    object.Graphic)
+                addWornClothing("T-Shirt", "GraphicTShirt", object.Graphic)
             elseif object:IsA("Decal") and object.Parent
                 and object.Parent == character:FindFirstChild("Head")
                 and string.lower(object.Name) == "face" then
@@ -8122,6 +8191,33 @@ local function scanPlayer(player)
                 end
                 add("Face", liveAssetId(object.Texture), "Items", false,
                     object.Texture)
+            end
+        end
+        -- Body catalog assets: include only parts present on the live rig.
+        for _, slot in ipairs({
+            {"Head", "Head", "Head"},
+            {"Torso", "UpperTorso", "Torso"},
+            {"LeftArm", "LeftUpperArm", "Left Arm"},
+            {"RightArm", "RightUpperArm", "Right Arm"},
+            {"LeftLeg", "LeftUpperLeg", "Left Leg"},
+            {"RightLeg", "RightUpperLeg", "Right Leg"}
+        }) do
+            local id = tonumber(description[slot[1]])
+            if id and id > 0 and
+                (character:FindFirstChild(slot[2]) or character:FindFirstChild(slot[3])) then
+                add(slot[1], id, "Items")
+            end
+        end
+        -- Only applied animation asset IDs; do not scan unrelated game animations.
+        if humanoid then
+            for _, property in ipairs({
+                "IdleAnimation", "WalkAnimation", "RunAnimation", "JumpAnimation",
+                "FallAnimation", "ClimbAnimation", "SwimAnimation", "MoodAnimation"
+            }) do
+                local id = tonumber(description[property])
+                if id and id > 0 then
+                    add(property:gsub("Animation", "") .. " Animation", id, "Animations")
+                end
             end
         end
     else
@@ -8190,7 +8286,8 @@ local function scanPlayer(player)
             id = tonumber(item.id),
             category = item.category == "Animations" and "Animations" or "Items",
             classicClothing = item.classicClothing == true,
-            previewTexture = item.previewTexture
+            previewTexture = item.previewTexture,
+            morphClassicPreview = item.morphClassicPreview
         }
     end
     local snapshot = {
@@ -9036,7 +9133,8 @@ saveFavorite = function(snapshot)
                     id = itemId,
                     category = item.category == "Animations" and "Animations" or "Items",
                     classicClothing = item.classicClothing == true,
-                    previewTexture = item.previewTexture
+                    previewTexture = item.previewTexture,
+                    morphClassicPreview = item.morphClassicPreview
                 }
             end
         end
