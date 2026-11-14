@@ -4862,9 +4862,16 @@ do
                 entry.frameStyle=nil -- Redraw immediately if Box ESP is re-enabled.
             end
             local isPlayer=entry.kind=="players"
-            local showNames=isPlayer and cfg.playerNames or cfg.npcNames
-            local showDistance=isPlayer and cfg.playerDistance or cfg.npcDistance
-            local showHealth=isPlayer and cfg.playerHealth or cfg.npcHealth
+            local showNames,showDistance,showHealth
+            if isPlayer then
+                showNames=cfg.playerNames
+                showDistance=cfg.playerDistance
+                showHealth=cfg.playerHealth
+            else
+                showNames=cfg.npcNames
+                showDistance=cfg.npcDistance
+                showHealth=cfg.npcHealth
+            end
             entry.name.Visible=showNames
             entry.name.Text=entry.player and entry.player.DisplayName or model.Name
             entry.name.TextColor3=color
