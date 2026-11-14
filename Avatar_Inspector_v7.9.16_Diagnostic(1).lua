@@ -2234,6 +2234,97 @@ create("UIPadding", {
     PaddingBottom = UDim.new(0, 6)
 }, PlayerList)
 
+-- Avatar source modes are next to the players list: desktop right, mobile below.
+-- This is a viewport switch, NOT a change to the actual game character.
+EH.avatarSourceMode = "Original"
+do
+    local bar = create("Frame", {
+        Name = "HorizonAvatarSourceBar",
+        Position = UDim2.fromOffset(214, 160),
+        Size = UDim2.fromOffset(300, 34),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0, Active = false, ZIndex = 12
+    }, Main)
+    local original = makeButton(bar, "", UDim2.new(0.5, -3, 1, -2),
+        UDim2.fromOffset(0, 1), Color3.fromRGB(92, 64, 40))
+    original.Name = "HorizonOriginalAvatarButton"
+    local morph = makeButton(bar, "", UDim2.new(0.5, -3, 1, -2),
+        UDim2.new(0.5, 3, 0, 1), Color3.fromRGB(40, 35, 30))
+    morph.Name = "HorizonLiveMorphButton"
+    for _, button in ipairs({original, morph}) do
+        button.ZIndex = 13
+        button.TextSize = 11
+        button.TextColor3 = Color3.fromRGB(243, 216, 187)
+        button.TextTruncate = Enum.TextTruncate.AtEnd
+    end
+
+    EH.layoutAvatarSourceBar = function(mobile)
+        if mobile then
+            bar.Position = UDim2.fromOffset(12, 250)
+            bar.Size = UDim2.new(1, -24, 0, 31)
+        else
+            bar.Position = UDim2.fromOffset(214, 160)
+            bar.Size = UDim2.fromOffset(300, 34)
+        end
+    end
+
+    EH.refreshAvatarSourceButtons = function()
+        local lang = currentLanguage
+        local names = {
+            ru = {"АВАТАР", "МОРФ"},
+            en = {"AVATAR", "MORPH"},
+            es = {"AVATAR", "MORPH"},
+            pt = {"AVATAR", "MORPH"},
+            fr = {"AVATAR", "MORPH"},
+            de = {"AVATAR", "MORPH"},
+            pl = {"AWATAR", "MORF"},
+            tr = {"AVATAR", "MORF"},
+            ja = {"アバター", "モーフ"},
+            ko = {"아바타", "모프"},
+            zh = {"头像", "变身"},
+            be = {"АВАТАР", "МОРФ"}
+        }
+        local text = names[lang] or names.en
+        original.Text, morph.Text = text[1], text[2]
+        for _, entry in ipairs({
+            {button = original, mode = "Original"},
+            {button = morph, mode = "Morph"}
+        }) do
+            local active = EH.avatarSourceMode == entry.mode
+            entry.button:SetAttribute("SelectedControl", active)
+            entry.button.BackgroundColor3 = active
+                and Color3.fromRGB(96, 69, 43) or Color3.fromRGB(40, 35, 30)
+            local stroke = entry.button:FindFirstChildOfClass("UIStroke")
+            if stroke then
+                stroke.Color = active and Color3.fromRGB(211, 165, 113)
+                    or Color3.fromRGB(112, 84, 56)
+                stroke.Transparency = active and 0.02 or 0.34
+            end
+        end
+    end
+
+    EH.changeAvatarSourceMode = function(mode)
+        if EH.avatarSourceMode == mode then return end
+        EH.avatarSourceMode = mode
+        EH.refreshAvatarSourceButtons()
+        if currentMode ~= "Players" then return end
+        local target = selectedPlayer
+        if target and target.Parent == Players and EH.scanAvatarSourcePlayer then
+            task.spawn(EH.scanAvatarSourcePlayer, target)
+        elseif Status and Status.Parent then
+            Status.Text = currentLanguage == "ru"
+                and "Выберите игрока для просмотра" or "Select a player to inspect"
+        end
+    end
+    original.Activated:Connect(function()
+        EH.changeAvatarSourceMode("Original")
+    end)
+    morph.Activated:Connect(function()
+        EH.changeAvatarSourceMode("Morph")
+    end)
+    EH.refreshAvatarSourceButtons()
+end
+
 local Viewport = create("ViewportFrame", {
     Position = UDim2.fromOffset(214, 104),
     Size = UDim2.fromOffset(300, 310),
@@ -3015,6 +3106,7 @@ for index, option in ipairs(languageOptions) do
         LangButton.Text = currentLanguage:upper()
         EH.setModeButtonLabel(ModeButton, currentMode)
         if EH.refreshHomeText then EH.refreshHomeText() end
+        if EH.refreshAvatarSourceButtons then EH.refreshAvatarSourceButtons() end
         local preferenceSaved = saveLanguagePreference()
         if not preferenceSaved then
             Status.Text = "Language changed, but this executor cannot save language settings"
@@ -4130,6 +4222,7 @@ local function updateLayout()
 
     Main.Size = UDim2.fromOffset(width, height)
     if EH.layoutHorizonTabs then EH.layoutHorizonTabs(mobile, width) end
+    if EH.layoutAvatarSourceBar then EH.layoutAvatarSourceBar(mobile) end
 
     UIScale.Scale = math.min(
         (screen.X - 20) / width,
@@ -4155,14 +4248,14 @@ local function updateLayout()
         PlayerList.Position = UDim2.fromOffset(12, 156)
         PlayerList.Size = UDim2.new(1, -24, 0, 90)
 
-        Viewport.Position = UDim2.fromOffset(12, 254)
-        Viewport.Size = UDim2.new(1, -24, 0, 150)
+        Viewport.Position = UDim2.fromOffset(12, 288)
+        Viewport.Size = UDim2.new(1, -24, 0, 145)
 
-        PoseBar.Position = UDim2.fromOffset(12, 408)
+        PoseBar.Position = UDim2.fromOffset(12, 437)
         PoseBar.Size = UDim2.new(1, -24, 0, 32)
 
-        ItemsPanel.Position = UDim2.fromOffset(12, 444)
-        ItemsPanel.Size = UDim2.new(1, -24, 0, 150)
+        ItemsPanel.Position = UDim2.fromOffset(12, 473)
+        ItemsPanel.Size = UDim2.new(1, -24, 0, 137)
         ItemList.Position = UDim2.fromOffset(6, 60)
         ItemList.Size = UDim2.new(1, -12, 1, -65)
 
@@ -4178,8 +4271,8 @@ local function updateLayout()
         PlayerList.Position = UDim2.fromOffset(12, 160)
         PlayerList.Size = UDim2.fromOffset(190, 310)
 
-        Viewport.Position = UDim2.fromOffset(214, 160)
-        Viewport.Size = UDim2.fromOffset(300, 310)
+        Viewport.Position = UDim2.fromOffset(214, 199)
+        Viewport.Size = UDim2.fromOffset(300, 271)
 
         PoseBar.Position = UDim2.fromOffset(214, 476)
         PoseBar.Size = UDim2.fromOffset(300, 32)
@@ -4429,49 +4522,44 @@ end
 local function makeStaticAvatar(player)
     if not player then return nil end
 
-    local character = player.Character
-    if not character then return nil end
-
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-
-    if not humanoid then
-        return cloneCharacter(character)
-    end
-
-    local description, descriptionSource = getOriginalAvatarDescription(player, humanoid)
-
-    if description then
-        local rigType = humanoid.RigType
-        local success, cleanModel = pcall(function()
-            return Players:CreateHumanoidModelFromDescription(description, rigType)
-        end)
-        pcall(function() description:Destroy() end)
-
-        if success and cleanModel then
-            removeExtraObjects(cleanModel)
-
-            local originalParts = countParts(character)
-            local generatedParts = countParts(cleanModel)
-
-            if generatedParts >= math.max(6, originalParts * 0.55) then
-                return cleanModel
-            end
-
-            cleanModel:Destroy()
+    if EH.avatarSourceMode == "Morph" then
+        -- Clone the current game character and its morphs, not the account rig.
+        local character = player.Character
+        local copy = character and cloneCharacter(character) or nil
+        if copy then
+            removeExtraObjects(copy) -- preview safety; never touch live character
         end
+        return copy
     end
 
-    local fallback = cloneCharacter(character)
-
-    if fallback and countParts(fallback) >= 6 then
-        removeExtraObjects(fallback)
-        return fallback
+    -- STRICT account preview: never substitute a Piggy/Brookhaven morph.
+    -- This API builds the account avatar in its own R6/R15 rig.
+    local ok, cleanModel = pcall(function()
+        return Players:CreateHumanoidModelFromUserId(player.UserId)
+    end)
+    if ok and cleanModel then
+        removeExtraObjects(cleanModel)
+        return cleanModel
     end
 
-    if fallback then
-        fallback:Destroy()
+    -- Fallback is ALSO account-based. A failed lookup is an error, not a morph.
+    local description = getOriginalAvatarDescription(player, nil)
+    if not description then return nil end
+    local rigType = Enum.HumanoidRigType.R15
+    pcall(function()
+        local info = Players:GetCharacterAppearanceInfoAsync(player.UserId)
+        if info and info.playerAvatarType == "R6" then
+            rigType = Enum.HumanoidRigType.R6
+        end
+    end)
+    local created, model = pcall(function()
+        return Players:CreateHumanoidModelFromDescription(description, rigType)
+    end)
+    pcall(function() description:Destroy() end)
+    if created and model then
+        removeExtraObjects(model)
+        return model
     end
-
     return nil
 end
 
@@ -5715,18 +5803,28 @@ end
 --==================================================
 
 -- Removed unreachable showModelFromTemplate; live and saved previews use their own active paths.
-local function showPlayerModel(player)
+local function showPlayerModel(player, scanToken)
     clearViewport()
 
+    local source = EH.avatarSourceMode
     local clone = makeStaticAvatar(player)
 
     if not clone then
-        task.wait(0.5)
+        task.wait(0.35)
+        if scanToken and scanToken ~= EH.avatarScanToken then return nil end
         clone = makeStaticAvatar(player)
     end
 
+    -- Slow account API responses must not overwrite another selected player/mode.
+    if scanToken and scanToken ~= EH.avatarScanToken then
+        if clone then clone:Destroy() end
+        return nil
+    end
+
     if not clone then
-        Status.Text = "Could not load avatar"
+        Status.Text = source == "Original"
+            and "Could not load original account avatar"
+            or "Could not clone current game morph"
         return nil
     end
 
@@ -5746,7 +5844,8 @@ local function showPlayerModel(player)
     setViewportMode("Free")
     applyPose(clone, "N")
     if EH.setPreviewReady then EH.setPreviewReady(true) end
-    Status.Text = "Avatar loaded"
+    Status.Text = source == "Original" and "Account avatar loaded"
+        or "Current game morph loaded"
 
     return clone
 end
@@ -6032,32 +6131,46 @@ local function scanPlayer(player)
 
     selectedPlayer = player
     selectedFavorite = nil
+    EH.avatarScanToken = (EH.avatarScanToken or 0) + 1
+    local token = EH.avatarScanToken
+    local source = EH.avatarSourceMode or "Original"
 
     clearItems()
     WornCountLabel.Text = translateText("WORN ITEMS: —"):gsub(":%s*—$", "")
     EH.wornBadge.Text = "—"
-    Status.Text = "Loading player..."
+    Status.Text = source == "Original" and "Loading account avatar..."
+        or "Scanning current game morph..."
 
-    showPlayerModel(player)
+    local preview = showPlayerModel(player, token)
+    if token ~= EH.avatarScanToken then return end
 
     local character = player.Character
-
-    if not character then
-        Status.Text = "Character not loaded"
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if source == "Morph" and not character then
+        Status.Text = "Character/morph not available"
         return
     end
 
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-
-    if not humanoid then
-        Status.Text = "No Humanoid found"
+    local description, descriptionSource
+    if source == "Original" then
+        -- Do not pass the live Humanoid as a fallback: it might be a monster.
+        description, descriptionSource = getOriginalAvatarDescription(player, nil)
+    else
+        if humanoid then
+            local ok, applied = pcall(function()
+                return humanoid:GetAppliedDescription()
+            end)
+            if ok then description = applied end
+        end
+        if not description then description = Instance.new("HumanoidDescription") end
+        descriptionSource = "live-morph"
+    end
+    if token ~= EH.avatarScanToken then
+        if description then description:Destroy() end
         return
     end
-
-    local description, descriptionSource = getOriginalAvatarDescription(player, humanoid)
-
     if not description then
-        Status.Text = "Could not read avatar details"
+        Status.Text = "Original account appearance unavailable"
         return
     end
 
@@ -6088,66 +6201,101 @@ local function scanPlayer(player)
         end
     end
 
-    -- AVATAR ITEMS
-
-    add("Shirt", description.Shirt, "Items", true)
-    add("Pants", description.Pants, "Items", true)
-    add("T-Shirt", description.GraphicTShirt, "Items", true)
-    add("Face", description.Face, "Items")
-
-    add("Head", description.Head, "Items")
-    add("Torso", description.Torso, "Items")
-    add("Left Arm", description.LeftArm, "Items")
-    add("Right Arm", description.RightArm, "Items")
-    add("Left Leg", description.LeftLeg, "Items")
-    add("Right Leg", description.RightLeg, "Items")
-
-    local accessorySuccess, accessories = pcall(function()
-        return description:GetAccessories(true)
-    end)
-
-    -- Count all currently worn appearance items:
-    -- classic accessories + layered accessories/clothing from GetAccessories(true),
-    -- classic clothing slots, and the equipped face asset.
-    -- Body-part meshes (Head/Torso/arms/legs), body colors and animations
-    -- are intentionally excluded from this counter.
+    -- Original shows account assets; Morph scans actual live character objects.
     local wornItemCount = 0
+    if source == "Morph" then
+        local function liveAssetId(value)
+            if type(value) == "number" then
+                return value > 0 and math.floor(value) or nil
+            end
+            if type(value) ~= "string" then return nil end
+            local digits = value:match("[?&]id=(%d+)")
+                or value:match("rbxassetid://(%d+)")
+                or value:match("(%d+)")
+            return tonumber(digits)
+        end
+        local hasFace = false
+        for _, object in ipairs(character:GetDescendants()) do
+            if token ~= EH.avatarScanToken then
+                description:Destroy()
+                return
+            end
+            if object:IsA("Accessory") then
+                wornItemCount += 1
+                local id
+                pcall(function() id = object.SourceAssetId end)
+                id = liveAssetId(id) or liveAssetId(object:GetAttribute("AssetId"))
+                    or liveAssetId(object:GetAttribute("OriginalAssetId"))
+                if id then add(object.Name, id, "Items") end
+            elseif object:IsA("Shirt") then
+                wornItemCount += 1
+                add("Shirt", liveAssetId(object.ShirtTemplate), "Items", true)
+            elseif object:IsA("Pants") then
+                wornItemCount += 1
+                add("Pants", liveAssetId(object.PantsTemplate), "Items", true)
+            elseif object:IsA("ShirtGraphic") then
+                wornItemCount += 1
+                add("T-Shirt", liveAssetId(object.Graphic), "Items", true)
+            elseif object:IsA("Decal") and object.Parent
+                and object.Parent.Name == "Head"
+                and string.lower(object.Name) == "face" then
+                if not hasFace then
+                    wornItemCount += 1
+                    hasFace = true
+                end
+                add("Face", liveAssetId(object.Texture), "Items")
+            elseif object:IsA("Animation") then
+                add(object.Name .. " Animation",
+                    liveAssetId(object.AnimationId), "Animations")
+            end
+        end
+        -- Some morph systems replace the description rather than creating
+        -- Animation instances; these live IDs are useful when available.
+        for _, property in ipairs({
+            "IdleAnimation", "WalkAnimation", "RunAnimation",
+            "JumpAnimation", "FallAnimation", "ClimbAnimation",
+            "SwimAnimation", "MoodAnimation"
+        }) do
+            local value = description[property]
+            add(property:gsub("Animation", "") .. " Animation",
+                value, "Animations")
+        end
+    else
+        add("Shirt", description.Shirt, "Items", true)
+        add("Pants", description.Pants, "Items", true)
+        add("T-Shirt", description.GraphicTShirt, "Items", true)
+        add("Face", description.Face, "Items")
+        add("Head", description.Head, "Items")
+        add("Torso", description.Torso, "Items")
+        add("Left Arm", description.LeftArm, "Items")
+        add("Right Arm", description.RightArm, "Items")
+        add("Left Leg", description.LeftLeg, "Items")
+        add("Right Leg", description.RightLeg, "Items")
 
-    if accessorySuccess and accessories then
-        wornItemCount = #accessories
-        for _, accessory in ipairs(accessories) do
-            add(
-                (accessory.AccessoryType and accessory.AccessoryType.Name) or "Accessory",
-                accessory.AssetId,
-                "Items"
-            )
+        local accessorySuccess, accessories = pcall(function()
+            return description:GetAccessories(true)
+        end)
+        if accessorySuccess and accessories then
+            wornItemCount = #accessories
+            for _, accessory in ipairs(accessories) do
+                add((accessory.AccessoryType and accessory.AccessoryType.Name)
+                    or "Accessory", accessory.AssetId, "Items")
+            end
+        end
+        for _, property in ipairs({"Shirt", "Pants", "GraphicTShirt", "Face"}) do
+            if tonumber(description[property]) and tonumber(description[property]) > 0 then
+                wornItemCount += 1
+            end
+        end
+        for _, property in ipairs({
+            "IdleAnimation", "WalkAnimation", "RunAnimation",
+            "JumpAnimation", "FallAnimation", "ClimbAnimation",
+            "SwimAnimation", "MoodAnimation"
+        }) do
+            add(property:gsub("Animation", "") .. " Animation",
+                description[property], "Animations")
         end
     end
-
-    local classicWearableProperties = {
-        "Shirt",
-        "Pants",
-        "GraphicTShirt",
-        "Face"
-    }
-
-    for _, propertyName in ipairs(classicWearableProperties) do
-        local assetId = tonumber(description[propertyName])
-        if assetId and assetId > 0 then
-            wornItemCount += 1
-        end
-    end
-
-    -- ANIMATIONS
-
-    add("Idle Animation", description.IdleAnimation, "Animations")
-    add("Walk Animation", description.WalkAnimation, "Animations")
-    add("Run Animation", description.RunAnimation, "Animations")
-    add("Jump Animation", description.JumpAnimation, "Animations")
-    add("Fall Animation", description.FallAnimation, "Animations")
-    add("Climb Animation", description.ClimbAnimation, "Animations")
-    add("Swim Animation", description.SwimAnimation, "Animations")
-    add("Mood Animation", description.MoodAnimation, "Animations")
 
     WornCountLabel.Text = translateText("WORN ITEMS: —"):gsub(":%s*—$", "")
     EH.wornBadge.Text = string.format("%02d", wornItemCount)
@@ -6168,10 +6316,12 @@ local function scanPlayer(player)
         "Items: %d | Animations: %d%s",
         itemCount,
         animationCount,
-        descriptionSource == "account" and " | Original account avatar" or " | Live fallback"
+        source == "Original" and " | Original account avatar" or " | Current morph"
     )
     pcall(function() description:Destroy() end)
 end
+
+EH.scanAvatarSourcePlayer = scanPlayer
 
 --==================================================
 -- PLAYER THUMBNAILS
