@@ -4124,6 +4124,469 @@ do
     end
     EH.refreshHomeText()
 
+
+    -- HORIZON ESP: one owned, throttled client-side controller.
+    do
+        local RunService = game:GetService("RunService")
+        local CollectionService = game:GetService("CollectionService")
+        local cfg = {players=false,npcs=false,highlight=true,box=true,
+            names=true,distance=true,health=true,tracer=false,arrows=true,
+            roleColors=true,style=1,maxDistance=1200}
+        local palette = {
+            safe=Color3.fromRGB(89,228,133),
+            danger=Color3.fromRGB(245,87,97),
+            unknown=Color3.fromRGB(245,189,92),
+            plain=Color3.fromRGB(222,172,109)
+        }
+        local styles = {"Corner Box","Full Box","Double Box","Dashed Box",
+            "Bracket Box","Tactical Box","Diamond Box","Neon Box",
+            "Minimal Box","Crosshair Box"}
+        local engine = {entries={},npcs={},heartbeat=nil,npcEvent=nil,
+            serial=0,overlay=nil,root=nil,errorTime=0}
+        EH.espSettings=cfg
+        EH.espController=engine
+        EH.registerController("ESP",engine)
+
+        local function getRoleAttribute(object)
+            if not object then return nil end
+            for _,name in ipairs({"Role","Team","CharacterType","Class"}) do
+                local value=object:GetAttribute(name)
+                if type(value)=="string" and value~="" then return value:lower() end
+                local child=object:FindFirstChild(name)
+                if child and child:IsA("StringValue") then return child.Value:lower() end
+            end
+            for _,name in ipairs({"IsKiller","IsMonster","IsEnemy","Hostile"}) do
+                if object:GetAttribute(name)==true then return "killer" end
+                local child=object:FindFirstChild(name)
+                if child and child:IsA("BoolValue") and child.Value then return "killer" end
+            end
+            return nil
+        end
+        local function roleColor(model,player)
+            if not cfg.roleColors then return palette.plain end
+            local role=getRoleAttribute(model) or getRoleAttribute(player)
+            if not role and player and player.Team then role=player.Team.Name:lower() end
+            if not role then role=model.Name:lower() end
+            if role:find("killer") or role:find("monster")
+                or role:find("piggy") or role:find("infected")
+                or role:find("zombie") or role:find("beast")
+                or role:find("enemy") or role:find("hostile")
+                or role:find("murder") or role:find("hunter") then
+                return palette.danger
+            end
+            if role:find("surviv") or role:find("innocent")
+                or role:find("friend") or role:find("civilian")
+                or role:find("human") or role:find("ally") then
+                return palette.safe
+            end
+            if player and player.Team and LocalPlayer.Team
+                and player.Team==LocalPlayer.Team and not player.Neutral then
+                return palette.safe
+            end
+            if CollectionService:HasTag(model,"Enemy")
+                or CollectionService:HasTag(model,"Monster") then
+                return palette.danger
+            end
+            return palette.unknown
+        end
+        local function playerOwner(model)
+            local obj=model
+            while obj and obj~=workspace do
+                if obj:IsA("Model") then
+                    local owner=Players:GetPlayerFromCharacter(obj)
+                    if owner then return owner end
+                end
+                obj=obj.Parent
+            end
+            return nil
+        end
+        local function partOf(model)
+            return model:FindFirstChild("HumanoidRootPart",true)
+                or model.PrimaryPart
+                or model:FindFirstChild("Torso",true)
+                or model:FindFirstChildWhichIsA("BasePart",true)
+        end
+        local function considerNpc(model)
+            if not cfg.npcs or not model or not model:IsA("Model")
+                or not model:IsDescendantOf(workspace)
+                or playerOwner(model) then return end
+            if not model:FindFirstChildOfClass("Humanoid") then
+                local name=model.Name:lower()
+                local likely=CollectionService:HasTag(model,"NPC")
+                    or CollectionService:HasTag(model,"Enemy")
+                    or CollectionService:HasTag(model,"Monster")
+                    or model:GetAttribute("IsNPC")==true
+                    or model:GetAttribute("NPC")==true
+                    or name:find("npc") or name:find("monster")
+                    or name:find("piggy") or name:find("zombie")
+                    or name:find("enemy") or name:find("bot")
+                if not likely then return end
+            end
+            if partOf(model) then engine.npcs[model]=true end
+        end
+        local function ensureOverlay()
+            if engine.overlay and engine.overlay.Parent then return end
+            local orphan=PlayerGui:FindFirstChild("HorizonESPOverlay")
+            if orphan then orphan:Destroy() end
+            engine.overlay=create("ScreenGui",{
+                Name="HorizonESPOverlay",ResetOnSpawn=false,
+                DisplayOrder=99,IgnoreGuiInset=false,
+                ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+            },PlayerGui)
+            engine.root=create("Frame",{
+                Name="ESPGraphics",Size=UDim2.fromScale(1,1),
+                BackgroundTransparency=1,BorderSizePixel=0,
+                Active=false,ZIndex=1
+            },engine.overlay)
+        end
+        local function line(parent,parts,i,x1,y1,x2,y2,thickness,color,alpha)
+            local obj=parts[i]
+            if not obj then
+                obj=create("Frame",{Name="ESPLine",
+                    AnchorPoint=Vector2.new(0,0.5),
+                    BorderSizePixel=0,Active=false,ZIndex=3
+                },parent)
+                parts[i]=obj
+            end
+            local dx,dy=x2-x1,y2-y1
+            obj.Position=UDim2.fromOffset(x1,y1)
+            obj.Size=UDim2.fromOffset(math.sqrt(dx*dx+dy*dy),thickness)
+            obj.Rotation=math.deg(math.atan2(dy,dx))
+            obj.BackgroundColor3=color
+            obj.BackgroundTransparency=alpha or 0
+            obj.Visible=true
+        end
+        local function renderFrame(entry,w,h,color)
+            local segments={}
+            local style=cfg.style
+            local length=math.max(5,math.min(21,math.min(w,h)*0.26))
+            local function L(a,b,c,d,t,alpha)
+                segments[#segments+1]={a,b,c,d,t or 2,alpha or 0}
+            end
+            local function edges(inset,t,alpha)
+                L(inset,inset,w-inset,inset,t,alpha)
+                L(w-inset,inset,w-inset,h-inset,t,alpha)
+                L(w-inset,h-inset,inset,h-inset,t,alpha)
+                L(inset,h-inset,inset,inset,t,alpha)
+            end
+            local function corners(t)
+                L(0,0,length,0,t);L(0,0,0,length,t)
+                L(w,0,w-length,0,t);L(w,0,w,length,t)
+                L(0,h,length,h,t);L(0,h,0,h-length,t)
+                L(w,h,w-length,h,t);L(w,h,w,h-length,t)
+            end
+            if style==1 then corners(2.5)
+            elseif style==2 then edges(0,2)
+            elseif style==3 then edges(0,3);edges(5,1,0.2)
+            elseif style==4 then
+                for n=0,3 do
+                    local a,b=n/4,(n+0.65)/4
+                    L(w*a,0,w*b,0);L(w*a,h,w*b,h)
+                    L(0,h*a,0,h*b);L(w,h*a,w,h*b)
+                end
+            elseif style==5 then
+                L(0,0,0,h,3);L(w,0,w,h,3)
+                L(0,0,length,0,3);L(w,0,w-length,0,3)
+                L(0,h,length,h,3);L(w,h,w-length,h,3)
+            elseif style==6 then
+                corners(3);L(w*.42,0,w*.58,0);L(w*.42,h,w*.58,h)
+                L(0,h*.42,0,h*.58);L(w,h*.42,w,h*.58)
+            elseif style==7 then
+                L(w/2,0,w,h/2);L(w,h/2,w/2,h)
+                L(w/2,h,0,h/2);L(0,h/2,w/2,0)
+            elseif style==8 then edges(0,6,0.75);edges(0,2.5)
+            elseif style==9 then
+                L(w*.15,0,w*.85,0,3);L(w*.15,h,w*.85,h,3)
+                L(0,h*.3,0,h*.7);L(w,h*.3,w,h*.7)
+            else
+                corners(2.3)
+                L(w/2-7,0,w/2+7,0,3);L(w/2-7,h,w/2+7,h,3)
+                L(0,h/2-7,0,h/2+7,3);L(w,h/2-7,w,h/2+7,3)
+            end
+            for i,segment in ipairs(segments) do
+                line(entry.node,entry.lines,i,
+                    segment[1],segment[2],segment[3],segment[4],
+                    segment[5],color,segment[6])
+            end
+            for i=#segments+1,#entry.lines do entry.lines[i].Visible=false end
+        end
+        local function createEntry(model,kind,player)
+            if engine.entries[model] then return engine.entries[model] end
+            ensureOverlay()
+            local node=create("Frame",{
+                Name=kind=="players" and "ESPPlayerBox" or "ESPNPCBox",
+                BackgroundTransparency=1,BorderSizePixel=0,
+                Active=false,Visible=false,ZIndex=2
+            },engine.root)
+            local entry={model=model,kind=kind,player=player,node=node,lines={}}
+            entry.name=create("TextLabel",{
+                Name="ESPName",AnchorPoint=Vector2.new(.5,1),
+                Position=UDim2.new(.5,0,0,-5),
+                Size=UDim2.fromOffset(180,22),
+                BackgroundColor3=Color3.fromRGB(24,24,24),
+                BackgroundTransparency=.28,BorderSizePixel=0,
+                Text="",TextSize=12,Font=Enum.Font.GothamBold,
+                TextStrokeTransparency=.45,Active=false,ZIndex=4
+            },node)
+            round(entry.name,5)
+            entry.dist=create("TextLabel",{
+                Name="ESPDistance",Position=UDim2.new(0,0,1,3),
+                Size=UDim2.new(1,0,0,18),BackgroundTransparency=1,
+                Text="",TextSize=11,Font=Enum.Font.GothamMedium,
+                TextColor3=Color3.fromRGB(240,230,214),
+                TextStrokeTransparency=.4,Active=false,ZIndex=4
+            },node)
+            entry.hp=create("Frame",{
+                Name="ESPHealth",Position=UDim2.new(1,7,0,0),
+                Size=UDim2.new(0,5,1,0),
+                BackgroundColor3=Color3.fromRGB(70,53,52),
+                BorderSizePixel=0,Active=false,ZIndex=3
+            },node)
+            entry.hpFill=create("Frame",{
+                AnchorPoint=Vector2.new(0,1),
+                Position=UDim2.fromScale(0,1),Size=UDim2.fromScale(1,1),
+                BackgroundColor3=palette.safe,
+                BorderSizePixel=0,Active=false,ZIndex=4
+            },entry.hp)
+            entry.tracer=create("Frame",{
+                Name="ESPTracer",AnchorPoint=Vector2.new(0,.5),
+                BackgroundColor3=palette.plain,
+                BorderSizePixel=0,Active=false,Visible=false,ZIndex=2
+            },engine.root)
+            entry.arrow=create("Frame",{
+                Name="ESPArrow",BackgroundTransparency=1,
+                BorderSizePixel=0,Active=false,Visible=false,ZIndex=2
+            },engine.root)
+            entry.arrowLines={}
+            engine.entries[model]=entry
+            return entry
+        end
+        local function removeEntry(model)
+            local entry=engine.entries[model]
+            if not entry then return end
+            if entry.hl then pcall(function() entry.hl:Destroy() end) end
+            entry.node:Destroy();entry.tracer:Destroy();entry.arrow:Destroy()
+            engine.entries[model]=nil
+        end
+        local function hide(entry)
+            entry.node.Visible=false
+            entry.tracer.Visible=false
+            entry.arrow.Visible=false
+            if entry.hl then entry.hl.Enabled=false end
+        end
+        local function box2d(camera,model,vp)
+            local ok,cf,size=pcall(function() return model:GetBoundingBox() end)
+            if not ok or size.Magnitude<.05 then return nil end
+            local l,t,r,b=math.huge,math.huge,-math.huge,-math.huge
+            for x=-1,1,2 do for y=-1,1,2 do for z=-1,1,2 do
+                local pos=cf:PointToWorldSpace(
+                    Vector3.new(size.X*x/2,size.Y*y/2,size.Z*z/2))
+                local point=camera:WorldToScreenPoint(pos)
+                if point.Z<=0.04 then return nil end
+                l=math.min(l,point.X);r=math.max(r,point.X)
+                t=math.min(t,point.Y);b=math.max(b,point.Y)
+            end end end
+            local xx,yy=math.max(l,0),math.max(t,0)
+            local ww,hh=math.min(r,vp.X)-xx,math.min(b,vp.Y)-yy
+            if ww<3 or hh<5 then return nil end
+            return xx,yy,ww,hh
+        end
+        local function drawArrow(entry,point,vp,color)
+            if not cfg.arrows then entry.arrow.Visible=false;return end
+            local midX,midY=vp.X/2,vp.Y/2
+            local dx,dy=point.X-midX,point.Y-midY
+            if point.Z<=0 then dx=-dx;dy=-dy end
+            if math.abs(dx)+math.abs(dy)<1 then dy=-1 end
+            local factor=math.min((midX-26)/math.max(math.abs(dx),.01),
+                (midY-26)/math.max(math.abs(dy),.01))
+            local x=math.clamp(midX+dx*factor,25,vp.X-25)
+            local y=math.clamp(midY+dy*factor,25,vp.Y-25)
+            entry.arrow.Position=UDim2.fromOffset(x-12,y-12)
+            entry.arrow.Size=UDim2.fromOffset(24,24)
+            entry.arrow.Visible=true
+            local angle=math.atan2(dy,dx)
+            for i,offset in ipairs({2.55,-2.55}) do
+                line(entry.arrow,entry.arrowLines,i,12,12,
+                    12+14*math.cos(angle+offset),
+                    12+14*math.sin(angle+offset),3,color,0)
+            end
+        end
+        local function renderTarget(entry,camera,vp,localPart)
+            local model=entry.model
+            if not model:IsDescendantOf(workspace) then removeEntry(model);return end
+            if entry.kind=="npcs" and playerOwner(model) then
+                engine.npcs[model]=nil;removeEntry(model);return
+            end
+            local root=partOf(model)
+            if not root or not localPart then hide(entry);return end
+            local d=(root.Position-localPart.Position).Magnitude
+            if d>cfg.maxDistance then hide(entry);return end
+            local point,onScreen=camera:WorldToScreenPoint(root.Position)
+            local color=roleColor(model,entry.player)
+            if cfg.highlight then
+                if not entry.hl then
+                    local hl=Instance.new("Highlight")
+                    hl.Name="HorizonESPHighlight"
+                    hl.Adornee=model
+                    hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+                    hl.FillTransparency=.78
+                    hl.OutlineTransparency=.04
+                    hl.Parent=model
+                    entry.hl=hl
+                end
+                entry.hl.Enabled=true
+                entry.hl.FillColor=color
+                entry.hl.OutlineColor=color
+            elseif entry.hl then entry.hl.Enabled=false end
+            local x,y,w,h
+            if onScreen and point.Z>0 then
+                x,y,w,h=box2d(camera,model,vp)
+            end
+            if not x then
+                entry.node.Visible=false;entry.tracer.Visible=false
+                drawArrow(entry,point,vp,color)
+                return
+            end
+            entry.arrow.Visible=false
+            entry.node.Position=UDim2.fromOffset(x,y)
+            entry.node.Size=UDim2.fromOffset(w,h)
+            entry.node.Visible=true
+            if cfg.box then renderFrame(entry,w,h,color)
+            else for _,v in ipairs(entry.lines) do v.Visible=false end end
+            entry.name.Visible=cfg.names
+            entry.name.TextColor3=color
+            entry.name.Text=entry.player and entry.player.DisplayName or model.Name
+            entry.dist.Visible=cfg.distance
+            entry.dist.Text=string.format("%d studs",math.floor(d+.5))
+            local hum=model:FindFirstChildOfClass("Humanoid")
+            local hp=hum and hum.Health or 0
+            local maxHp=hum and hum.MaxHealth or 0
+            entry.hp.Visible=cfg.health and maxHp>0
+            if maxHp>0 then
+                local percent=math.clamp(hp/maxHp,0,1)
+                entry.hpFill.Size=UDim2.fromScale(1,percent)
+                entry.hpFill.BackgroundColor3=percent>.6 and palette.safe
+                    or (percent>.3 and palette.unknown or palette.danger)
+            end
+            entry.tracer.Visible=cfg.tracer
+            if cfg.tracer then
+                local ox,oy=vp.X/2,vp.Y-8
+                local dx,dy=x+w/2-ox,y+h-oy
+                entry.tracer.Position=UDim2.fromOffset(ox,oy)
+                entry.tracer.Size=UDim2.fromOffset(math.sqrt(dx*dx+dy*dy),2)
+                entry.tracer.Rotation=math.deg(math.atan2(dy,dx))
+                entry.tracer.BackgroundColor3=color
+            end
+        end
+        function engine:update()
+            if not self.root or not self.root.Parent then return end
+            local camera=workspace.CurrentCamera
+            local selfChar=LocalPlayer.Character
+            local ownPart=selfChar and partOf(selfChar)
+            if not camera then return end
+            local known={}
+            if cfg.players then
+                for _,player in ipairs(Players:GetPlayers()) do
+                    local model=player.Character
+                    if player~=LocalPlayer and model
+                        and model:IsDescendantOf(workspace) then
+                        known[model]=true
+                        createEntry(model,"players",player)
+                    end
+                end
+            end
+            for model,entry in pairs(self.entries) do
+                if entry.kind=="players" and not known[model] then
+                    removeEntry(model)
+                end
+            end
+            if cfg.npcs then
+                for model in pairs(self.npcs) do
+                    if not model:IsDescendantOf(workspace)
+                        or playerOwner(model) then
+                        self.npcs[model]=nil;removeEntry(model)
+                    else createEntry(model,"npcs",nil) end
+                end
+            end
+            local vp=camera.ViewportSize
+            for _,entry in pairs(self.entries) do
+                renderTarget(entry,camera,vp,ownPart)
+            end
+        end
+        function engine:stop()
+            if self.heartbeat then self.heartbeat:Disconnect();self.heartbeat=nil end
+            if self.npcEvent then self.npcEvent:Disconnect();self.npcEvent=nil end
+            self.serial+=1
+            for model in pairs(self.entries) do removeEntry(model) end
+            table.clear(self.npcs)
+            if self.overlay then self.overlay:Destroy() end
+            self.overlay=nil;self.root=nil
+        end
+        local function scanNPCs()
+            engine.serial+=1
+            local serial=engine.serial
+            engine.npcEvent=workspace.DescendantAdded:Connect(function(obj)
+                if obj:IsA("Humanoid") or obj:IsA("AnimationController") then
+                    considerNpc(obj.Parent)
+                elseif obj:IsA("Model") then considerNpc(obj) end
+            end)
+            task.spawn(function()
+                local ok,all=pcall(function() return workspace:GetDescendants() end)
+                if not ok then return end
+                for index,obj in ipairs(all) do
+                    if engine.serial~=serial or not cfg.npcs then return end
+                    if obj:IsA("Humanoid") or obj:IsA("AnimationController") then
+                        considerNpc(obj.Parent)
+                    elseif obj:IsA("Model") then
+                        local name=obj.Name:lower()
+                        if obj:GetAttribute("NPC")==true or obj:GetAttribute("IsNPC")==true
+                            or name:find("monster") or name:find("piggy")
+                            or name:find("enemy") then considerNpc(obj) end
+                    end
+                    if index%250==0 then task.wait() end
+                end
+            end)
+        end
+        function engine:setEnabled(kind,enabled)
+            cfg[kind]=enabled==true
+            if not cfg[kind] then
+                for model,entry in pairs(self.entries) do
+                    if entry.kind==kind then removeEntry(model) end
+                end
+                if kind=="npcs" then
+                    self.serial+=1
+                    if self.npcEvent then self.npcEvent:Disconnect();self.npcEvent=nil end
+                    table.clear(self.npcs)
+                end
+            elseif kind=="npcs" and not self.npcEvent then scanNPCs() end
+            if cfg.players or cfg.npcs then
+                ensureOverlay()
+                if not self.heartbeat then
+                    local accumulator=0
+                    self.heartbeat=RunService.Heartbeat:Connect(function(dt)
+                        accumulator+=math.min(dt,.25)
+                        if accumulator<.16 then return end
+                        accumulator=0
+                        local ok,err=pcall(function() self:update() end)
+                        if not ok and os.clock()-self.errorTime>5 then
+                            self.errorTime=os.clock()
+                            EH.logDiagnostic("ESP",err)
+                        end
+                    end)
+                end
+            else self:stop() end
+        end
+        function engine:destroy()
+            cfg.players=false;cfg.npcs=false
+            self:stop()
+        end
+
+        -- UI controls are installed immediately below, in the original ESP tab.
+        EH.espBuildUI = function(espPage,espDescription)
+            -- INSERT_ESP_UI
+        end
+    end
+
     -- ESP page is navigation-only until the user approves specific ESP tools.
     local espPage = create("Frame", {
         Name = "HorizonESPPage",
