@@ -5617,34 +5617,41 @@ do
     espTitle.Text = "ESP"
     EH.espBuildUI(espPage, espDescription)
 
-    -- Dedicated navigation bar below the header, not inside its narrow title row.
+    -- HORIZON / Underline Tabs #7: centered, borderless navigation under header.
+    -- Visual-only change: all four button callbacks and all pages stay unchanged.
     local nav = create("Frame", {
         Name = "HorizonNavigationBar",
-        Position = UDim2.fromOffset(12, 54),
-        Size = UDim2.fromOffset(450, 48),
-        BackgroundColor3 = Color3.fromRGB(32, 28, 24),
+        Position = UDim2.new(0.5, -260, 0, 56),
+        Size = UDim2.fromOffset(520, 46),
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ZIndex = 12,
         Active = true
     }, Main)
-    round(nav, 12)
-    create("UIStroke", {Color = Color3.fromRGB(132, 98, 67),
-        Thickness = 1.1, Transparency = 0.2}, nav)
+    -- A subtle bottom rule visually anchors the floating tabs.
+    create("Frame", {
+        Name = "HorizonNavBottomRule",
+        Position = UDim2.new(0, 0, 1, -1),
+        Size = UDim2.new(1, 0, 0, 1),
+        BackgroundColor3 = Color3.fromRGB(118, 88, 61),
+        BackgroundTransparency = 0.73,
+        BorderSizePixel = 0, Active = false, ZIndex = 12
+    }, nav)
 
     local homeTab = makeButton(nav, "Главная",
-        UDim2.new(0.25, -5, 1, -8), UDim2.fromOffset(4, 4),
+        UDim2.new(0.25, -5, 1, -4), UDim2.fromOffset(4, 2),
         Color3.fromRGB(47, 37, 29))
     homeTab.Name = "HorizonHomeTab"
     local avatarsTab = makeButton(nav, "Аватары",
-        UDim2.new(0.25, -5, 1, -8), UDim2.new(0.25, 2, 0, 4),
+        UDim2.new(0.25, -5, 1, -4), UDim2.new(0.25, 2, 0, 2),
         Color3.fromRGB(35, 30, 25))
     avatarsTab.Name = "HorizonAvatarsTab"
     local playerTab = makeButton(nav, "Игрок",
-        UDim2.new(0.25, -5, 1, -8), UDim2.new(0.5, 0, 0, 4),
+        UDim2.new(0.25, -5, 1, -4), UDim2.new(0.5, 0, 0, 2),
         Color3.fromRGB(35, 30, 25))
     playerTab.Name = "HorizonPlayerTab"
     local espTab = makeButton(nav, "ESP",
-        UDim2.new(0.25, -5, 1, -8), UDim2.new(0.75, -2, 0, 4),
+        UDim2.new(0.25, -5, 1, -4), UDim2.new(0.75, -2, 0, 2),
         Color3.fromRGB(35, 30, 25))
     espTab.Name = "HorizonESPTab"
 
@@ -5656,10 +5663,13 @@ do
         tab.ZIndex = 13
         tab.Font = Enum.Font.GothamBold
         tab.Text = ""
-        EH.styleIconAction(tab)
+        -- The navigation tabs intentionally have no heavy per-button borders.
+        tab.BackgroundTransparency = 1
+        local edge = tab:FindFirstChildOfClass("UIStroke")
+        if edge then edge.Enabled = false end
 
         local caption = makeLabel(tab, captions[i],
-            UDim2.new(1, -6, 0, 15), UDim2.new(0, 3, 1, -18), 11)
+            UDim2.new(1, -6, 0, 15), UDim2.new(0, 3, 1, -19), 11)
         caption.Name = "HorizonTabCaption"
         caption.Font = Enum.Font.GothamBold
         caption.TextColor3 = Color3.fromRGB(234, 216, 182)
@@ -5668,24 +5678,36 @@ do
         caption.TextTruncate = Enum.TextTruncate.AtEnd
         caption.Active = false
         caption.ZIndex = tab.ZIndex + 2
+
+        local underline = create("Frame", {
+            Name = "HorizonActiveUnderline",
+            Position = UDim2.new(0.22, 0, 1, -3),
+            Size = UDim2.new(0.56, 0, 0, 3),
+            BackgroundColor3 = Color3.fromRGB(210, 157, 102),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Active = false, ZIndex = tab.ZIndex + 2
+        }, tab)
+        round(underline, 2)
     end
 
     -- Original native icons, now centered in the upper half of each button.
     local glyphs = {
-        EH.safeIcon(homeTab, "home", UDim2.new(0.5, -10, 0, 3), 20),
-        EH.safeIcon(avatarsTab, "shirt_tab", UDim2.new(0.5, -10, 0, 3), 20),
-        EH.safeIcon(playerTab, "user_round_cog", UDim2.new(0.5, -10, 0, 3), 20),
-        EH.safeIcon(espTab, "eye", UDim2.new(0.5, -10, 0, 3), 20)
+        EH.safeIcon(homeTab, "home", UDim2.new(0.5, -10, 0, 2), 20),
+        EH.safeIcon(avatarsTab, "shirt_tab", UDim2.new(0.5, -10, 0, 2), 20),
+        EH.safeIcon(playerTab, "user_round_cog", UDim2.new(0.5, -10, 0, 2), 20),
+        EH.safeIcon(espTab, "eye", UDim2.new(0.5, -10, 0, 2), 20)
     }
 
     EH.layoutHorizonTabs = function(mobile, windowWidth)
-        local width = mobile and (windowWidth - 24) or 450
-        nav.Size = UDim2.fromOffset(width, 48)
-        nav.Position = UDim2.new(0.5, -width / 2, 0, 54)
-        -- Both desktop and mobile use one stable stacked layout.
+        local width = mobile and (windowWidth - 24) or 520
+        nav.Size = UDim2.fromOffset(width, 46)
+        nav.Position = UDim2.new(0.5, -width / 2, 0, 56)
+        -- Centered on both desktop and mobile; ends 6px before page content.
+        -- Keep the existing icon-over-caption layout and the click targets.
         for i, tab in ipairs(tabs) do
             local glyph = glyphs[i]
-            if glyph then glyph.Position = UDim2.new(0.5, -10, 0, 3) end
+            if glyph then glyph.Position = UDim2.new(0.5, -10, 0, 2) end
             local caption = tab:FindFirstChild("HorizonTabCaption")
             if caption then caption.TextSize = mobile and 10 or 11 end
         end
@@ -5704,9 +5726,15 @@ do
             local button = entry.button
             button:SetAttribute("SelectedControl", entry.active)
             button.BackgroundColor3 = entry.active
-                and Color3.fromRGB(93, 67, 43) or Color3.fromRGB(35, 30, 25)
-            local stroke = button:FindFirstChildOfClass("UIStroke")
-            if stroke then stroke.Transparency = entry.active and 0.02 or 0.2 end
+                and Color3.fromRGB(47, 37, 29) or Color3.fromRGB(24, 22, 20)
+            button.BackgroundTransparency = entry.active and 0.23 or 1
+            local underline = button:FindFirstChild("HorizonActiveUnderline")
+            if underline then underline.BackgroundTransparency = entry.active and 0 or 1 end
+            local caption = button:FindFirstChild("HorizonTabCaption")
+            if caption then
+                caption.TextColor3 = entry.active
+                    and Color3.fromRGB(241, 196, 145) or Color3.fromRGB(197, 175, 151)
+            end
         end
     end
     homeTab.Activated:Connect(function() selectPage("Home") end)
