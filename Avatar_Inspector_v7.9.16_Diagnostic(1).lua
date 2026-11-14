@@ -4911,9 +4911,12 @@ do
                 "Обнаружение NPC и монстров",271,false,
                 function(v) EH.espController:setEnabled("npcs",v) end,
                 false,"ghost")
+            local boxSwitch=switchCard("Box ESP",
+                "Включить или скрыть рамки",362,cfg.box,
+                function(v) cfg.box=v end,true,nil)
             local selectorCard=create("Frame",{
                 Name="HorizonESPFrameStyleCard",
-                Position=UDim2.fromOffset(12,372),
+                Position=UDim2.fromOffset(12,431),
                 Size=UDim2.new(1,-24,0,78),
                 BackgroundColor3=Color3.fromRGB(40,37,33),
                 BorderSizePixel=0,ZIndex=31
@@ -4935,7 +4938,7 @@ do
             selector.ZIndex=33
             local menu=create("ScrollingFrame",{
                 Name="HorizonESPBoxStyleList",
-                Position=UDim2.fromOffset(26,457),
+                Position=UDim2.fromOffset(26,515),
                 Size=UDim2.new(1,-52,0,216),
                 CanvasSize=UDim2.fromOffset(0,373),
                 ScrollBarThickness=3,
@@ -4981,20 +4984,332 @@ do
                 if menu.Visible then
                     espPage.CanvasPosition=Vector2.new(
                         espPage.CanvasPosition.X,
-                        math.max(espPage.CanvasPosition.Y,370))
+                        math.max(espPage.CanvasPosition.Y,430))
                 end
             end)
+
+            -- Shared ten-color presets + independent HSV/HEX editors.
+            -- Native Roblox controls; only edit the current session's ESP colors.
+            local colorPresets={
+                {name="Зелёный",color=Color3.fromRGB(89,228,133)},
+                {name="Красный",color=Color3.fromRGB(245,87,97)},
+                {name="Синий",color=Color3.fromRGB(77,163,255)},
+                {name="Голубой",color=Color3.fromRGB(54,216,240)},
+                {name="Фиолетовый",color=Color3.fromRGB(166,120,255)},
+                {name="Розовый",color=Color3.fromRGB(255,101,197)},
+                {name="Оранжевый",color=Color3.fromRGB(255,154,69)},
+                {name="Жёлтый",color=Color3.fromRGB(255,212,77)},
+                {name="Белый",color=Color3.fromRGB(255,255,255)},
+                {name="Бронзовый",color=Color3.fromRGB(201,150,100)}
+            }
+            local function hexOf(color)
+                return string.format("#%02X%02X%02X",
+                    math.floor(color.R*255+.5),
+                    math.floor(color.G*255+.5),
+                    math.floor(color.B*255+.5))
+            end
+            local function colorFromHex(value)
+                local hex=value:match("^%s*#?(%x%x%x%x%x%x)%s*$")
+                if not hex then return nil end
+                return Color3.fromRGB(
+                    tonumber(hex:sub(1,2),16),
+                    tonumber(hex:sub(3,4),16),
+                    tonumber(hex:sub(5,6),16))
+            end
+            local function makeColorEditor(key,titleText,y,defaultColor)
+                local card=create("Frame",{
+                    Name="Horizon"..key.."ESPColorCard",
+                    Position=UDim2.fromOffset(12,y),
+                    Size=UDim2.new(1,-24,0,342),
+                    BackgroundColor3=Color3.fromRGB(40,37,33),
+                    BorderSizePixel=0,ZIndex=31
+                },espPage)
+                round(card,10)
+                create("UIStroke",{
+                    Color=Color3.fromRGB(83,68,55),Thickness=1,
+                    Transparency=.08
+                },card)
+                local accent=create("Frame",{
+                    Position=UDim2.fromOffset(12,10),
+                    Size=UDim2.fromOffset(3,35),
+                    BackgroundColor3=Color3.fromRGB(190,147,107),
+                    BorderSizePixel=0,ZIndex=32
+                },card)
+                round(accent,2)
+                local title=makeLabel(card,titleText,
+                    UDim2.new(1,-125,0,24),
+                    UDim2.fromOffset(25,10),14)
+                title.Font=Enum.Font.GothamBold
+                title.TextColor3=Color3.fromRGB(240,212,183)
+                title.ZIndex=32
+                local reset=makeButton(card,"Сброс",
+                    UDim2.fromOffset(77,27),
+                    UDim2.new(1,-89,0,9),
+                    Color3.fromRGB(77,54,38))
+                reset.Name="ESPReset"..key
+                reset.TextSize=11
+                reset.ZIndex=34
+                local subtitle=makeLabel(card,"10 цветов · оттенок · HEX",
+                    UDim2.new(1,-28,0,19),
+                    UDim2.fromOffset(16,37),11)
+                subtitle.TextColor3=Color3.fromRGB(179,167,154)
+                subtitle.ZIndex=32
+                local chosenSwatches={}
+                local swatchMarkers={}
+                for i,info in ipairs(colorPresets) do
+                    local column=(i-1)%5
+                    local row=math.floor((i-1)/5)
+                    local x=column*.2
+                    local yPos=62+row*51
+                    local swatch=create("TextButton",{
+                        Name="ESPColor"..i,
+                        Position=UDim2.new(x,6,0,yPos),
+                        Size=UDim2.new(.2,-12,0,29),
+                        BackgroundColor3=info.color,
+                        Text="",BorderSizePixel=0,
+                        AutoButtonColor=false,Active=true,ZIndex=33
+                    },card)
+                    round(swatch,6)
+                    local border=create("UIStroke",{
+                        Color=Color3.fromRGB(160,146,132),
+                        Thickness=1,Transparency=.45
+                    },swatch)
+                    local marker=makeLabel(swatch,"✓",
+                        UDim2.fromScale(1,1),UDim2.fromOffset(0,0),17)
+                    marker.Font=Enum.Font.GothamBold
+                    marker.TextColor3=Color3.fromRGB(23,23,23)
+                    marker.TextXAlignment=Enum.TextXAlignment.Center
+                    marker.TextYAlignment=Enum.TextYAlignment.Center
+                    marker.TextStrokeTransparency=1
+                    marker.Active=false;marker.ZIndex=34
+                    marker.Visible=false
+                    local caption=makeLabel(card,info.name,
+                        UDim2.new(.2,-2,0,15),
+                        UDim2.new(x,1,0,yPos+30),9)
+                    caption.TextXAlignment=Enum.TextXAlignment.Center
+                    caption.TextColor3=Color3.fromRGB(195,180,161)
+                    caption.ZIndex=32
+                    chosenSwatches[i]={button=swatch,border=border}
+                    swatchMarkers[i]=marker
+                end
+                local sv=create("TextButton",{
+                    Name="ESPSaturationValue",Text="",
+                    Position=UDim2.fromOffset(16,173),
+                    Size=UDim2.new(1,-32,0,83),
+                    BorderSizePixel=0,
+                    BackgroundColor3=Color3.new(1,0,0),
+                    AutoButtonColor=false,Active=true,ZIndex=33
+                },card)
+                round(sv,6)
+                local svGradient=create("UIGradient",{
+                    Color=ColorSequence.new(
+                        Color3.new(1,1,1),Color3.new(1,0,0))
+                },sv)
+                local shade=create("Frame",{
+                    Name="ESPDarknessLayer",
+                    Size=UDim2.fromScale(1,1),
+                    BackgroundColor3=Color3.new(0,0,0),
+                    BorderSizePixel=0,Active=false,ZIndex=34
+                },sv)
+                round(shade,6)
+                create("UIGradient",{
+                    Transparency=NumberSequence.new({
+                        NumberSequenceKeypoint.new(0,1),
+                        NumberSequenceKeypoint.new(1,0)
+                    }),
+                    Rotation=90
+                },shade)
+                local cursor=create("Frame",{
+                    Name="ESPPaletteCursor",
+                    AnchorPoint=Vector2.new(.5,.5),
+                    Position=UDim2.fromScale(1,0),
+                    Size=UDim2.fromOffset(12,12),
+                    BackgroundColor3=Color3.fromRGB(250,250,250),
+                    BorderSizePixel=0,Active=false,ZIndex=35
+                },sv)
+                round(cursor,6)
+                create("UIStroke",{
+                    Color=Color3.fromRGB(20,20,20),
+                    Thickness=2,Transparency=.05
+                },cursor)
+                local hue=create("TextButton",{
+                    Name="ESPHueSlider",
+                    Text="",Position=UDim2.fromOffset(16,265),
+                    Size=UDim2.new(1,-32,0,19),
+                    BorderSizePixel=0,BackgroundColor3=Color3.new(1,1,1),
+                    AutoButtonColor=false,Active=true,ZIndex=33
+                },card)
+                round(hue,6)
+                create("UIGradient",{
+                    Color=ColorSequence.new({
+                        ColorSequenceKeypoint.new(0,Color3.fromHSV(0,1,1)),
+                        ColorSequenceKeypoint.new(1/6,Color3.fromHSV(1/6,1,1)),
+                        ColorSequenceKeypoint.new(2/6,Color3.fromHSV(2/6,1,1)),
+                        ColorSequenceKeypoint.new(3/6,Color3.fromHSV(3/6,1,1)),
+                        ColorSequenceKeypoint.new(4/6,Color3.fromHSV(4/6,1,1)),
+                        ColorSequenceKeypoint.new(5/6,Color3.fromHSV(5/6,1,1)),
+                        ColorSequenceKeypoint.new(1,Color3.fromHSV(1,1,1))
+                    })
+                },hue)
+                local hueCursor=create("Frame",{
+                    Name="ESPHueCursor",
+                    AnchorPoint=Vector2.new(.5,.5),
+                    Position=UDim2.fromScale(0,.5),
+                    Size=UDim2.fromOffset(8,25),
+                    BackgroundColor3=Color3.fromRGB(244,236,226),
+                    BorderSizePixel=0,Active=false,ZIndex=35
+                },hue)
+                round(hueCursor,4)
+                create("UIStroke",{
+                    Color=Color3.fromRGB(25,24,23),Thickness=1
+                },hueCursor)
+                local preview=create("Frame",{
+                    Name="ESPColorPreview",
+                    Position=UDim2.fromOffset(16,296),
+                    Size=UDim2.fromOffset(33,32),
+                    BackgroundColor3=defaultColor,
+                    BorderSizePixel=0,Active=false,ZIndex=33
+                },card)
+                round(preview,5)
+                create("UIStroke",{
+                    Color=Color3.fromRGB(155,146,137),
+                    Thickness=1
+                },preview)
+                local hex=create("TextBox",{
+                    Name="ESPColorHEX",
+                    Position=UDim2.fromOffset(59,296),
+                    Size=UDim2.new(1,-75,0,32),
+                    BackgroundColor3=Color3.fromRGB(56,49,42),
+                    BorderSizePixel=0,
+                    Text=hexOf(defaultColor),
+                    Font=Enum.Font.GothamBold,
+                    TextSize=13,
+                    TextColor3=Color3.fromRGB(241,228,213),
+                    PlaceholderText="#RRGGBB",
+                    ClearTextOnFocus=false,
+                    TextXAlignment=Enum.TextXAlignment.Center,
+                    Active=true,ZIndex=33
+                },card)
+                round(hex,6)
+                create("UIStroke",{
+                    Color=Color3.fromRGB(120,99,78),
+                    Thickness=1,Transparency=.2
+                },hex)
+                local H,S,V=defaultColor:ToHSV()
+                local function paint(color)
+                    cfg[key]=color
+                    H,S,V=color:ToHSV()
+                    svGradient.Color=ColorSequence.new(
+                        Color3.new(1,1,1),Color3.fromHSV(H,1,1))
+                    cursor.Position=UDim2.fromScale(S,1-V)
+                    cursor.BackgroundColor3=color
+                    hueCursor.Position=UDim2.fromScale(H,.5)
+                    preview.BackgroundColor3=color
+                    hex.Text=hexOf(color)
+                    for i,info in ipairs(colorPresets) do
+                        local selected=hexOf(info.color)==hexOf(color)
+                        swatchMarkers[i].Visible=selected
+                        chosenSwatches[i].border.Thickness=selected and 2 or 1
+                        chosenSwatches[i].border.Transparency=selected and 0 or .45
+                    end
+                end
+                for i,preset in ipairs(colorPresets) do
+                    chosenSwatches[i].button.Activated:Connect(function()
+                        paint(preset.color)
+                    end)
+                end
+                local moveConnection,releaseConnection
+                local function releaseDrag()
+                    if moveConnection then
+                        moveConnection:Disconnect()
+                        moveConnection=nil
+                    end
+                    if releaseConnection then
+                        releaseConnection:Disconnect()
+                        releaseConnection=nil
+                    end
+                    espPage.ScrollingEnabled=true
+                end
+                local function setFromPoint(control,screenX,screenY,mode)
+                    local size=control.AbsoluteSize
+                    if size.X<1 then return end
+                    local x=math.clamp(
+                        (screenX-control.AbsolutePosition.X)/size.X,0,1)
+                    if mode=="hue" then
+                        H=x
+                    else
+                        S=x
+                        if size.Y>0 then
+                            V=1-math.clamp(
+                                (screenY-control.AbsolutePosition.Y)/size.Y,0,1)
+                        end
+                    end
+                    paint(Color3.fromHSV(H,S,V))
+                end
+                local function capture(control,mode)
+                    control.InputBegan:Connect(function(input)
+                        if input.UserInputType~=Enum.UserInputType.Touch
+                            and input.UserInputType~=Enum.UserInputType.MouseButton1 then
+                            return
+                        end
+                        releaseDrag()
+                        espPage.ScrollingEnabled=false
+                        setFromPoint(control,input.Position.X,input.Position.Y,mode)
+                        moveConnection=UserInputService.InputChanged:Connect(function(changed)
+                            if changed==input
+                                or (input.UserInputType==Enum.UserInputType.MouseButton1
+                                    and changed.UserInputType==Enum.UserInputType.MouseMovement) then
+                                setFromPoint(control,changed.Position.X,
+                                    changed.Position.Y,mode)
+                            end
+                        end)
+                        releaseConnection=UserInputService.InputEnded:Connect(function(changed)
+                            if changed==input
+                                or (input.UserInputType==Enum.UserInputType.MouseButton1
+                                    and changed.UserInputType==Enum.UserInputType.MouseButton1) then
+                                releaseDrag()
+                            end
+                        end)
+                    end)
+                end
+                capture(sv,"sv")
+                capture(hue,"hue")
+                hex.FocusLost:Connect(function()
+                    local color=colorFromHex(hex.Text)
+                    if color then paint(color)
+                    else hex.Text=hexOf(cfg[key]) end
+                end)
+                reset.Activated:Connect(function()
+                    paint(defaultColor)
+                end)
+                ScreenGui.Destroying:Connect(releaseDrag)
+                paint(defaultColor)
+                return {title=title,reset=reset,subtitle=subtitle}
+            end
+            local playerColors=makeColorEditor("playerColor",
+                "ЦВЕТ ИГРОКОВ",531,Color3.fromRGB(89,228,133))
+            local monsterColors=makeColorEditor("monsterColor",
+                "ЦВЕТ МОНСТРОВ",890,Color3.fromRGB(245,87,97))
 
             local oldRefresh=EH.refreshHomeText
             EH.refreshHomeText=function()
                 oldRefresh()
                 local ru=currentLanguage=="ru"
                 espDescription.Text=ru
-                    and "Обнаружение игроков и NPC: 10 рамок, подсветка и цвета ролей. Неизвестные роли отмечены жёлтым."
-                    or "Player/NPC detection with 10 box styles, highlight and role colors. Unknown roles are yellow."
+                    and "Подсветка игроков и монстров, 10 рамок, здоровье и отдельные настройки цвета."
+                    or "Player/monster highlighting, ten frames, health and custom colors."
                 playerSwitch.subtitle.Text=ru and "Обнаружение других игроков" or "Detect other players"
                 npcSwitch.subtitle.Text=ru and "Обнаружение NPC и монстров" or "Detect NPCs and monsters"
+                boxSwitch.subtitle.Text=ru and "Включить или скрыть рамки" or "Show or hide frames"
                 selectorTitle.Text=ru and "СТИЛЬ РАМКИ / BOX STYLE" or "BOX STYLE"
+                playerColors.title.Text=ru and "ЦВЕТ ИГРОКОВ" or "PLAYER COLOR"
+                monsterColors.title.Text=ru and "ЦВЕТ МОНСТРОВ" or "MONSTER COLOR"
+                playerColors.reset.Text=ru and "Сброс" or "Reset"
+                monsterColors.reset.Text=ru and "Сброс" or "Reset"
+                playerColors.subtitle.Text=ru and "10 цветов · палитра · HEX"
+                    or "10 presets · palette · HEX"
+                monsterColors.subtitle.Text=ru and "10 цветов · палитра · HEX"
+                    or "10 presets · palette · HEX"
             end
             EH.refreshHomeText()
 
@@ -5006,7 +5321,7 @@ do
         Name = "HorizonESPPage",
         Position = UDim2.fromOffset(8, 108),
         Size = UDim2.new(1, -16, 1, -166),
-        CanvasSize = UDim2.fromOffset(0, 710),
+        CanvasSize = UDim2.fromOffset(0, 1390),
         ScrollBarThickness = 3,
         ScrollBarImageColor3 = Color3.fromRGB(166, 125, 87),
         ScrollingDirection = Enum.ScrollingDirection.Y,
