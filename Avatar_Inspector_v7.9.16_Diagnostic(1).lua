@@ -2679,23 +2679,10 @@ EH.wornBadge.ZIndex = EH.wornHeader.ZIndex + 2
 local WornCountLabel
 do
     local header = EH.wornHeader
-    -- Monitoring pictogram and caption are attached to the same metric row.
-    local graph = create("Frame", {
-        Name = "EHItemsMonitorIcon",
-        Position = UDim2.fromOffset(83, 31),
-        Size = UDim2.fromOffset(15, 15),
-        BackgroundTransparency = 1, BorderSizePixel = 0,
-        ZIndex = header.ZIndex + 2
-    }, header)
-    round(graph, 3)
-    create("UIStroke", {Color = Color3.fromRGB(130, 215, 165), Thickness = 1.4}, graph)
-    local graphText = makeLabel(graph, "⌁", UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0), 13)
-    graphText.TextColor3 = Color3.fromRGB(130, 215, 165)
-    graphText.TextXAlignment = Enum.TextXAlignment.Center
-    graphText.ZIndex = graph.ZIndex + 1
+    -- Keep the caption close to the count without a monitoring pictogram.
     WornCountLabel = makeLabel(header,
         currentLanguage == "ru" and "Предметов обнаружено" or "Items detected",
-        UDim2.new(1, -108, 0, 23), UDim2.fromOffset(104, 27), 10)
+        UDim2.new(1, -73, 0, 23), UDim2.fromOffset(69, 27), 10)
     WornCountLabel.Name = "WornItemsCounter"
     WornCountLabel.ZIndex = header.ZIndex + 2
     WornCountLabel.TextColor3 = Color3.fromRGB(225, 208, 189)
@@ -8035,24 +8022,10 @@ refreshPlayerList = function()
         number.TextColor3 = Color3.fromRGB(244, 204, 161)
         number.TextXAlignment = Enum.TextXAlignment.Left
         number.ZIndex = header.ZIndex + 2
-        -- Small green monitoring pictogram, directly before the metric caption.
-        local graph = create("Frame", {
-            Name = "EHPlayersMonitorIcon",
-            Position = UDim2.fromOffset(64, 31),
-            Size = UDim2.fromOffset(14, 14),
-            BackgroundTransparency = 1, BorderSizePixel = 0,
-            ZIndex = header.ZIndex + 2
-        }, header)
-        round(graph, 3)
-        create("UIStroke", {Color = Color3.fromRGB(130, 215, 165), Thickness = 1.4}, graph)
-        local graphText = makeLabel(graph, "⌁", UDim2.fromScale(1, 1),
-            UDim2.fromOffset(0, 0), 12)
-        graphText.TextColor3 = Color3.fromRGB(130, 215, 165)
-        graphText.TextXAlignment = Enum.TextXAlignment.Center
-        graphText.ZIndex = graph.ZIndex + 1
+        -- Keep the caption close to the count without a monitoring pictogram.
         local caption = makeLabel(header,
             currentLanguage == "ru" and "Игроков обнаружено" or "Players detected",
-            UDim2.fromOffset(86, 22), UDim2.fromOffset(82, 27), 9)
+            UDim2.fromOffset(104, 22), UDim2.fromOffset(64, 27), 9)
         caption.Font = Enum.Font.GothamMedium
         caption.TextColor3 = Color3.fromRGB(225, 208, 189)
         caption.ZIndex = header.ZIndex + 2
