@@ -3495,7 +3495,7 @@ do
         Name = "HorizonPlayerPage",
         Position = UDim2.fromOffset(8, 108),
         Size = UDim2.new(1, -16, 1, -166),
-        CanvasSize = UDim2.fromOffset(0, 1335),
+        CanvasSize = UDim2.fromOffset(0, 1270),
         ScrollBarThickness = 3,
         ScrollBarImageColor3 = Color3.fromRGB(166, 125, 87),
         ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -4117,11 +4117,13 @@ do
     -- are controlled here. Existing preview camera and Fly/Noclip are untouched.
     do
         local RunService=game:GetService("RunService")
-        local freecam={enabled=false,connections={},held={},touchHeld={},
-            speedOptions={30,60,120,200},speedIndex=2,
+        local freecam={
+            enabled=false,connections={},held={},speed=60,
             camera=nil,originalType=nil,originalSubject=nil,
             rightMouse=false,lookPointer=nil,lastLook=nil,
-            yaw=0,pitch=0,cframe=nil}
+            yaw=0,pitch=0,cframe=nil,controls=nil,moveAction=nil,
+            modernMoveData=nil,renderName="HorizonFreecam_"..tostring(LocalPlayer.UserId)
+        }
         local function playerToolCard(name,y,height)
             local card=create("Frame",{
                 Name="Horizon"..name.."Card",
@@ -4150,180 +4152,182 @@ do
             subtitle.ZIndex=32
             return card,title,subtitle
         end
+        -- Freecam uses the native Roblox thumbstick and world touch gestures.
+        -- There is no custom D-pad, touch-look overlay, or input disabling.
         local cameraCard,cameraTitle,cameraSubtitle=
-            playerToolCard("Freecam",918,155)
+            playerToolCard("Freecam",918,78)
         local cameraToggle=create("TextButton",{
-            Name="HorizonFreecamToggle",
-            AnchorPoint=Vector2.new(1,.5),
-            Position=UDim2.new(1,-15,0,31),
-            Size=UDim2.fromOffset(68,34),
+            Name="HorizonFreecamToggle",AnchorPoint=Vector2.new(1,.5),
+            Position=UDim2.new(1,-15,.5,0),Size=UDim2.fromOffset(68,34),
             BackgroundColor3=Color3.fromRGB(60,58,55),
             BorderSizePixel=0,Text="",AutoButtonColor=false,
-            Active=true,ZIndex=33
+            Active=true,Selectable=true,ZIndex=33
         },cameraCard)
         round(cameraToggle,17)
         local toggleStroke=create("UIStroke",{
             Color=Color3.fromRGB(109,102,95),Thickness=1
         },cameraToggle)
-        local toggleKnob=create("Frame",{
-            Name="SmoothCheckKnob",
-            Position=UDim2.fromOffset(4,4),Size=UDim2.fromOffset(26,26),
+        local knob=create("Frame",{
+            Name="SmoothCheckKnob",Position=UDim2.fromOffset(4,4),
+            Size=UDim2.fromOffset(26,26),
             BackgroundColor3=Color3.fromRGB(197,190,183),
             BorderSizePixel=0,Active=false,ZIndex=34
         },cameraToggle)
-        round(toggleKnob,13)
-        local toggleTick=makeLabel(toggleKnob,"✓",UDim2.fromScale(1,1),
+        round(knob,13)
+        local tick=makeLabel(knob,"✓",UDim2.fromScale(1,1),
             UDim2.fromOffset(0,-1),19)
-        toggleTick.Font=Enum.Font.GothamBold
-        toggleTick.TextXAlignment=Enum.TextXAlignment.Center
-        toggleTick.TextYAlignment=Enum.TextYAlignment.Center
-        toggleTick.TextColor3=Color3.fromRGB(40,123,59)
-        toggleTick.ZIndex=35
-        toggleTick.Active=false
-        local speedLabel=makeLabel(cameraCard,"",UDim2.fromOffset(154,25),
-            UDim2.fromOffset(27,84),12)
-        speedLabel.ZIndex=32
-        local speedButton=makeButton(cameraCard,"60 studs/s",
-            UDim2.fromOffset(113,31),
-            UDim2.new(1,-128,0,78),
-            Color3.fromRGB(76,57,43))
-        speedButton.Name="HorizonFreecamSpeed"
-        speedButton.ZIndex=33
-        speedButton.TextSize=12
-        local cameraHelp=makeLabel(cameraCard,"",
-            UDim2.new(1,-35,0,29),UDim2.fromOffset(27,119),10)
-        cameraHelp.TextColor3=Color3.fromRGB(178,166,150)
-        cameraHelp.TextWrapped=true
-        cameraHelp.ZIndex=32
-
-        -- A non-blocking mobile HUD is owned by this ScreenGui and destroyed
-        -- with it. It is hidden on PC and only visible while Freecam is active.
-        local hud=create("Frame",{
-            Name="HorizonFreecamMobileControls",
-            Size=UDim2.fromScale(1,1),BackgroundTransparency=1,
-            BorderSizePixel=0,Active=false,Visible=false,ZIndex=18
-        },ScreenGui)
-        local pad=create("Frame",{
-            Name="FreecamMovePad",
-            Position=UDim2.new(0,12,1,-214),Size=UDim2.fromOffset(174,192),
-            BackgroundColor3=Color3.fromRGB(26,23,21),
-            BackgroundTransparency=.35,BorderSizePixel=0,
-            Active=false,ZIndex=19
-        },hud)
-        round(pad,11)
-        local lookPad=create("TextButton",{
-            Name="FreecamLookPad",
-            Position=UDim2.new(.55,0,.3,0),
-            Size=UDim2.new(.42,0,.37,0),
-            Text="Проведи для обзора",
-            Font=Enum.Font.GothamMedium,TextSize=12,
-            TextColor3=Color3.fromRGB(239,217,187),
-            BackgroundColor3=Color3.fromRGB(51,43,35),
-            BackgroundTransparency=.8,BorderSizePixel=0,
-            AutoButtonColor=false,Active=true,ZIndex=19
-        },hud)
-        round(lookPad,12)
-        local exitCamera=makeButton(hud,"Вернуть камеру",
-            UDim2.fromOffset(150,36),
-            UDim2.new(1,-162,0,16),Color3.fromRGB(79,49,43))
-        exitCamera.Name="HorizonFreecamExit"
-        exitCamera.ZIndex=25
-        exitCamera.TextSize=12
-        local mobileKeys={}
-        local function holdButton(name,label,x,y)
-            local button=makeButton(pad,label,UDim2.fromOffset(47,38),
-                UDim2.fromOffset(x,y),Color3.fromRGB(73,56,43))
-            button.Name="Freecam"..name
-            button.ZIndex=21
-            button.TextSize=15
-            button.InputBegan:Connect(function(input)
-                if input.UserInputType~=Enum.UserInputType.Touch
-                    and input.UserInputType~=Enum.UserInputType.MouseButton1 then return end
-                if freecam.enabled then
-                    mobileKeys[input]=name
-                    freecam.touchHeld[name]=true
-                end
-            end)
-            return button
-        end
-        holdButton("forward","↑",64,13)
-        holdButton("left","←",12,57)
-        holdButton("back","↓",64,101)
-        holdButton("right","→",116,57)
-        holdButton("up","+",12,147)
-        holdButton("down","−",116,147)
-        local function updateCameraSwitch(on)
+        tick.Font=Enum.Font.GothamBold
+        tick.TextXAlignment=Enum.TextXAlignment.Center
+        tick.TextYAlignment=Enum.TextYAlignment.Center
+        tick.TextColor3=Color3.fromRGB(40,123,59)
+        tick.Active=false;tick.ZIndex=35
+        local function paintToggle(on)
             cameraToggle:SetAttribute("FreecamEnabled",on)
-            local info=TweenInfo.new(.24,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
-            TweenService:Create(toggleKnob,info,{
+            local info=TweenInfo.new(.25,Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out)
+            TweenService:Create(knob,info,{
                 Position=UDim2.fromOffset(on and 38 or 4,4),
                 BackgroundColor3=on and Color3.fromRGB(220,255,208)
-                    or Color3.fromRGB(197,190,183)
-            }):Play()
+                    or Color3.fromRGB(197,190,183)}):Play()
             TweenService:Create(cameraToggle,info,{
                 BackgroundColor3=on and Color3.fromRGB(80,107,74)
-                    or Color3.fromRGB(60,58,55)
-            }):Play()
+                    or Color3.fromRGB(60,58,55)}):Play()
             TweenService:Create(toggleStroke,info,{
                 Color=on and Color3.fromRGB(164,217,146)
-                    or Color3.fromRGB(109,102,95)
-            }):Play()
-            toggleTick.TextTransparency=on and 0 or 1
-            hud.Visible=on and UserInputService.TouchEnabled
+                    or Color3.fromRGB(109,102,95)}):Play()
+            tick.TextTransparency=on and 0 or 1
         end
-        updateCameraSwitch(false)
-        local function addCameraConnection(connection)
+        paintToggle(false)
+        local function listen(connection)
             freecam.connections[#freecam.connections+1]=connection
         end
-        local function rotateFreecam(dx,dy)
+        local function lookDelta(dx,dy)
             freecam.yaw-=dx*.0032
             freecam.pitch=math.clamp(freecam.pitch-dy*.0032,-1.48,1.48)
+        end
+        local function discoverMovement(self)
+            self.controls=nil;self.moveAction=nil;self.modernMoveData=nil
+            local scripts=LocalPlayer:FindFirstChild("PlayerScripts")
+            local module=scripts and scripts:FindFirstChild("PlayerModule")
+            if module and module:IsA("ModuleScript") then
+                local ok,api=pcall(require,module)
+                if ok and type(api)=="table" and
+                    type(api.GetControls)=="function" then
+                    local worked,controls=pcall(api.GetControls,api)
+                    if worked and controls and
+                        type(controls.GetMoveVector)=="function" then
+                        self.controls=controls
+                        return
+                    end
+                end
+            end
+            local starter=game:GetService("StarterPlayer")
+            local newModule=starter:FindFirstChild("PlayerModule")
+            for _,root in ipairs({scripts or LocalPlayer,newModule or starter}) do
+                local action=root:FindFirstChild("MoveAction",true)
+                if action and action:IsA("InputAction") then
+                    self.moveAction=action
+                    return
+                end
+            end
+            if newModule then
+                local control=newModule:FindFirstChild("ControlModule")
+                if control and control:IsA("ModuleScript") then
+                    local ok,obj=pcall(require,control)
+                    if ok and type(obj)=="table" then
+                        self.modernMoveData=obj
+                    end
+                end
+            end
+        end
+        local function movementVector(self)
+            if self.controls then
+                local ok,value=pcall(function()
+                    return self.controls:GetMoveVector()
+                end)
+                if ok and typeof(value)=="Vector3" then
+                    return Vector3.new(value.X,0,value.Z)
+                end
+            end
+            if self.moveAction and self.moveAction.Parent then
+                local ok,value=pcall(function() return self.moveAction:GetState() end)
+                if ok then
+                    if typeof(value)=="Vector3" then
+                        return Vector3.new(value.X,0,value.Z)
+                    elseif typeof(value)=="Vector2" then
+                        return Vector3.new(value.X,0,value.Y)
+                    end
+                end
+            end
+            local data=self.modernMoveData and
+                self.modernMoveData.playerData
+            local value=data and data.moveVector
+            if typeof(value)=="Vector3" then
+                return Vector3.new(value.X,0,value.Z)
+            elseif typeof(value)=="Vector2" then
+                return Vector3.new(value.X,0,value.Y)
+            end
+            return Vector3.zero
+        end
+        local function onInspectorGui(pos)
+            if not Main.Parent or not Main.Visible then return false end
+            local origin=Main.AbsolutePosition
+            local size=Main.AbsoluteSize
+            return pos.X>=origin.X and pos.X<=origin.X+size.X
+                and pos.Y>=origin.Y and pos.Y<=origin.Y+size.Y
         end
         function freecam:disable()
             if not self.enabled then return end
             self.enabled=false
-            for _,connection in ipairs(self.connections) do
-                connection:Disconnect()
-            end
+            pcall(function()
+                RunService:UnbindFromRenderStep(self.renderName)
+            end)
+            for _,conn in ipairs(self.connections) do conn:Disconnect() end
             table.clear(self.connections)
             table.clear(self.held)
-            table.clear(self.touchHeld)
-            table.clear(mobileKeys)
-            self.rightMouse=false
-            self.lookPointer=nil
-            self.lastLook=nil
-            local camera=workspace.CurrentCamera
-            if camera then
-                local humanoid=LocalPlayer.Character and
-                    LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-                local oldSubject=self.originalSubject
-                if oldSubject and not oldSubject.Parent then oldSubject=nil end
-                camera.CameraSubject=humanoid or oldSubject or camera.CameraSubject
-                camera.CameraType=self.originalType or Enum.CameraType.Custom
-                -- If the previous camera was scriptable, return to character
-                -- control rather than leaving the view permanently detached.
-                if camera.CameraType==Enum.CameraType.Scriptable and humanoid then
-                    camera.CameraType=Enum.CameraType.Custom
+            self.rightMouse=false;self.lookPointer=nil;self.lastLook=nil
+            local cam=workspace.CurrentCamera
+            local char=LocalPlayer.Character
+            local hum=char and char:FindFirstChildOfClass("Humanoid")
+            if cam then
+                local subject=self.originalSubject
+                if subject and not subject.Parent then subject=nil end
+                cam.CameraSubject=hum or subject or cam.CameraSubject
+                local restored=self.originalType or Enum.CameraType.Custom
+                if restored==Enum.CameraType.Scriptable then
+                    restored=Enum.CameraType.Custom
                 end
+                cam.CameraType=restored
             end
-            self.camera=nil
-            self.cframe=nil
-            updateCameraSwitch(false)
+            -- Never called :Disable() on the native controls. Re-enable
+            -- legacy input defensively in case another controller stole it.
+            if hum and self.controls and type(self.controls.Enable)=="function" then
+                pcall(self.controls.Enable,self.controls,true)
+            end
+            self.camera=nil;self.cframe=nil
+            self.moveAction=nil;self.modernMoveData=nil
+            paintToggle(false)
         end
         function freecam:enable()
             if self.enabled then return true end
-            local camera=workspace.CurrentCamera
-            if not camera then return false,"Камера игры недоступна" end
+            local cam=workspace.CurrentCamera
+            if not cam then return false,"Камера не найдена" end
+            discoverMovement(self)
+            if UserInputService.TouchEnabled and
+                not self.controls and not self.moveAction
+                and not self.modernMoveData then
+                return false,"Стандартный джойстик Roblox недоступен"
+            end
             self.enabled=true
-            self.camera=camera
-            self.originalType=camera.CameraType
-            self.originalSubject=camera.CameraSubject
-            self.cframe=camera.CFrame
-            local direction=self.cframe.LookVector
-            self.yaw=math.atan2(-direction.X,-direction.Z)
-            self.pitch=math.asin(math.clamp(direction.Y,-1,1))
-            camera.CameraType=Enum.CameraType.Scriptable
-            addCameraConnection(UserInputService.InputBegan:Connect(function(input,processed)
+            self.camera=cam
+            self.originalType=cam.CameraType
+            self.originalSubject=cam.CameraSubject
+            self.cframe=cam.CFrame
+            local forward=self.cframe.LookVector
+            self.yaw=math.atan2(-forward.X,-forward.Z)
+            self.pitch=math.asin(math.clamp(forward.Y,-1,1))
+            cam.CameraType=Enum.CameraType.Scriptable
+            listen(UserInputService.InputBegan:Connect(function(input,processed)
                 if not self.enabled then return end
                 if input.UserInputType==Enum.UserInputType.MouseButton2 then
                     self.rightMouse=true
@@ -4332,119 +4336,122 @@ do
                     self.held[input.KeyCode]=true
                 end
             end))
-            addCameraConnection(UserInputService.InputEnded:Connect(function(input)
+            listen(UserInputService.InputEnded:Connect(function(input)
                 if input.UserInputType==Enum.UserInputType.MouseButton2 then
                     self.rightMouse=false
-                end
-                if input.UserInputType==Enum.UserInputType.Keyboard then
+                elseif input.UserInputType==Enum.UserInputType.Keyboard then
                     self.held[input.KeyCode]=nil
                 end
-                local action=mobileKeys[input]
-                if action then
-                    self.touchHeld[action]=nil
-                    mobileKeys[input]=nil
-                end
-                if self.lookPointer==input then
-                    self.lookPointer=nil
-                    self.lastLook=nil
-                end
             end))
-            addCameraConnection(UserInputService.WindowFocusReleased:Connect(function()
-                table.clear(self.held)
+            listen(UserInputService.WindowFocusReleased:Connect(function()
                 self.rightMouse=false
+                self.lookPointer=nil;self.lastLook=nil
+                table.clear(self.held)
             end))
-            addCameraConnection(UserInputService.InputChanged:Connect(function(input)
-                if not self.enabled then return end
-                if input.UserInputType==Enum.UserInputType.MouseMovement
-                    and self.rightMouse then
-                    rotateFreecam(input.Delta.X,input.Delta.Y)
-                elseif self.lookPointer==input and self.lastLook then
-                    local pos=input.Position
-                    rotateFreecam(pos.X-self.lastLook.X,pos.Y-self.lastLook.Y)
-                    self.lastLook=pos
+            listen(UserInputService.InputChanged:Connect(function(input)
+                if self.enabled and self.rightMouse
+                    and input.UserInputType==Enum.UserInputType.MouseMovement then
+                    lookDelta(input.Delta.X,input.Delta.Y)
                 end
             end))
-            addCameraConnection(lookPad.InputBegan:Connect(function(input)
-                if self.enabled and input.UserInputType==Enum.UserInputType.Touch
-                    and not self.lookPointer then
-                    self.lookPointer=input
-                    self.lastLook=input.Position
+            -- Swipe across the world, not a separate tiny control rectangle.
+            -- Ignore the native dynamic thumbstick on the lower left.
+            listen(UserInputService.TouchStarted:Connect(function(input,processed)
+                if not self.enabled or self.lookPointer then return end
+                local camera=workspace.CurrentCamera
+                if not camera or onInspectorGui(input.Position) then return end
+                local point=input.Position
+                if point.X<camera.ViewportSize.X*.4
+                    and point.Y>camera.ViewportSize.Y*.45 then return end
+                if processed then return end
+                self.lookPointer=input;self.lastLook=point
+            end))
+            listen(UserInputService.TouchMoved:Connect(function(input)
+                if not self.enabled or input~=self.lookPointer then return end
+                if self.lastLook then
+                    local point=input.Position
+                    lookDelta(point.X-self.lastLook.X,point.Y-self.lastLook.Y)
+                    self.lastLook=point
                 end
             end))
-            addCameraConnection(LocalPlayer.CharacterAdded:Connect(function(character)
+            listen(UserInputService.TouchEnded:Connect(function(input)
+                if input==self.lookPointer then
+                    self.lookPointer=nil;self.lastLook=nil
+                end
+            end))
+            listen(LocalPlayer.CharacterAdded:Connect(function(character)
                 self:disable()
-                -- On respawn Roblox may create the Humanoid after CharacterAdded.
                 task.defer(function()
                     local hum=character:WaitForChild("Humanoid",4)
-                    local cam=workspace.CurrentCamera
-                    if hum and cam and not self.enabled and character==LocalPlayer.Character then
-                        cam.CameraSubject=hum
-                        if cam.CameraType==Enum.CameraType.Scriptable then
-                            cam.CameraType=Enum.CameraType.Custom
-                        end
+                    local camera=workspace.CurrentCamera
+                    if hum and camera and not self.enabled
+                        and LocalPlayer.Character==character then
+                        camera.CameraSubject=hum
+                        camera.CameraType=Enum.CameraType.Custom
                     end
                 end)
             end))
-            addCameraConnection(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+            listen(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
                 if self.enabled and workspace.CurrentCamera then
                     self.camera=workspace.CurrentCamera
                     self.camera.CameraType=Enum.CameraType.Scriptable
                 end
             end))
-            addCameraConnection(RunService.RenderStepped:Connect(function(dt)
-                if not self.enabled then return end
-                local cam=workspace.CurrentCamera
-                if not cam or not self.cframe then return end
-                local forward=(self.held[Enum.KeyCode.W] or self.touchHeld.forward) and 1 or 0
-                forward-=(self.held[Enum.KeyCode.S] or self.touchHeld.back) and 1 or 0
-                local right=(self.held[Enum.KeyCode.D] or self.touchHeld.right) and 1 or 0
-                right-=(self.held[Enum.KeyCode.A] or self.touchHeld.left) and 1 or 0
-                local up=(self.held[Enum.KeyCode.E] or self.touchHeld.up) and 1 or 0
-                up-=(self.held[Enum.KeyCode.Q] or self.touchHeld.down) and 1 or 0
-                local orientation=CFrame.Angles(0,self.yaw,0)
+            RunService:BindToRenderStep(self.renderName,
+                Enum.RenderPriority.Camera.Value+2,function(dt)
+                if not self.enabled or not self.cframe then return end
+                local camera=workspace.CurrentCamera
+                if not camera then return end
+                local motion=movementVector(self)
+                if not self.controls and not self.moveAction
+                    and not self.modernMoveData then
+                    motion=Vector3.new(
+                        (self.held[Enum.KeyCode.D] and 1 or 0)
+                        -(self.held[Enum.KeyCode.A] and 1 or 0),0,
+                        (self.held[Enum.KeyCode.S] and 1 or 0)
+                        -(self.held[Enum.KeyCode.W] and 1 or 0))
+                end
+                local up=(self.held[Enum.KeyCode.E] and 1 or 0)
+                    -(self.held[Enum.KeyCode.Q] and 1 or 0)
+                local facing=CFrame.Angles(0,self.yaw,0)
                     *CFrame.Angles(self.pitch,0,0)
-                local direction=orientation.LookVector*forward
-                    +orientation.RightVector*right+Vector3.new(0,up,0)
+                local direction=facing:VectorToWorldSpace(motion)
+                    +Vector3.new(0,up,0)
                 if direction.Magnitude>1 then direction=direction.Unit end
                 local boost=(self.held[Enum.KeyCode.LeftShift]
                     or self.held[Enum.KeyCode.RightShift]) and 2.5 or 1
-                local speed=self.speedOptions[self.speedIndex]
-                local position=self.cframe.Position
-                    +direction*speed*boost*math.min(dt,.08)
-                self.cframe=CFrame.new(position)*orientation
-                if cam.CameraType~=Enum.CameraType.Scriptable then
-                    cam.CameraType=Enum.CameraType.Scriptable
+                self.cframe=CFrame.new(self.cframe.Position
+                    +direction*self.speed*boost*math.min(dt,.08))*facing
+                if camera.CameraType~=Enum.CameraType.Scriptable then
+                    camera.CameraType=Enum.CameraType.Scriptable
                 end
-                cam.CFrame=self.cframe
-                cam.Focus=self.cframe*CFrame.new(0,0,-20)
-            end))
-            updateCameraSwitch(true)
+                camera.CFrame=self.cframe
+                camera.Focus=self.cframe*CFrame.new(0,0,-20)
+            end)
+            paintToggle(true)
             return true
         end
-        function freecam:destroy()
-            self:disable()
-        end
+        function freecam:destroy() self:disable() end
         EH.registerController("Freecam",freecam)
         ScreenGui.Destroying:Connect(function() freecam:destroy() end)
         cameraToggle.Activated:Connect(function()
-            if freecam.enabled then freecam:disable()
+            if freecam.enabled then
+                freecam:disable()
             else
-                local ok,err=freecam:enable()
-                if not ok then EH.logDiagnostic("Freecam",err) end
+                local ok,result,err=pcall(function()
+                    return freecam:enable()
+                end)
+                if not ok or result==false then
+                    EH.logDiagnostic("Freecam",ok and err or result)
+                    freecam:disable()
+                end
             end
-        end)
-        exitCamera.Activated:Connect(function()
-            freecam:disable()
-        end)
-        speedButton.Activated:Connect(function()
-            freecam.speedIndex=freecam.speedIndex%#freecam.speedOptions+1
-            speedButton.Text=tostring(freecam.speedOptions[freecam.speedIndex]).." studs/s"
         end)
 
         -- Teleport to a selected server player (never tied to avatar inspector
         -- selection or the separate server-hopping TeleportService).
         local teleportCard,teleportTitle,teleportSubtitle=
-            playerToolCard("Teleport to Player",1087,213)
+            playerToolCard("Teleport to Player",1010,213)
         local choosePlayer=makeButton(teleportCard,"Выбрать игрока  ▾",
             UDim2.new(1,-28,0,38),UDim2.fromOffset(14,70),
             Color3.fromRGB(59,48,37))
@@ -4464,7 +4471,7 @@ do
         teleportStatus.ZIndex=32
         local list=create("ScrollingFrame",{
             Name="HorizonTeleportPlayerList",
-            Position=UDim2.fromOffset(26,1203),
+            Position=UDim2.fromOffset(26,1126)
             Size=UDim2.new(1,-52,0,170),
             CanvasSize=UDim2.fromOffset(0,0),
             BackgroundColor3=Color3.fromRGB(32,29,26),
@@ -4516,7 +4523,7 @@ do
                     selectedTarget=player
                     choosePlayer.Text=playerDisplay(player).."  ▾"
                     list.Visible=false
-                    playerPage.CanvasSize=UDim2.fromOffset(0,1335)
+                    playerPage.CanvasSize=UDim2.fromOffset(0,1270)
                     reportTeleport("Игрок выбран","Player selected",true)
                 end)
             end
@@ -4529,13 +4536,13 @@ do
         choosePlayer.Activated:Connect(function()
             if list.Visible then
                 list.Visible=false
-                playerPage.CanvasSize=UDim2.fromOffset(0,1335)
+                playerPage.CanvasSize=UDim2.fromOffset(0,1270)
             else
                 refreshTeleportList()
                 list.Visible=true
-                playerPage.CanvasSize=UDim2.fromOffset(0,1425)
+                playerPage.CanvasSize=UDim2.fromOffset(0,1365)
                 playerPage.CanvasPosition=Vector2.new(0,
-                    math.max(playerPage.CanvasPosition.Y,1100))
+                    math.max(playerPage.CanvasPosition.Y,1012))
             end
         end)
         local function safeLanding(targetRoot,ownCharacter,targetCharacter)
@@ -4629,16 +4636,8 @@ do
         EH.refreshPlayerExtras=function()
             local ru=currentLanguage=="ru"
             cameraTitle.Text="Freecam"
-            cameraSubtitle.Text=ru and "Свободная камера без перемещения персонажа"
-                or "Explore without moving your character"
-            speedLabel.Text=ru and "Скорость камеры" or "Camera speed"
-            cameraHelp.Text=UserInputService.TouchEnabled
-                and (ru and "Свайп справа · стрелки и высота слева"
-                    or "Swipe to look · move with the left controls")
-                or (ru and "WASD · Q/E вверх/вниз · ПКМ обзор · Shift ускорение"
-                    or "WASD · Q/E vertical · hold RMB to look · Shift boost")
-            lookPad.Text=ru and "Проведи для обзора" or "Swipe to look"
-            exitCamera.Text=ru and "Вернуть камеру" or "Return camera"
+            cameraSubtitle.Text=ru and "Джойстик Roblox · свайп для обзора"
+                or "Roblox thumbstick · swipe to look"
             teleportTitle.Text=ru and "К игроку" or "Teleport to Player"
             teleportSubtitle.Text=ru and "Выбери игрока и нажми телепорт"
                 or "Choose a player, then teleport"
