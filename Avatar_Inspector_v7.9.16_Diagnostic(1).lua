@@ -7829,7 +7829,7 @@ local function addSectionHeader(text)
     return header
 end
 
-local function addItem(name, assetId, category, classicClothing, previewTexture)
+local function addItem(name, assetId, category, classicClothing, previewTexture, liveAccessory)
     assetId = tonumber(assetId)
 
     if not assetId or assetId <= 0 then
@@ -7855,9 +7855,9 @@ local function addItem(name, assetId, category, classicClothing, previewTexture)
     EH.ehCard(card)
     EH.listCardEdge(card)
 
-    -- Morph resources are not all catalog assets. Clothing/face IDs are
-    -- often texture IDs; animation IDs frequently have no catalog thumbnail.
-    -- Keep an icon visible unless Roblox confirms that the image loaded.
+    -- Use genuine catalog thumbnails instead of covering them with fallback icons.
+    -- For a live game morph, render its actual accessory geometry when possible:
+    -- a custom morph accessory may not have a public catalog thumbnail at all.
     local thumbBox = create("Frame", {
         Name = "EHItemThumbnail",
         Size = UDim2.fromOffset(48, 48),
@@ -7869,40 +7869,76 @@ local function addItem(name, assetId, category, classicClothing, previewTexture)
     create("UIStroke", {Color = OUTLINE, Transparency = 0.45,
         Thickness = 1}, thumbBox)
 
-    if category == "Animations" then
-        local symbol = makeLabel(thumbBox, "▶",
-            UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0), 24)
-        symbol.Name = "EHAnimationThumbnail"
-        symbol.Font = Enum.Font.GothamBold
-        symbol.TextXAlignment = Enum.TextXAlignment.Center
-        symbol.TextColor3 = Color3.fromRGB(218, 170, 100)
-    else
-        EH.safeIcon(thumbBox, "items", UDim2.fromOffset(12, 12), 24)
-        local imageURI = "rbxthumb://type=Asset&id=" .. assetId .. "&w=150&h=150"
-        if type(previewTexture) == "string" and previewTexture ~= "" then
-            local textureId = previewTexture:match("[?&]id=(%d+)")
-                or previewTexture:match("rbxassetid://(%d+)")
-                or previewTexture:match("^(%d+)$")
-            if textureId then imageURI = "rbxassetid://" .. textureId end
-        end
-        local image = create("ImageLabel", {
-            Name = "EHResolvedItemThumbnail",
-            Size = UDim2.fromScale(1, 1),
-            Position = UDim2.fromOffset(0, 0),
-            BackgroundColor3 = PANEL,
-            BackgroundTransparency = 1,
-            Image = imageURI,
-            Visible = false,
-            ScaleType = Enum.ScaleType.Fit,
-            ZIndex = thumbBox.ZIndex + 3
-        }, thumbBox)
-        local function revealLoadedThumbnail()
-            if image.Parent and image.IsLoaded then
-                image.Visible = true
+    local imageURI = "rbxthumb://type=Asset&id=" .. assetId .. "&w=150&h=150"
+    if type(previewTexture) == "string" and previewTexture ~= "" then
+        local textureId = previewTexture:match("[?&]id=(%d+)")
+            or previewTexture:match("rbxassetid://(%d+)")
+            or previewTexture:match("^(%d+)$")
+        if textureId then imageURI = "rbxassetid://" .. textureId end
+    end
+    local image = create("ImageLabel", {
+        Name = "EHRealAssetThumbnail",
+        Size = UDim2.fromScale(1, 1),
+        Position = UDim2.fromOffset(0, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Image = imageURI,
+        Visible = true,
+        ScaleType = Enum.ScaleType.Fit,
+        ZIndex = thumbBox.ZIndex + 1
+    }, thumbBox)
+
+    if liveAccessory and liveAccessory:IsA("Accessory") then
+        -- The live Handle is often the only reliable source for custom morph
+        -- geometry; show that actual mesh/texture in a small 3D viewport.
+        local ok, result = pcall(function()
+            local handle = liveAccessory:FindFirstChild("Handle")
+            if not handle or not handle:IsA("BasePart") then return false end
+            local clone = handle:Clone()
+            for _, obj in ipairs(clone:GetDescendants()) do
+                if obj:IsA("Script") or obj:IsA("LocalScript")
+                    or obj:IsA("Weld") or obj:IsA("Motor6D")
+                    or obj:IsA("WeldConstraint") then
+                    obj:Destroy()
+                end
             end
+            clone.Anchored = true
+            clone.CanCollide = false
+            clone.CFrame = CFrame.new()
+            local viewport = create("ViewportFrame", {
+                Name = "EHLiveAccessoryThumbnail",
+                Size = UDim2.fromScale(1, 1),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                Ambient = Color3.fromRGB(205, 205, 205),
+                LightColor = Color3.fromRGB(255, 245, 230),
+                LightDirection = Vector3.new(-1, -1, -1),
+                ZIndex = thumbBox.ZIndex + 2
+            }, thumbBox)
+            local world = Instance.new("WorldModel")
+            world.Parent = viewport
+            clone.Parent = world
+            local camera = Instance.new("Camera")
+            camera.FieldOfView = 45
+            camera.Parent = viewport
+            local dimensions = clone.Size
+            local mesh = clone:FindFirstChildOfClass("SpecialMesh")
+            if mesh then
+                dimensions = Vector3.new(dimensions.X * math.abs(mesh.Scale.X),
+                    dimensions.Y * math.abs(mesh.Scale.Y),
+                    dimensions.Z * math.abs(mesh.Scale.Z))
+            end
+            local radius = math.max(dimensions.X, dimensions.Y, dimensions.Z, 0.5)
+            camera.CFrame = CFrame.lookAt(
+                Vector3.new(radius * 1.4, radius * 0.8, radius * 2.8),
+                Vector3.zero)
+            viewport.CurrentCamera = camera
+            return true
+        end)
+        if ok and result then
+            -- Viewport shows the accessory itself; not a decorative icon.
+            image.Visible = false
         end
-        image:GetPropertyChangedSignal("IsLoaded"):Connect(revealLoadedThumbnail)
-        revealLoadedThumbnail()
     end
 
     local itemMarker = makeLabel(
@@ -7997,7 +8033,8 @@ local function displaySavedItems(items, appearance)
                 or id == tonumber(slots.Pants)
                 or id == tonumber(slots.GraphicTShirt)) or false
         end
-        addItem(item.name, item.id, category, isClassic, item.previewTexture)
+        addItem(item.name, item.id, category, isClassic,
+            item.previewTexture, item.liveAccessory)
     end
 end
 
@@ -8057,7 +8094,7 @@ local function scanPlayer(player)
     local identifiers = {}
     local seen = {}
 
-    local function add(name, id, category, classicClothing, previewTexture)
+    local function add(name, id, category, classicClothing, previewTexture, liveAccessory)
         id = tonumber(id)
 
         if id and id > 0 then
@@ -8076,7 +8113,8 @@ local function scanPlayer(player)
                     id = id,
                     category = category,
                     classicClothing = classicClothing == true,
-                    previewTexture = previewTexture
+                    previewTexture = previewTexture,
+                    liveAccessory = liveAccessory
                 })
             end
         end
@@ -8107,7 +8145,9 @@ local function scanPlayer(player)
                 pcall(function() id = object.SourceAssetId end)
                 id = liveAssetId(id) or liveAssetId(object:GetAttribute("AssetId"))
                     or liveAssetId(object:GetAttribute("OriginalAssetId"))
-                if id then add(object.Name, id, "Items") end
+                if id then
+                    add(object.Name, id, "Items", false, nil, object)
+                end
             elseif object:IsA("Shirt") then
                 wornItemCount += 1
                 add("Shirt", liveAssetId(object.ShirtTemplate), "Items", true,
