@@ -7829,7 +7829,7 @@ local function addSectionHeader(text)
     return header
 end
 
-local function addItem(name, assetId, category, classicClothing)
+local function addItem(name, assetId, category, classicClothing, previewTexture)
     assetId = tonumber(assetId)
 
     if not assetId or assetId <= 0 then
@@ -7842,7 +7842,8 @@ local function addItem(name, assetId, category, classicClothing)
         name = tostring(name),
         id = assetId,
         category = category,
-        classicClothing = classicClothing == true
+        classicClothing = classicClothing == true,
+        previewTexture = previewTexture
     })
 
     local card = create("Frame", {
@@ -7854,17 +7855,55 @@ local function addItem(name, assetId, category, classicClothing)
     EH.ehCard(card)
     EH.listCardEdge(card)
 
-    local image = create("ImageLabel", {
+    -- Morph resources are not all catalog assets. Clothing/face IDs are
+    -- often texture IDs; animation IDs frequently have no catalog thumbnail.
+    -- Keep an icon visible unless Roblox confirms that the image loaded.
+    local thumbBox = create("Frame", {
+        Name = "EHItemThumbnail",
         Size = UDim2.fromOffset(48, 48),
         Position = UDim2.fromOffset(6, 6),
         BackgroundColor3 = PANEL,
-        Image = "rbxthumb://type=Asset&id=" .. assetId .. "&w=150&h=150",
-        ScaleType = Enum.ScaleType.Fit
+        BorderSizePixel = 0
     }, card)
-
-    round(image, 6)
+    round(thumbBox, 6)
     create("UIStroke", {Color = OUTLINE, Transparency = 0.45,
-        Thickness = 1}, image)
+        Thickness = 1}, thumbBox)
+
+    if category == "Animations" then
+        local symbol = makeLabel(thumbBox, "▶",
+            UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0), 24)
+        symbol.Name = "EHAnimationThumbnail"
+        symbol.Font = Enum.Font.GothamBold
+        symbol.TextXAlignment = Enum.TextXAlignment.Center
+        symbol.TextColor3 = Color3.fromRGB(218, 170, 100)
+    else
+        EH.safeIcon(thumbBox, "items", UDim2.fromOffset(12, 12), 24)
+        local imageURI = "rbxthumb://type=Asset&id=" .. assetId .. "&w=150&h=150"
+        if type(previewTexture) == "string" and previewTexture ~= "" then
+            local textureId = previewTexture:match("[?&]id=(%d+)")
+                or previewTexture:match("rbxassetid://(%d+)")
+                or previewTexture:match("^(%d+)$")
+            if textureId then imageURI = "rbxassetid://" .. textureId end
+        end
+        local image = create("ImageLabel", {
+            Name = "EHResolvedItemThumbnail",
+            Size = UDim2.fromScale(1, 1),
+            Position = UDim2.fromOffset(0, 0),
+            BackgroundColor3 = PANEL,
+            BackgroundTransparency = 1,
+            Image = imageURI,
+            Visible = false,
+            ScaleType = Enum.ScaleType.Fit,
+            ZIndex = thumbBox.ZIndex + 3
+        }, thumbBox)
+        local function revealLoadedThumbnail()
+            if image.Parent and image.IsLoaded then
+                image.Visible = true
+            end
+        end
+        image:GetPropertyChangedSignal("IsLoaded"):Connect(revealLoadedThumbnail)
+        revealLoadedThumbnail()
+    end
 
     local itemMarker = makeLabel(
         card, "◦",
@@ -7958,7 +7997,7 @@ local function displaySavedItems(items, appearance)
                 or id == tonumber(slots.Pants)
                 or id == tonumber(slots.GraphicTShirt)) or false
         end
-        addItem(item.name, item.id, category, isClassic)
+        addItem(item.name, item.id, category, isClassic, item.previewTexture)
     end
 end
 
@@ -8018,7 +8057,7 @@ local function scanPlayer(player)
     local identifiers = {}
     local seen = {}
 
-    local function add(name, id, category, classicClothing)
+    local function add(name, id, category, classicClothing, previewTexture)
         id = tonumber(id)
 
         if id and id > 0 then
@@ -8036,7 +8075,8 @@ local function scanPlayer(player)
                     name = name,
                     id = id,
                     category = category,
-                    classicClothing = classicClothing == true
+                    classicClothing = classicClothing == true,
+                    previewTexture = previewTexture
                 })
             end
         end
@@ -8070,13 +8110,16 @@ local function scanPlayer(player)
                 if id then add(object.Name, id, "Items") end
             elseif object:IsA("Shirt") then
                 wornItemCount += 1
-                add("Shirt", liveAssetId(object.ShirtTemplate), "Items", true)
+                add("Shirt", liveAssetId(object.ShirtTemplate), "Items", true,
+                    object.ShirtTemplate)
             elseif object:IsA("Pants") then
                 wornItemCount += 1
-                add("Pants", liveAssetId(object.PantsTemplate), "Items", true)
+                add("Pants", liveAssetId(object.PantsTemplate), "Items", true,
+                    object.PantsTemplate)
             elseif object:IsA("ShirtGraphic") then
                 wornItemCount += 1
-                add("T-Shirt", liveAssetId(object.Graphic), "Items", true)
+                add("T-Shirt", liveAssetId(object.Graphic), "Items", true,
+                    object.Graphic)
             elseif object:IsA("Decal") and object.Parent
                 and object.Parent.Name == "Head"
                 and string.lower(object.Name) == "face" then
@@ -8084,7 +8127,8 @@ local function scanPlayer(player)
                     wornItemCount += 1
                     hasFace = true
                 end
-                add("Face", liveAssetId(object.Texture), "Items")
+                add("Face", liveAssetId(object.Texture), "Items", false,
+                    object.Texture)
             elseif object:IsA("Animation") then
                 add(object.Name .. " Animation",
                     liveAssetId(object.AnimationId), "Animations")
@@ -8166,7 +8210,8 @@ local function scanPlayer(player)
             name = tostring(item.name or "Item"),
             id = tonumber(item.id),
             category = item.category == "Animations" and "Animations" or "Items",
-            classicClothing = item.classicClothing == true
+            classicClothing = item.classicClothing == true,
+            previewTexture = item.previewTexture
         }
     end
     local snapshot = {
@@ -9011,7 +9056,8 @@ saveFavorite = function(snapshot)
                     name = tostring(item.name or "Item"),
                     id = itemId,
                     category = item.category == "Animations" and "Animations" or "Items",
-                    classicClothing = item.classicClothing == true
+                    classicClothing = item.classicClothing == true,
+                    previewTexture = item.previewTexture
                 }
             end
         end
