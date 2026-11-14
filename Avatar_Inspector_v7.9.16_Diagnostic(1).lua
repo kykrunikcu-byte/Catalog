@@ -7829,7 +7829,7 @@ local function addSectionHeader(text)
     return header
 end
 
-local function addItem(name, assetId, category, classicClothing, previewTexture, liveAccessory)
+local function addItem(name, assetId, category, classicClothing, previewTexture)
     assetId = tonumber(assetId)
 
     if not assetId or assetId <= 0 then
@@ -7855,21 +7855,10 @@ local function addItem(name, assetId, category, classicClothing, previewTexture,
     EH.ehCard(card)
     EH.listCardEdge(card)
 
-    -- Use genuine catalog thumbnails instead of covering them with fallback icons.
-    -- For a live game morph, render its actual accessory geometry when possible:
-    -- a custom morph accessory may not have a public catalog thumbnail at all.
-    local thumbBox = create("Frame", {
-        Name = "EHItemThumbnail",
-        Size = UDim2.fromOffset(48, 48),
-        Position = UDim2.fromOffset(6, 6),
-        BackgroundColor3 = PANEL,
-        BorderSizePixel = 0
-    }, card)
-    round(thumbBox, 6)
-    create("UIStroke", {Color = OUTLINE, Transparency = 0.45,
-        Thickness = 1}, thumbBox)
-
-    local imageURI = "rbxthumb://type=Asset&id=" .. assetId .. "&w=150&h=150"
+    -- Real asset thumbnails only: never obscure them with a local icon or
+    -- a ViewportFrame. Roblox renders the catalog picture for valid asset IDs.
+    -- Classic clothing/face texture IDs use their actual live texture instead.
+    local imageURI = "rbxthumb://type=Asset&id=" .. assetId .. "&w=420&h=420"
     if type(previewTexture) == "string" and previewTexture ~= "" then
         local textureId = previewTexture:match("[?&]id=(%d+)")
             or previewTexture:match("rbxassetid://(%d+)")
@@ -7878,68 +7867,17 @@ local function addItem(name, assetId, category, classicClothing, previewTexture,
     end
     local image = create("ImageLabel", {
         Name = "EHRealAssetThumbnail",
-        Size = UDim2.fromScale(1, 1),
-        Position = UDim2.fromOffset(0, 0),
-        BackgroundTransparency = 1,
+        Size = UDim2.fromOffset(48, 48),
+        Position = UDim2.fromOffset(6, 6),
+        BackgroundColor3 = PANEL,
         BorderSizePixel = 0,
         Image = imageURI,
         Visible = true,
-        ScaleType = Enum.ScaleType.Fit,
-        ZIndex = thumbBox.ZIndex + 1
-    }, thumbBox)
-
-    if liveAccessory and liveAccessory:IsA("Accessory") then
-        -- The live Handle is often the only reliable source for custom morph
-        -- geometry; show that actual mesh/texture in a small 3D viewport.
-        local ok, result = pcall(function()
-            local handle = liveAccessory:FindFirstChild("Handle")
-            if not handle or not handle:IsA("BasePart") then return false end
-            local clone = handle:Clone()
-            for _, obj in ipairs(clone:GetDescendants()) do
-                if obj:IsA("Script") or obj:IsA("LocalScript")
-                    or obj:IsA("Weld") or obj:IsA("Motor6D")
-                    or obj:IsA("WeldConstraint") then
-                    obj:Destroy()
-                end
-            end
-            clone.Anchored = true
-            clone.CanCollide = false
-            clone.CFrame = CFrame.new()
-            local viewport = create("ViewportFrame", {
-                Name = "EHLiveAccessoryThumbnail",
-                Size = UDim2.fromScale(1, 1),
-                BackgroundTransparency = 1,
-                BorderSizePixel = 0,
-                Ambient = Color3.fromRGB(205, 205, 205),
-                LightColor = Color3.fromRGB(255, 245, 230),
-                LightDirection = Vector3.new(-1, -1, -1),
-                ZIndex = thumbBox.ZIndex + 2
-            }, thumbBox)
-            local world = Instance.new("WorldModel")
-            world.Parent = viewport
-            clone.Parent = world
-            local camera = Instance.new("Camera")
-            camera.FieldOfView = 45
-            camera.Parent = viewport
-            local dimensions = clone.Size
-            local mesh = clone:FindFirstChildOfClass("SpecialMesh")
-            if mesh then
-                dimensions = Vector3.new(dimensions.X * math.abs(mesh.Scale.X),
-                    dimensions.Y * math.abs(mesh.Scale.Y),
-                    dimensions.Z * math.abs(mesh.Scale.Z))
-            end
-            local radius = math.max(dimensions.X, dimensions.Y, dimensions.Z, 0.5)
-            camera.CFrame = CFrame.lookAt(
-                Vector3.new(radius * 1.4, radius * 0.8, radius * 2.8),
-                Vector3.zero)
-            viewport.CurrentCamera = camera
-            return true
-        end)
-        if ok and result then
-            -- Viewport shows the accessory itself; not a decorative icon.
-            image.Visible = false
-        end
-    end
+        ScaleType = Enum.ScaleType.Fit
+    }, card)
+    round(image, 6)
+    create("UIStroke", {Color = OUTLINE, Transparency = 0.45,
+        Thickness = 1}, image)
 
     local itemMarker = makeLabel(
         card, "◦",
@@ -8034,7 +7972,7 @@ local function displaySavedItems(items, appearance)
                 or id == tonumber(slots.GraphicTShirt)) or false
         end
         addItem(item.name, item.id, category, isClassic,
-            item.previewTexture, item.liveAccessory)
+            item.previewTexture)
     end
 end
 
@@ -8094,7 +8032,7 @@ local function scanPlayer(player)
     local identifiers = {}
     local seen = {}
 
-    local function add(name, id, category, classicClothing, previewTexture, liveAccessory)
+    local function add(name, id, category, classicClothing, previewTexture)
         id = tonumber(id)
 
         if id and id > 0 then
@@ -8113,8 +8051,7 @@ local function scanPlayer(player)
                     id = id,
                     category = category,
                     classicClothing = classicClothing == true,
-                    previewTexture = previewTexture,
-                    liveAccessory = liveAccessory
+                    previewTexture = previewTexture
                 })
             end
         end
@@ -8133,6 +8070,43 @@ local function scanPlayer(player)
                 or value:match("(%d+)")
             return tonumber(digits)
         end
+        -- The live Accessory.SourceAssetId is often absent after a game morph.
+        -- Resolve verified catalog IDs from the applied HumanoidDescription.
+        local accessoryIdByInstance = {}
+        local describedAccessories = {}
+        pcall(function()
+            describedAccessories = description:GetAccessories(true)
+        end)
+        pcall(function()
+            for _, descriptor in ipairs(description:GetChildren()) do
+                if descriptor:IsA("AccessoryDescription") then
+                    local applied = descriptor:GetAppliedInstance()
+                    local id = tonumber(descriptor.AssetId)
+                    if applied and id and id > 0 then
+                        accessoryIdByInstance[applied] = id
+                    end
+                end
+            end
+        end)
+        local liveAccessories = {}
+        for _, object in ipairs(character:GetDescendants()) do
+            if object:IsA("Accessory") then
+                liveAccessories[#liveAccessories + 1] = object
+            end
+        end
+        -- Only map by position when counts coincide. Avoid assigning unrelated
+        -- catalog art to a completely custom morph with a different item count.
+        if #describedAccessories == #liveAccessories then
+            for index, accessory in ipairs(liveAccessories) do
+                if not accessoryIdByInstance[accessory] then
+                    local descriptor = describedAccessories[index]
+                    local id = descriptor and tonumber(descriptor.AssetId)
+                    if id and id > 0 then
+                        accessoryIdByInstance[accessory] = id
+                    end
+                end
+            end
+        end
         local hasFace = false
         for _, object in ipairs(character:GetDescendants()) do
             if token ~= EH.avatarScanToken then
@@ -8145,8 +8119,9 @@ local function scanPlayer(player)
                 pcall(function() id = object.SourceAssetId end)
                 id = liveAssetId(id) or liveAssetId(object:GetAttribute("AssetId"))
                     or liveAssetId(object:GetAttribute("OriginalAssetId"))
+                    or accessoryIdByInstance[object]
                 if id then
-                    add(object.Name, id, "Items", false, nil, object)
+                    add(object.Name, id, "Items")
                 end
             elseif object:IsA("Shirt") then
                 wornItemCount += 1
