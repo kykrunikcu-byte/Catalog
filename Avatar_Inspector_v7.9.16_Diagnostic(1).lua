@@ -6623,13 +6623,15 @@ refreshPlayerList = function()
 
             round(avatar, 7)
 
-            task.spawn(function()
-                local image = getPlayerThumbnail(player)
-
-                if avatar.Parent then
-                    avatar.Image = image
-                end
-            end)
+            local cachedImage = playerThumbnailCache[player.UserId]
+            if cachedImage then
+                avatar.Image = cachedImage
+            else
+                task.spawn(function()
+                    local image = getPlayerThumbnail(player)
+                    if avatar.Parent then avatar.Image = image end
+                end)
+            end
 
             local nameLabel = makeLabel(
                 row, player.DisplayName,
@@ -6921,11 +6923,13 @@ local function captureAvatarAppearance(player, sourceMode)
     if not player then return nil, "player unavailable" end
 
     local character = player.Character
-    if not character then return nil, "character unavailable" end
-
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return nil, "Humanoid unavailable" end
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
     local mode = sourceMode == "Morph" and "Morph" or "Original"
+    -- The real account avatar is available even if a game replaces the
+    -- character with a monster model that has no standard Humanoid.
+    if mode == "Morph" and not humanoid then
+        return nil, "current morph has no Humanoid"
+    end
     local description, descriptionSource
     if mode == "Morph" then
         local ok, result = pcall(function()
@@ -6940,7 +6944,7 @@ local function captureAvatarAppearance(player, sourceMode)
     if not description then
         return nil, "could not read " .. mode .. " HumanoidDescription"
     end
-    local rigName = humanoid.RigType.Name
+    local rigName = humanoid and humanoid.RigType.Name or "R15"
     if mode == "Original" then
         pcall(function()
             local info = Players:GetCharacterAppearanceInfoAsync(player.UserId)
@@ -6998,7 +7002,7 @@ local function captureAvatarAppearance(player, sourceMode)
 
     -- Fallback to the live BodyColors instance if a description color
     -- could not be read. This also captures runtime body color overrides.
-    local bodyColors = character:FindFirstChildOfClass("BodyColors")
+    local bodyColors = character and character:FindFirstChildOfClass("BodyColors")
     if bodyColors then
         local bodyColorMap = {
             HeadColor = "HeadColor3",
@@ -7060,9 +7064,11 @@ local function captureAvatarAppearance(player, sourceMode)
 
     snapshot.accessoryCount = #snapshot.accessories
     snapshot.liveAccessoryCount = 0
-    for _, child in ipairs(character:GetChildren()) do
-        if child:IsA("Accessory") then
-            snapshot.liveAccessoryCount = snapshot.liveAccessoryCount + 1
+    if character then
+        for _, child in ipairs(character:GetChildren()) do
+            if child:IsA("Accessory") then
+                snapshot.liveAccessoryCount = snapshot.liveAccessoryCount + 1
+            end
         end
     end
 
