@@ -4535,6 +4535,9 @@ local function makeStaticAvatar(player)
     -- STRICT account preview: never substitute a Piggy/Brookhaven morph.
     -- This API builds the account avatar in its own R6/R15 rig.
     local ok, cleanModel = pcall(function()
+        if Players.CreateHumanoidModelFromUserIdAsync then
+            return Players:CreateHumanoidModelFromUserIdAsync(player.UserId)
+        end
         return Players:CreateHumanoidModelFromUserId(player.UserId)
     end)
     if ok and cleanModel then
@@ -4553,6 +4556,9 @@ local function makeStaticAvatar(player)
         end
     end)
     local created, model = pcall(function()
+        if Players.CreateHumanoidModelFromDescriptionAsync then
+            return Players:CreateHumanoidModelFromDescriptionAsync(description, rigType)
+        end
         return Players:CreateHumanoidModelFromDescription(description, rigType)
     end)
     pcall(function() description:Destroy() end)
@@ -6736,7 +6742,7 @@ local function extractAssetId(value)
     return number and number > 0 and number or nil
 end
 
-local function captureLiveClothingFallback(character, snapshot)
+local function captureLiveClothingFallback(character, snapshot, overrideLive)
     local liveMap = {
         Shirt = {className = "Shirt", property = "ShirtTemplate"},
         Pants = {className = "Pants", property = "PantsTemplate"},
@@ -6751,7 +6757,8 @@ local function captureLiveClothingFallback(character, snapshot)
             end)
             if ok then
                 local assetId = extractAssetId(value)
-                if assetId and (tonumber(snapshot.properties[descriptionName]) or 0) == 0 then
+                if assetId and (overrideLive
+                    or (tonumber(snapshot.properties[descriptionName]) or 0) == 0) then
                     snapshot.properties[descriptionName] = assetId
                 end
             end
@@ -6773,7 +6780,7 @@ local function captureLiveClothingFallback(character, snapshot)
     end
 end
 
-local function captureAvatarAppearance(player)
+local function captureAvatarAppearance(player, sourceMode)
     if not player then return nil, "player unavailable" end
 
     local character = player.Character
@@ -6781,15 +6788,35 @@ local function captureAvatarAppearance(player)
 
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if not humanoid then return nil, "Humanoid unavailable" end
-
-    local description, descriptionSource = getOriginalAvatarDescription(player, humanoid)
+    local mode = sourceMode == "Morph" and "Morph" or "Original"
+    local description, descriptionSource
+    if mode == "Morph" then
+        local ok, result = pcall(function()
+            return humanoid:GetAppliedDescription()
+        end)
+        if ok then description = result end
+        descriptionSource = "live-morph"
+    else
+        -- Saving the account avatar must never persist a Piggy/game morph.
+        description, descriptionSource = getOriginalAvatarDescription(player, nil)
+    end
     if not description then
-        return nil, "could not read original HumanoidDescription"
+        return nil, "could not read " .. mode .. " HumanoidDescription"
+    end
+    local rigName = humanoid.RigType.Name
+    if mode == "Original" then
+        pcall(function()
+            local info = Players:GetCharacterAppearanceInfoAsync(player.UserId)
+            if info and (info.playerAvatarType == "R6" or info.playerAvatarType == "R15") then
+                rigName = info.playerAvatarType
+            end
+        end)
     end
 
     local snapshot = {
         version = 4,
-        rigType = humanoid.RigType.Name,
+        sourceMode = mode,
+        rigType = rigName,
         descriptionSource = descriptionSource,
         properties = {},
         -- HumanoidDescription color properties are Color3, not BrickColor.
@@ -6812,8 +6839,10 @@ local function captureAvatarAppearance(player)
         end
     end
 
-    if descriptionSource ~= "account" then
-        captureLiveClothingFallback(character, snapshot)
+    if mode == "Morph" then
+        captureLiveClothingFallback(character, snapshot, true)
+    elseif descriptionSource ~= "account" then
+        captureLiveClothingFallback(character, snapshot, false)
     end
 
     for _, propertyName in ipairs(AVATAR_COLOR_PROPERTIES) do
@@ -7104,7 +7133,8 @@ saveFavorite = function()
         return
     end
 
-    local appearance, appearanceError = captureAvatarAppearance(selectedPlayer)
+    local appearance, appearanceError = captureAvatarAppearance(
+        selectedPlayer, EH.avatarSourceMode)
     if not appearance then
         Status.Text = "3D appearance was not saved: " .. tostring(appearanceError)
         return
@@ -7127,8 +7157,14 @@ saveFavorite = function()
 
     local saved, storageError = persistFavorites()
     if saved then
-        Status.Text = "Outfit saved permanently"
-        showSuccessToast("Avatar saved successfully")
+        if appearance.sourceMode == "Morph" then
+            -- JSON snapshots cannot preserve arbitrary game-created mesh models.
+            Status.Text = "Morph assets saved; custom geometry may not restore"
+            showSuccessToast("Morph assets saved")
+        else
+            Status.Text = "Outfit saved permanently"
+            showSuccessToast("Avatar saved successfully")
+        end
     else
         Status.Text = "Session only: " .. tostring(storageError)
     end
@@ -7154,6 +7190,8 @@ showFavorite = function(favorite)
             or #(favorite.appearance.accessories or {})
         Status.Text = "Saved avatar loaded: @" .. favorite.username
             .. " | accessories: " .. tostring(accessoryCount)
+            .. (favorite.appearance.sourceMode == "Morph"
+                and " | game-only geometry may differ" or "")
     elseif type(favorite.appearance) == "table" then
         Status.Text = "Saved avatar could not be fully restored: @" .. favorite.username
     else
