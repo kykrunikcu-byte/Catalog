@@ -4394,9 +4394,16 @@ do
                 l=math.min(l,point.X);r=math.max(r,point.X)
                 t=math.min(t,point.Y);b=math.max(b,point.Y)
             end end end
+            if r<0 or b<0 or l>vp.X or t>vp.Y then return nil end
             local xx,yy=math.max(l,0),math.max(t,0)
             local ww,hh=math.min(r,vp.X)-xx,math.min(b,vp.Y)-yy
-            if ww<3 or hh<5 then return nil end
+            if ww<=0 or hh<=0 then return nil end
+            -- Keep thin distant targets visible instead of dropping the box.
+            local centerX,centerY=xx+ww/2,yy+hh/2
+            ww=math.max(ww,10)
+            hh=math.max(hh,19)
+            xx=math.clamp(centerX-ww/2,0,math.max(0,vp.X-ww))
+            yy=math.clamp(centerY-hh/2,0,math.max(0,vp.Y-hh))
             return xx,yy,ww,hh
         end
         local function drawArrow(entry,point,vp,color)
@@ -4517,10 +4524,15 @@ do
                 end
             end
             local vp=camera.ViewportSize
-            -- Roblox limits active Highlights; reserve capacity for nearby targets.
+            -- Roblox limits active Highlights; leave capacity for the game.
             local availableHighlights=24
             for _,entry in pairs(self.entries) do
-                renderTarget(entry,camera,vp,ownPart,availableHighlights>0)
+                local ok,err=pcall(renderTarget,entry,camera,vp,ownPart,
+                    availableHighlights>0)
+                if not ok and os.clock()-self.errorTime>5 then
+                    self.errorTime=os.clock()
+                    EH.logDiagnostic("ESP target",err)
+                end
                 if entry.hl and entry.hl.Enabled then
                     availableHighlights-=1
                 end
