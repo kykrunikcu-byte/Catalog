@@ -4626,7 +4626,10 @@ do
             entry.name.Text=entry.player and entry.player.DisplayName or model.Name
             entry.name.TextColor3=color
             entry.role.Visible=true
-            entry.role.Text=characterType
+            entry.role.Text=currentLanguage=="ru"
+                and (characterType=="MONSTER" and "МОНСТР"
+                    or (characterType=="PLAYER" and "ИГРОК" or "NPC"))
+                or characterType
             entry.role.TextColor3=color
             entry.dist.Visible=cfg.distance
             entry.dist.Text=string.format("%d studs",math.floor(distance+.5))
@@ -5318,7 +5321,7 @@ do
         end
     end
 
-    -- Compact ESP page: Player/NPC switches and one ten-style box selector.
+    -- ESP page: target switches, box selector, and independent color editors.
     local espPage = create("ScrollingFrame", {
         Name = "HorizonESPPage",
         Position = UDim2.fromOffset(8, 108),
