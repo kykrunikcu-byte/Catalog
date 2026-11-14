@@ -3140,7 +3140,7 @@ do
         Name = "HorizonPlayerPage",
         Position = UDim2.fromOffset(8, 108),
         Size = UDim2.new(1, -16, 1, -166),
-        CanvasSize = UDim2.fromOffset(0, 742),
+        CanvasSize = UDim2.fromOffset(0, 926),
         ScrollBarThickness = 3,
         ScrollBarImageColor3 = Color3.fromRGB(166, 125, 87),
         ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -3180,7 +3180,7 @@ do
     do
         local flyCard = create("Frame", {
             Name = "HorizonFlyCard",
-            Position = UDim2.fromOffset(12, 548),
+            Position = UDim2.fromOffset(12, 732),
             Size = UDim2.new(1, -24, 0, 78),
             BackgroundColor3 = Color3.fromRGB(40, 37, 33),
             BorderSizePixel = 0,
@@ -3362,7 +3362,7 @@ do
         -- It uses the already-loaded Player.lua controller, not a second loader.
         local noclipCard = create("Frame", {
             Name = "HorizonNoclipCard",
-            Position = UDim2.fromOffset(12, 640),
+            Position = UDim2.fromOffset(12, 824),
             Size = UDim2.new(1, -24, 0, 78),
             BackgroundColor3 = Color3.fromRGB(40, 37, 33),
             BorderSizePixel = 0, ZIndex = 31
@@ -3491,11 +3491,13 @@ do
             noclipEnabled = false
         end
 
-        -- Speed and Jump Power use in-page controls (not Fly mini-panels).
+        -- All numerical player controls share one in-page card, no extra panels.
         local function makeStatCard(kind, y, title, descriptionRU, descriptionEN,
-            method, resetMethod, glyph)
+            method, resetMethod, glyph, manualLimit)
+            manualLimit = manualLimit or 10000000
             local card = create("Frame", {
-                Name = kind == "speed" and "HorizonSpeedCard" or "HorizonJumpCard",
+                Name = kind == "speed" and "HorizonSpeedCard"
+                    or (kind == "jump" and "HorizonJumpCard" or "HorizonGravityCard"),
                 Position = UDim2.fromOffset(12, y),
                 Size = UDim2.new(1, -24, 0, 170),
                 BackgroundColor3 = Color3.fromRGB(40, 37, 33),
@@ -3529,9 +3531,15 @@ do
 
             local character = LocalPlayer.Character
             local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-            local initial = kind == "speed" and (humanoid and humanoid.WalkSpeed or 16)
-                or (humanoid and (humanoid.UseJumpPower and humanoid.JumpPower
-                    or humanoid.JumpHeight) or 50)
+            local initial
+            if kind == "gravity" then
+                initial = workspace.Gravity
+            elseif kind == "speed" then
+                initial = humanoid and humanoid.WalkSpeed or 16
+            else
+                initial = humanoid and (humanoid.UseJumpPower and humanoid.JumpPower
+                    or humanoid.JumpHeight) or 50
+            end
             local readout = makeLabel(card, tostring(initial),
                 UDim2.fromOffset(101, 25), UDim2.new(1, -112, 0, 17), 13)
             readout.Font = Enum.Font.GothamBold
@@ -3582,12 +3590,13 @@ do
             manualLabel.TextColor3 = Color3.fromRGB(201, 184, 162)
             manualLabel.ZIndex = 32
             local manual = create("TextBox", {
-                Name = kind == "speed" and "HorizonSpeedInput" or "HorizonJumpInput",
+                Name = kind == "speed" and "HorizonSpeedInput"
+                    or (kind == "jump" and "HorizonJumpInput" or "HorizonGravityInput"),
                 Position = UDim2.fromOffset(16, 132),
                 Size = UDim2.new(1, -128, 0, 29),
                 BackgroundColor3 = Color3.fromRGB(48, 43, 39),
                 BorderSizePixel = 0,
-                Text = tostring(initial), PlaceholderText = "0–10000000",
+                Text = tostring(initial), PlaceholderText = "0–" .. tostring(manualLimit),
                 ClearTextOnFocus = false,
                 TextColor3 = Color3.fromRGB(242, 223, 205),
                 PlaceholderColor3 = Color3.fromRGB(163, 150, 134),
@@ -3675,7 +3684,7 @@ do
                 if not enterPressed then return end
                 local digits = manual.Text:match("^%s*(%d+)%s*$")
                 local value = digits and tonumber(digits)
-                if not value or value > 10000000 then
+                if not value or value > manualLimit then
                     manual.TextColor3 = Color3.fromRGB(248, 128, 128)
                     return
                 end
@@ -3707,9 +3716,13 @@ do
         local refreshJump = makeStatCard("jump", 364,
             "Jump Power", "Высота прыжка", "Jump height / power",
             "setJumpPower", "resetJumpPower", "↑")
+        local refreshGravity = makeStatCard("gravity", 548,
+            "Gravity", "Гравитация", "World gravity",
+            "setGravity", "resetGravity", "↓", 100000)
         local function refreshStatCards()
             refreshSpeed()
             refreshJump()
+            refreshGravity()
         end
 
         -- The existing localization system can call the most recent page refresh.
@@ -3727,8 +3740,8 @@ do
         playerTitle.Text = ru and "Управление игроком" or "Player tools"
         if EH.refreshFlyCardText then EH.refreshFlyCardText() end
         playerDescription.Text = ru
-            and "Fly, Noclip, скорость передвижения и высота прыжка — всё в одном разделе."
-            or "Fly, Noclip, movement speed and jump height — in one place."
+            and "Скорость, прыжок, гравитация, Fly и Noclip — всё в одном разделе."
+            or "Speed, jumping, gravity, Fly and Noclip — all in one place."
     end
     EH.refreshHomeText()
 
