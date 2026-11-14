@@ -2651,21 +2651,23 @@ EH.wornHeader:FindFirstChildOfClass("UIStroke").Transparency = 0.42
 EH.wornHeader:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(0, 12)
 do
     local header = EH.wornHeader
+    -- Reference: icon, title and LIVE share the same top baseline.
+    EH.safeIcon(header, "items", UDim2.fromOffset(10, 6), 17)
     local title = makeLabel(header, currentLanguage == "ru" and "НАДЕТЫЕ ПРЕДМЕТЫ" or "WORN ITEMS",
-        UDim2.new(1, -60, 0, 17), UDim2.fromOffset(11, 5), 11)
+        UDim2.new(1, -88, 0, 19), UDim2.fromOffset(33, 5), 11)
     title.Name = "EHItemsLiveTitle"
     title.Font = Enum.Font.GothamBold
     title.TextColor3 = Color3.fromRGB(235, 189, 146)
     title.ZIndex = header.ZIndex + 2
     local live = makeLabel(header, "LIVE", UDim2.fromOffset(36, 16),
-        UDim2.new(1, -43, 0, 5), 10)
+        UDim2.new(1, -44, 0, 6), 10)
     live.Font = Enum.Font.GothamMedium
     live.TextColor3 = Color3.fromRGB(143, 209, 168)
     live.TextXAlignment = Enum.TextXAlignment.Right
     live.ZIndex = header.ZIndex + 2
 end
 EH.wornBadge = makeLabel(EH.wornHeader, "—",
-    UDim2.fromOffset(66, 30), UDim2.fromOffset(11, 24), 25)
+    UDim2.fromOffset(70, 31), UDim2.fromOffset(11, 23), 26)
 EH.wornBadge.Name = "EclipseItemCount"
 EH.wornBadge.BackgroundTransparency = 1
 EH.wornBadge.TextColor3 = Color3.fromRGB(244, 204, 161)
@@ -2677,9 +2679,23 @@ EH.wornBadge.ZIndex = EH.wornHeader.ZIndex + 2
 local WornCountLabel
 do
     local header = EH.wornHeader
+    -- Monitoring pictogram and caption are attached to the same metric row.
+    local graph = create("Frame", {
+        Name = "EHItemsMonitorIcon",
+        Position = UDim2.fromOffset(83, 31),
+        Size = UDim2.fromOffset(15, 15),
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+        ZIndex = header.ZIndex + 2
+    }, header)
+    round(graph, 3)
+    create("UIStroke", {Color = Color3.fromRGB(130, 215, 165), Thickness = 1.4}, graph)
+    local graphText = makeLabel(graph, "⌁", UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0), 13)
+    graphText.TextColor3 = Color3.fromRGB(130, 215, 165)
+    graphText.TextXAlignment = Enum.TextXAlignment.Center
+    graphText.ZIndex = graph.ZIndex + 1
     WornCountLabel = makeLabel(header,
         currentLanguage == "ru" and "Предметов обнаружено" or "Items detected",
-        UDim2.new(1, -87, 0, 21), UDim2.fromOffset(81, 29), 10)
+        UDim2.new(1, -108, 0, 23), UDim2.fromOffset(104, 27), 10)
     WornCountLabel.Name = "WornItemsCounter"
     WornCountLabel.ZIndex = header.ZIndex + 2
     WornCountLabel.TextColor3 = Color3.fromRGB(225, 208, 189)
@@ -2688,21 +2704,28 @@ do
     WornCountLabel.TextScaled = false
     local bar = create("Frame", {
         Name = "EHItemsLiveAccent",
-        Position = UDim2.fromOffset(12, 55),
-        Size = UDim2.new(1, -24, 0, 2),
+        Position = UDim2.fromOffset(12, 51),
+        Size = UDim2.new(1, -24, 0, 3),
         BackgroundColor3 = Color3.fromRGB(197, 149, 100),
         BorderSizePixel = 0, ZIndex = header.ZIndex + 2
     }, header)
     round(bar, 2)
+    create("Frame", {
+        Name = "EHItemsLiveDivider",
+        Position = UDim2.fromOffset(12, 59),
+        Size = UDim2.new(1, -24, 0, 1),
+        BackgroundColor3 = Color3.fromRGB(105, 80, 59),
+        BorderSizePixel = 0, ZIndex = header.ZIndex + 2
+    }, header)
     local footer = makeLabel(header,
         currentLanguage == "ru" and "МОНИТОРИНГ ПРЕДМЕТОВ" or "ITEM MONITOR",
-        UDim2.new(1, -78, 0, 14), UDim2.fromOffset(12, 60), 8)
+        UDim2.new(1, -98, 0, 14), UDim2.fromOffset(12, 62), 8)
     footer.TextColor3 = Color3.fromRGB(167, 146, 125)
     footer.Font = Enum.Font.GothamMedium
     footer.ZIndex = header.ZIndex + 2
     local active = makeLabel(header,
         currentLanguage == "ru" and "● Активен" or "● Active",
-        UDim2.fromOffset(66, 14), UDim2.new(1, -77, 0, 60), 9)
+        UDim2.fromOffset(68, 14), UDim2.new(1, -80, 0, 62), 9)
     active.TextColor3 = Color3.fromRGB(130, 215, 165)
     active.TextXAlignment = Enum.TextXAlignment.Right
     active.ZIndex = header.ZIndex + 2
@@ -7991,48 +8014,72 @@ refreshPlayerList = function()
             Transparency = 0.42, Thickness = 1,
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         }, header)
+        -- Restore the original player icon and align it with the heading.
+        EH.safeIcon(header, "players", UDim2.fromOffset(9, 6), 17)
         local title = makeLabel(header,
             currentLanguage == "ru" and "АКТИВНЫЕ ИГРОКИ" or "ACTIVE PLAYERS",
-            UDim2.fromOffset(130, 18), UDim2.fromOffset(10, 5), 11)
+            UDim2.fromOffset(111, 18), UDim2.fromOffset(30, 5), 10)
         title.Name = "EHPlayersLiveTitle"
         title.Font = Enum.Font.GothamBold
         title.TextColor3 = Color3.fromRGB(235, 189, 146)
         title.ZIndex = header.ZIndex + 2
         local live = makeLabel(header, "LIVE",
-            UDim2.fromOffset(30, 16), UDim2.fromOffset(136, 5), 9)
+            UDim2.fromOffset(26, 16), UDim2.fromOffset(141, 5), 9)
         live.TextColor3 = Color3.fromRGB(143, 209, 168)
         live.Font = Enum.Font.GothamMedium
         live.TextXAlignment = Enum.TextXAlignment.Right
         live.ZIndex = header.ZIndex + 2
         local number = makeLabel(header, string.format("%03d", serverPlayers),
-            UDim2.fromOffset(68, 30), UDim2.fromOffset(10, 23), 25)
+            UDim2.fromOffset(56, 30), UDim2.fromOffset(10, 23), 24)
         number.Font = Enum.Font.GothamBold
         number.TextColor3 = Color3.fromRGB(244, 204, 161)
         number.TextXAlignment = Enum.TextXAlignment.Left
         number.ZIndex = header.ZIndex + 2
+        -- Small green monitoring pictogram, directly before the metric caption.
+        local graph = create("Frame", {
+            Name = "EHPlayersMonitorIcon",
+            Position = UDim2.fromOffset(64, 31),
+            Size = UDim2.fromOffset(14, 14),
+            BackgroundTransparency = 1, BorderSizePixel = 0,
+            ZIndex = header.ZIndex + 2
+        }, header)
+        round(graph, 3)
+        create("UIStroke", {Color = Color3.fromRGB(130, 215, 165), Thickness = 1.4}, graph)
+        local graphText = makeLabel(graph, "⌁", UDim2.fromScale(1, 1),
+            UDim2.fromOffset(0, 0), 12)
+        graphText.TextColor3 = Color3.fromRGB(130, 215, 165)
+        graphText.TextXAlignment = Enum.TextXAlignment.Center
+        graphText.ZIndex = graph.ZIndex + 1
         local caption = makeLabel(header,
             currentLanguage == "ru" and "Игроков обнаружено" or "Players detected",
-            UDim2.fromOffset(92, 21), UDim2.fromOffset(76, 28), 10)
+            UDim2.fromOffset(86, 22), UDim2.fromOffset(82, 27), 9)
         caption.Font = Enum.Font.GothamMedium
         caption.TextColor3 = Color3.fromRGB(225, 208, 189)
         caption.ZIndex = header.ZIndex + 2
         local bar = create("Frame", {
             Name = "EHPlayersLiveAccent",
-            Position = UDim2.fromOffset(11, 55),
-            Size = UDim2.fromOffset(150, 2),
+            Position = UDim2.fromOffset(11, 51),
+            Size = UDim2.fromOffset(150, 3),
             BackgroundColor3 = Color3.fromRGB(197, 149, 100),
             BorderSizePixel = 0, ZIndex = header.ZIndex + 2
         }, header)
         round(bar, 2)
+        create("Frame", {
+            Name = "EHPlayersLiveDivider",
+            Position = UDim2.fromOffset(11, 59),
+            Size = UDim2.fromOffset(150, 1),
+            BackgroundColor3 = Color3.fromRGB(105, 80, 59),
+            BorderSizePixel = 0, ZIndex = header.ZIndex + 2
+        }, header)
         local footer = makeLabel(header,
             currentLanguage == "ru" and "МОНИТОРИНГ СЕССИИ" or "SESSION MONITOR",
-            UDim2.fromOffset(105, 14), UDim2.fromOffset(11, 61), 8)
+            UDim2.fromOffset(105, 14), UDim2.fromOffset(11, 62), 8)
         footer.Font = Enum.Font.GothamMedium
         footer.TextColor3 = Color3.fromRGB(167, 146, 125)
         footer.ZIndex = header.ZIndex + 2
         local active = makeLabel(header,
             currentLanguage == "ru" and "● Активен" or "● Active",
-            UDim2.fromOffset(60, 14), UDim2.fromOffset(105, 61), 9)
+            UDim2.fromOffset(60, 14), UDim2.fromOffset(105, 62), 9)
         active.TextXAlignment = Enum.TextXAlignment.Right
         active.TextColor3 = Color3.fromRGB(130, 215, 165)
         active.ZIndex = header.ZIndex + 2
