@@ -4583,20 +4583,342 @@ do
 
         -- UI controls are installed immediately below, in the original ESP tab.
         EH.espBuildUI = function(espPage,espDescription)
-            -- INSERT_ESP_UI
+
+            local cfg=EH.espSettings
+            local function switchCard(name,desc,y,on,callback,small,icon)
+                local card=create("Frame",{
+                    Name="Horizon"..name:gsub("%W","").."Card",
+                    Position=UDim2.fromOffset(12,y),
+                    Size=UDim2.new(1,-24,0,small and 56 or 78),
+                    BackgroundColor3=Color3.fromRGB(40,37,33),
+                    BorderSizePixel=0,ZIndex=31
+                },espPage)
+                round(card,10)
+                create("UIStroke",{
+                    Color=Color3.fromRGB(69,64,58),Thickness=1
+                },card)
+                local accent=create("Frame",{
+                    Position=UDim2.fromOffset(13,small and 10 or 19),
+                    Size=UDim2.fromOffset(3,small and 35 or 39),
+                    BackgroundColor3=Color3.fromRGB(190,147,107),
+                    BorderSizePixel=0,ZIndex=32
+                },card)
+                round(accent,2)
+                if icon then
+                    EH.safeIcon(card,icon,UDim2.fromOffset(27,26),25)
+                end
+                local title=makeLabel(card,name,
+                    UDim2.new(1,-166,0,22),
+                    UDim2.fromOffset(small and 27 or 64,small and 7 or 16),
+                    small and 13 or 16)
+                title.Font=Enum.Font.GothamBold
+                title.ZIndex=32
+                local sub=makeLabel(card,desc,
+                    UDim2.new(1,-165,0,19),
+                    UDim2.fromOffset(small and 27 or 64,small and 30 or 41),
+                    small and 10 or 11)
+                sub.TextColor3=Color3.fromRGB(170,160,152)
+                sub.ZIndex=32
+                local toggle=create("TextButton",{
+                    Name="Horizon"..name:gsub("%W","").."Toggle",
+                    AnchorPoint=Vector2.new(1,.5),
+                    Position=UDim2.new(1,-15,.5,0),
+                    Size=UDim2.fromOffset(68,34),
+                    BackgroundColor3=Color3.fromRGB(60,58,55),
+                    BorderSizePixel=0,Text="",
+                    AutoButtonColor=false,Active=true,
+                    Selectable=true,ZIndex=33
+                },card)
+                round(toggle,17)
+                local stroke=create("UIStroke",{
+                    Color=Color3.fromRGB(109,102,95),
+                    Thickness=1,Transparency=0
+                },toggle)
+                local knob=create("Frame",{
+                    Name="SmoothCheckKnob",
+                    Position=UDim2.fromOffset(4,4),
+                    Size=UDim2.fromOffset(26,26),
+                    BackgroundColor3=Color3.fromRGB(197,190,183),
+                    BorderSizePixel=0,Active=false,ZIndex=34
+                },toggle)
+                round(knob,13)
+                local tick=makeLabel(knob,"✓",
+                    UDim2.fromScale(1,1),UDim2.fromOffset(0,-1),19)
+                tick.Font=Enum.Font.GothamBold
+                tick.TextXAlignment=Enum.TextXAlignment.Center
+                tick.TextYAlignment=Enum.TextYAlignment.Center
+                tick.TextColor3=Color3.fromRGB(40,123,59)
+                tick.Active=false;tick.ZIndex=35
+                local selected=on
+                local function show(value,animated)
+                    selected=value
+                    toggle:SetAttribute("ESPEnabled",value)
+                    local info=TweenInfo.new(animated and .35 or .001,
+                        Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
+                    TweenService:Create(knob,info,{
+                        Position=UDim2.fromOffset(value and 38 or 4,4),
+                        BackgroundColor3=value and Color3.fromRGB(220,255,208)
+                            or Color3.fromRGB(197,190,183)
+                    }):Play()
+                    TweenService:Create(toggle,info,{
+                        BackgroundColor3=value and Color3.fromRGB(80,107,74)
+                            or Color3.fromRGB(60,58,55)
+                    }):Play()
+                    TweenService:Create(stroke,info,{
+                        Color=value and Color3.fromRGB(164,217,146)
+                            or Color3.fromRGB(109,102,95)
+                    }):Play()
+                    tick.TextTransparency=value and 0 or 1
+                end
+                show(on,false)
+                toggle.Activated:Connect(function()
+                    local nextValue=not selected
+                    local ok,err=pcall(callback,nextValue)
+                    if ok then show(nextValue,true)
+                    else EH.logDiagnostic("ESP toggle",err) end
+                end)
+                return {subtitle=sub,title=title,button=toggle}
+            end
+
+            local playerSwitch=switchCard("Player ESP",
+                "Обнаружение других игроков",180,false,
+                function(v) EH.espController:setEnabled("players",v) end,
+                false,"user_round_cog")
+            local npcSwitch=switchCard("NPC ESP",
+                "Обнаружение NPC и монстров",271,false,
+                function(v) EH.espController:setEnabled("npcs",v) end,
+                false,"ghost")
+            local subtitle=makeLabel(espPage,"НАСТРОЙКИ ОТОБРАЖЕНИЯ",
+                UDim2.new(1,-30,0,24),UDim2.fromOffset(20,361),14)
+            subtitle.TextColor3=Color3.fromRGB(226,186,131)
+            subtitle.Font=Enum.Font.GothamBold
+            subtitle.ZIndex=31
+            local opts={
+                {"Highlight","Подсветка сквозь стены","Through-wall highlight","highlight"},
+                {"Box ESP","Рамка вокруг персонажа","Bounding frame","box"},
+                {"Name ESP","Имя над рамкой","Player/NPC name","names"},
+                {"Distance ESP","Расстояние до цели","Target distance","distance"},
+                {"Health ESP","Индикатор здоровья","Health bar","health"},
+                {"Tracer ESP","Линии направления","Tracer lines","tracer"},
+                {"Off-screen Arrows","Указатели вне экрана","Off-screen arrows","arrows"},
+                {"Role Colors","Зелёный / красный / жёлтый","Role-based colors","roleColors"}
+            }
+            local optionSwitches={}
+            for i,info in ipairs(opts) do
+                local key=info[4]
+                optionSwitches[i]=switchCard(info[1],info[2],
+                    390+(i-1)*63,cfg[key],
+                    function(v) cfg[key]=v end,true,nil)
+            end
+
+            local selectorCard=create("Frame",{
+                Name="HorizonESPFrameStyleCard",
+                Position=UDim2.fromOffset(12,910),
+                Size=UDim2.new(1,-24,0,78),
+                BackgroundColor3=Color3.fromRGB(40,37,33),
+                BorderSizePixel=0,ZIndex=31
+            },espPage)
+            round(selectorCard,10)
+            create("UIStroke",{
+                Color=Color3.fromRGB(69,64,58),Thickness=1
+            },selectorCard)
+            local selectorTitle=makeLabel(selectorCard,
+                "СТИЛЬ РАМКИ / BOX STYLE",
+                UDim2.new(1,-28,0,23),UDim2.fromOffset(14,8),13)
+            selectorTitle.Font=Enum.Font.GothamBold
+            selectorTitle.TextColor3=Color3.fromRGB(230,190,141)
+            selectorTitle.ZIndex=32
+            local selector=makeButton(selectorCard,"Corner Box ▾",
+                UDim2.new(1,-28,0,34),UDim2.fromOffset(14,35),
+                Color3.fromRGB(59,48,37))
+            selector.Name="HorizonESPBoxStyleSelector"
+            selector.ZIndex=33
+            local menu=create("ScrollingFrame",{
+                Name="HorizonESPBoxStyleList",
+                Position=UDim2.fromOffset(26,993),
+                Size=UDim2.new(1,-52,0,216),
+                CanvasSize=UDim2.fromOffset(0,373),
+                ScrollBarThickness=3,
+                ScrollBarImageColor3=Color3.fromRGB(191,147,94),
+                BackgroundColor3=Color3.fromRGB(32,29,26),
+                BorderSizePixel=0,Visible=false,
+                Active=true,ZIndex=75
+            },espPage)
+            round(menu,9)
+            create("UIStroke",{
+                Color=Color3.fromRGB(164,120,75),Thickness=1
+            },menu)
+            local options={
+                "Corner Box","Full Box","Double Box","Dashed Box",
+                "Bracket Box","Tactical Box","Diamond Box",
+                "Neon Box","Minimal Box","Crosshair Box"
+            }
+            local rows={}
+            for i,label in ipairs(options) do
+                local row=makeButton(menu,string.format("%02d  %s",i,label),
+                    UDim2.new(1,-13,0,32),
+                    UDim2.fromOffset(5,5+(i-1)*36),
+                    i==1 and Color3.fromRGB(87,63,43)
+                        or Color3.fromRGB(48,42,36))
+                row.Name="ESPStyleOption"..i
+                row.ZIndex=76
+                row.TextSize=12
+                row.TextXAlignment=Enum.TextXAlignment.Left
+                rows[i]=row
+                row.Activated:Connect(function()
+                    cfg.style=i
+                    selector.Text=label.."  ▾"
+                    menu.Visible=false
+                    for j,other in ipairs(rows) do
+                        other.BackgroundColor3=j==i
+                            and Color3.fromRGB(87,63,43)
+                            or Color3.fromRGB(48,42,36)
+                    end
+                end)
+            end
+            selector.Activated:Connect(function()
+                menu.Visible=not menu.Visible
+                if menu.Visible then
+                    espPage.CanvasPosition=Vector2.new(
+                        espPage.CanvasPosition.X,
+                        math.max(espPage.CanvasPosition.Y,765))
+                end
+            end)
+
+            local rangeCard=create("Frame",{
+                Name="HorizonESPDistanceCard",
+                Position=UDim2.fromOffset(12,1025),
+                Size=UDim2.new(1,-24,0,105),
+                BackgroundColor3=Color3.fromRGB(40,37,33),
+                BorderSizePixel=0,ZIndex=31
+            },espPage)
+            round(rangeCard,10)
+            create("UIStroke",{
+                Color=Color3.fromRGB(69,64,58),Thickness=1
+            },rangeCard)
+            local rangeTitle=makeLabel(rangeCard,"ДАЛЬНОСТЬ ESP",
+                UDim2.new(1,-125,0,23),UDim2.fromOffset(14,10),13)
+            rangeTitle.Font=Enum.Font.GothamBold
+            rangeTitle.ZIndex=32
+            local readout=makeLabel(rangeCard,"1200 studs",
+                UDim2.fromOffset(115,23),
+                UDim2.new(1,-130,0,10),12)
+            readout.TextXAlignment=Enum.TextXAlignment.Right
+            readout.TextColor3=Color3.fromRGB(226,186,131)
+            readout.ZIndex=32
+            local slider=create("TextButton",{
+                Name="HorizonESPDistanceSlider",
+                Text="",Size=UDim2.new(1,-32,0,28),
+                Position=UDim2.fromOffset(16,43),
+                BackgroundTransparency=1,
+                BorderSizePixel=0,Active=true,ZIndex=34
+            },rangeCard)
+            local track=create("Frame",{
+                Size=UDim2.new(1,0,0,6),
+                Position=UDim2.new(0,0,.5,-3),
+                BackgroundColor3=Color3.fromRGB(84,72,60),
+                BorderSizePixel=0,Active=false,ZIndex=34
+            },slider)
+            round(track,3)
+            local fill=create("Frame",{
+                Size=UDim2.fromScale(cfg.maxDistance/5000,1),
+                BackgroundColor3=Color3.fromRGB(204,159,111),
+                BorderSizePixel=0,Active=false,ZIndex=35
+            },track)
+            round(fill,3)
+            local knob=create("Frame",{
+                AnchorPoint=Vector2.new(.5,.5),
+                Position=UDim2.fromScale(cfg.maxDistance/5000,.5),
+                Size=UDim2.fromOffset(16,16),
+                BackgroundColor3=Color3.fromRGB(227,190,151),
+                BorderSizePixel=0,Active=false,ZIndex=36
+            },slider)
+            round(knob,8)
+            local moveConnection,releaseConnection
+            local function release()
+                if moveConnection then
+                    moveConnection:Disconnect();moveConnection=nil
+                end
+                if releaseConnection then
+                    releaseConnection:Disconnect();releaseConnection=nil
+                end
+                espPage.ScrollingEnabled=true
+            end
+            local function selectDistance(x)
+                local width=slider.AbsoluteSize.X
+                if width<=0 then return end
+                local ratio=math.clamp(
+                    (x-slider.AbsolutePosition.X)/width,0,1)
+                cfg.maxDistance=math.clamp(
+                    math.floor(ratio*50+.5)*100,100,5000)
+                local t=cfg.maxDistance/5000
+                fill.Size=UDim2.fromScale(t,1)
+                knob.Position=UDim2.fromScale(t,.5)
+                readout.Text=tostring(cfg.maxDistance).." studs"
+            end
+            slider.InputBegan:Connect(function(input)
+                if input.UserInputType~=Enum.UserInputType.MouseButton1
+                    and input.UserInputType~=Enum.UserInputType.Touch then return end
+                release()
+                espPage.ScrollingEnabled=false
+                selectDistance(input.Position.X)
+                moveConnection=UserInputService.InputChanged:Connect(function(changed)
+                    if changed==input or (input.UserInputType==Enum.UserInputType.MouseButton1
+                        and changed.UserInputType==Enum.UserInputType.MouseMovement) then
+                        selectDistance(changed.Position.X)
+                    end
+                end)
+                releaseConnection=UserInputService.InputEnded:Connect(function(changed)
+                    if changed==input or (input.UserInputType==Enum.UserInputType.MouseButton1
+                        and changed.UserInputType==Enum.UserInputType.MouseButton1) then
+                        release()
+                    end
+                end)
+            end)
+            ScreenGui.Destroying:Connect(release)
+            local note=makeLabel(espPage,
+                "Роли определяются по доступным атрибутам, командам и тегам игры.",
+                UDim2.new(1,-32,0,35),UDim2.fromOffset(18,1144),11)
+            note.TextWrapped=true
+            note.TextColor3=Color3.fromRGB(180,164,145)
+            note.ZIndex=31
+
+            local oldRefresh=EH.refreshHomeText
+            EH.refreshHomeText=function()
+                oldRefresh()
+                local ru=currentLanguage=="ru"
+                espDescription.Text=ru
+                    and "Обнаружение игроков и NPC: 10 рамок, подсветка и цвета ролей. Неизвестные роли отмечены жёлтым."
+                    or "Player/NPC detection with 10 box styles, highlight and role colors. Unknown roles are yellow."
+                playerSwitch.subtitle.Text=ru and "Обнаружение других игроков" or "Detect other players"
+                npcSwitch.subtitle.Text=ru and "Обнаружение NPC и монстров" or "Detect NPCs and monsters"
+                subtitle.Text=ru and "НАСТРОЙКИ ОТОБРАЖЕНИЯ" or "DISPLAY SETTINGS"
+                selectorTitle.Text=ru and "СТИЛЬ РАМКИ / BOX STYLE" or "BOX STYLE"
+                rangeTitle.Text=ru and "ДАЛЬНОСТЬ ESP" or "ESP DISTANCE"
+                note.Text=ru and "Роли определяются по атрибутам, командам и тегам игры."
+                    or "Roles are inferred from game attributes, teams and tags."
+                for i,control in ipairs(optionSwitches) do
+                    control.subtitle.Text=ru and opts[i][2] or opts[i][3]
+                end
+            end
+            EH.refreshHomeText()
+
         end
     end
 
-    -- ESP page is navigation-only until the user approves specific ESP tools.
-    local espPage = create("Frame", {
+    -- Scrollable ESP settings, following the existing Clean Bronze design.
+    local espPage = create("ScrollingFrame", {
         Name = "HorizonESPPage",
         Position = UDim2.fromOffset(8, 108),
         Size = UDim2.new(1, -16, 1, -166),
+        CanvasSize = UDim2.fromOffset(0, 1320),
+        ScrollBarThickness = 3,
+        ScrollBarImageColor3 = Color3.fromRGB(166, 125, 87),
+        ScrollingDirection = Enum.ScrollingDirection.Y,
+        ScrollingEnabled = true, ClipsDescendants = true,
         BackgroundColor3 = BG,
         BorderSizePixel = 0,
-        Active = true,
-        Visible = false,
-        ZIndex = 30
+        Active = true, Visible = false, ZIndex = 30
     }, Main)
     round(espPage, 12)
     local espCard = create("Frame", {
@@ -4622,15 +4944,8 @@ do
     espDescription.TextYAlignment = Enum.TextYAlignment.Top
     espDescription.TextTruncate = Enum.TextTruncate.None
     espDescription.ZIndex = 32
-    local refreshPlayerAndHome = EH.refreshHomeText
-    EH.refreshHomeText = function()
-        refreshPlayerAndHome()
-        espTitle.Text = "ESP"
-        espDescription.Text = currentLanguage == "ru"
-            and "Здесь появятся настройки подсветки игроков и объектов. Пока функции не добавлены."
-            or "Player and object highlighting options will appear here. No functions have been added yet."
-    end
-    EH.refreshHomeText()
+    espTitle.Text = "ESP"
+    EH.espBuildUI(espPage, espDescription)
 
     -- Dedicated navigation bar below the header, not inside its narrow title row.
     local nav = create("Frame", {
