@@ -4768,7 +4768,7 @@ do
                 {"Distance ESP","Расстояние до цели","Target distance","distance"},
                 {"Health ESP","Индикатор здоровья","Health bar","health"},
                 {"Tracer ESP","Линии направления","Tracer lines","tracer"},
-                {"Off-screen Arrows","Указатели вне экрана","Off-screen arrows","arrows"},
+                {"Target Marker","Стрелка над персонажем","Marker above target","arrows"},
                 {"Role Colors","Зелёный / красный / жёлтый","Role-based colors","roleColors"}
             }
             local optionSwitches={}
