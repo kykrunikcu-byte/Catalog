@@ -3180,7 +3180,7 @@ do
     do
         local flyCard = create("Frame", {
             Name = "HorizonFlyCard",
-            Position = UDim2.fromOffset(12, 180),
+            Position = UDim2.fromOffset(12, 548),
             Size = UDim2.new(1, -24, 0, 78),
             BackgroundColor3 = Color3.fromRGB(40, 37, 33),
             BorderSizePixel = 0,
@@ -3362,7 +3362,7 @@ do
         -- It uses the already-loaded Player.lua controller, not a second loader.
         local noclipCard = create("Frame", {
             Name = "HorizonNoclipCard",
-            Position = UDim2.fromOffset(12, 272),
+            Position = UDim2.fromOffset(12, 640),
             Size = UDim2.new(1, -24, 0, 78),
             BackgroundColor3 = Color3.fromRGB(40, 37, 33),
             BorderSizePixel = 0, ZIndex = 31
@@ -3701,10 +3701,10 @@ do
                 reset.Text = ru and "Сброс" or "Reset"
             end
         end
-        local refreshSpeed = makeStatCard("speed", 364,
+        local refreshSpeed = makeStatCard("speed", 180,
             "Speed", "Скорость передвижения", "Movement speed",
             "setWalkSpeed", "resetWalkSpeed", "»")
-        local refreshJump = makeStatCard("jump", 548,
+        local refreshJump = makeStatCard("jump", 364,
             "Jump Power", "Высота прыжка", "Jump height / power",
             "setJumpPower", "resetJumpPower", "↑")
         local function refreshStatCards()
