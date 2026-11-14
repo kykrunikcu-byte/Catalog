@@ -3046,10 +3046,16 @@ EH.setModeButtonLabel(ModeButton, currentMode)
 
 -- HORIZON: two tabs. Inspector GUI stays active; Home is an opaque overlay.
 do
-    local layer = create("Frame", {
+    local layer = create("ScrollingFrame", {
         Name = "HorizonHomePage",
         Position = UDim2.fromOffset(8, 108),
         Size = UDim2.new(1, -16, 1, -166),
+        CanvasSize = UDim2.fromOffset(0, 528),
+        ScrollBarThickness = 3,
+        ScrollBarImageColor3 = Color3.fromRGB(166, 125, 87),
+        ScrollingDirection = Enum.ScrollingDirection.Y,
+        ScrollingEnabled = true,
+        ClipsDescendants = true,
         BackgroundColor3 = BG,
         BorderSizePixel = 0,
         Active = true, Visible = true, ZIndex = 30
@@ -3121,6 +3127,211 @@ do
     hintBody.TextTruncate = Enum.TextTruncate.None
     hintBody.ZIndex = 32
 
+    -- HORIZON / Home server controls. One local scope, no startup rewrites.
+    do
+        local teleport = game:GetService("TeleportService")
+        local json = HttpService or game:GetService("HttpService")
+        local busy, serial = false, 0
+        local heading = makeLabel(layer, "",
+            UDim2.new(1, -30, 0, 24), UDim2.fromOffset(16, 317), 15)
+        heading.Font = Enum.Font.GothamBold
+        heading.TextColor3 = Color3.fromRGB(229, 197, 155)
+        heading.ZIndex = 32
+
+        local function newAction(name, y, glyph)
+            local button = create("TextButton", {
+                Name = name, Position = UDim2.fromOffset(12, y),
+                Size = UDim2.new(1, -24, 0, 58),
+                BackgroundColor3 = Color3.fromRGB(40, 37, 33),
+                BorderSizePixel = 0, Text = "", AutoButtonColor = false,
+                Active = true, Selectable = true, ZIndex = 32
+            }, layer)
+            round(button, 11)
+            create("UIStroke", {
+                Color = Color3.fromRGB(128, 93, 61),
+                Thickness = 1.1, Transparency = 0.25
+            }, button)
+            local icon = makeLabel(button, glyph,
+                UDim2.fromOffset(30, 30), UDim2.fromOffset(13, 14), 23)
+            icon.Font = Enum.Font.GothamBold
+            icon.TextColor3 = Color3.fromRGB(218, 174, 122)
+            icon.TextXAlignment = Enum.TextXAlignment.Center
+            icon.ZIndex = 33
+            local title = makeLabel(button, "",
+                UDim2.new(1, -60, 0, 21), UDim2.fromOffset(50, 8), 14)
+            title.Font = Enum.Font.GothamBold
+            title.TextColor3 = Color3.fromRGB(241, 216, 184)
+            title.ZIndex = 33
+            local details = makeLabel(button, "",
+                UDim2.new(1, -60, 0, 18), UDim2.fromOffset(50, 33), 11)
+            details.TextColor3 = Color3.fromRGB(178, 163, 144)
+            details.ZIndex = 33
+            EH.bindPhysicalPress(button, button, true)
+            return button, title, details
+        end
+        local same, sameTitle, sameDetails =
+            newAction("HorizonRejoinSameServer", 345, "↻")
+        local other, otherTitle, otherDetails =
+            newAction("HorizonJoinDifferentServer", 411, "⇄")
+        local notice = makeLabel(layer, "",
+            UDim2.new(1, -36, 0, 40), UDim2.fromOffset(17, 479), 11)
+        notice.TextColor3 = Color3.fromRGB(188, 168, 142)
+        notice.TextWrapped = true
+        notice.TextYAlignment = Enum.TextYAlignment.Top
+        notice.ZIndex = 32
+
+        EH.refreshServerActions = function()
+            local ru = currentLanguage == "ru"
+            heading.Text = ru and "Управление сервером" or "Server controls"
+            sameTitle.Text = ru and "Перезайти на тот же сервер" or "Rejoin same server"
+            sameDetails.Text = ru and "Вернуться в текущую сессию"
+                or "Reconnect to this instance"
+            otherTitle.Text = ru and "Перезайти на другой сервер" or "Join another server"
+            otherDetails.Text = ru and "Найти другую публичную сессию"
+                or "Find another public instance"
+        end
+
+        local function status(ru, en, failed)
+            local text = currentLanguage == "ru" and ru or en
+            notice.Text = text
+            notice.TextColor3 = failed and Color3.fromRGB(245, 139, 121)
+                or Color3.fromRGB(188, 168, 142)
+            if Status and Status.Parent then Status.Text = text end
+        end
+        local function stop(ru, en)
+            busy = false
+            serial += 1
+            status(ru, en, true)
+        end
+        local function begin(ru, en)
+            if busy then return nil end
+            if game.PlaceId <= 0 or not game:IsLoaded() then
+                status("Игра ещё не готова.", "Game is not ready.", true)
+                return nil
+            end
+            busy = true
+            serial += 1
+            local ticket = serial
+            status(ru, en, false)
+            task.delay(25, function()
+                if busy and ticket == serial and ScreenGui.Parent then
+                    stop("Переход не завершён. Повторите попытку.",
+                        "Teleport did not finish. Please retry.")
+                end
+            end)
+            return ticket
+        end
+
+        teleport.TeleportInitFailed:Connect(function(player, _, errorMessage)
+            if player == LocalPlayer and busy and ScreenGui.Parent then
+                stop("Не удалось подключиться: " .. tostring(errorMessage),
+                    "Teleport failed: " .. tostring(errorMessage))
+            end
+        end)
+
+        local function join(id, ticket)
+            if ticket ~= serial or not busy then return end
+            local ok, err = pcall(function()
+                -- TeleportAsync cannot run from a client executor.
+                teleport:TeleportToPlaceInstance(game.PlaceId, id, LocalPlayer)
+            end)
+            if not ok and ticket == serial then
+                stop("Ошибка подключения: " .. tostring(err),
+                    "Teleport error: " .. tostring(err))
+            end
+        end
+
+        same.Activated:Connect(function()
+            if type(game.JobId) ~= "string" or game.JobId == "" then
+                status("ID сервера недоступен.", "Server ID unavailable.", true)
+                return
+            end
+            local ticket = begin("Перезаходим на текущий сервер...",
+                "Rejoining current server...")
+            if ticket then task.spawn(join, game.JobId, ticket) end
+        end)
+
+        local function fetchPage(url)
+            local ok, response = pcall(function() return game:HttpGet(url) end)
+            if not ok or type(response) ~= "string" or response == "" then
+                local requester = (type(request) == "function" and request)
+                    or (type(http_request) == "function" and http_request)
+                    or (type(syn) == "table" and type(syn.request) == "function"
+                        and syn.request)
+                if requester then
+                    ok, response = pcall(function()
+                        local res = requester({Url = url, Method = "GET"})
+                        assert(type(res) == "table"
+                            and (res.Success == true or tonumber(res.StatusCode) == 200)
+                            and type(res.Body) == "string",
+                            "Server API refused the request")
+                        return res.Body
+                    end)
+                end
+            end
+            if not ok or type(response) ~= "string" then
+                return nil, "Roblox server API unavailable"
+            end
+            local parsed, data = pcall(function() return json:JSONDecode(response) end)
+            if not parsed or type(data) ~= "table" or type(data.data) ~= "table" then
+                return nil, "Invalid Roblox server response"
+            end
+            return data
+        end
+
+        other.Activated:Connect(function()
+            local ticket = begin("Ищем другой доступный сервер...",
+                "Finding another available server...")
+            if not ticket then return end
+            task.spawn(function()
+                local candidates, seen, cursor, failed = {}, {}, nil, false
+                local currentId = game.JobId
+                for _ = 1, 4 do
+                    if ticket ~= serial or not busy then return end
+                    local url = "https://games.roblox.com/v1/games/"
+                        .. tostring(game.PlaceId)
+                        .. "/servers/Public?sortOrder=Asc&excludeFullGames=true&limit=50"
+                    if cursor then url = url .. "&cursor=" .. json:UrlEncode(cursor) end
+                    local data = fetchPage(url)
+                    if not data then failed = true break end
+                    for _, server in ipairs(data.data) do
+                        if type(server) == "table"
+                            and type(server.id) == "string"
+                            and server.id ~= "" and server.id ~= currentId
+                            and not seen[server.id]
+                            and type(server.playing) == "number"
+                            and type(server.maxPlayers) == "number"
+                            and server.playing < server.maxPlayers then
+                            seen[server.id] = true
+                            candidates[#candidates + 1] = server.id
+                        end
+                    end
+                    local nextCursor = data.nextPageCursor
+                    if type(nextCursor) ~= "string" or nextCursor == ""
+                        or nextCursor == cursor or #candidates >= 10 then
+                        break
+                    end
+                    cursor = nextCursor
+                end
+                if ticket ~= serial or not busy then return end
+                if #candidates == 0 then
+                    if failed then
+                        stop("Не удалось загрузить список серверов.",
+                            "Cannot load Roblox server list.")
+                    else
+                        stop("Другие свободные серверы не найдены.",
+                            "No other available public servers.")
+                    end
+                    return
+                end
+                status("Подключаемся к другому серверу...",
+                    "Joining a different server...", false)
+                join(candidates[math.random(1, #candidates)], ticket)
+            end)
+        end)
+        EH.refreshServerActions()
+    end
+
     EH.refreshHomeText = function()
         local ru = currentLanguage == "ru"
         welcome.Text = ru and "Добро пожаловать!" or "Welcome!"
@@ -3132,6 +3343,7 @@ do
         hintBody.Text = ru
             and "Открой вторую вкладку, чтобы просматривать аватары, аксессуары и наряды."
             or "Open the second tab to inspect avatars, accessories and outfits."
+        if EH.refreshServerActions then EH.refreshServerActions() end
     end
     EH.refreshHomeText()
 
