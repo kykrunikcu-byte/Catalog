@@ -1055,6 +1055,57 @@ end
 -- No RenderStepped animation and no avatar or input logic lives here.
 local EH = {}
 
+-- Feature lifecycle and executor capability probe; kept within the single build.
+-- The UI does not depend on optional exploit-specific APIs being present.
+do
+    local activeControllers = {}
+    local diagnosticRecords = {}
+    EH.capabilities = {
+        compile = type(loadstring) == "function",
+        fileRead = type(readfile) == "function",
+        fileWrite = type(writefile) == "function",
+        fileCheck = type(isfile) == "function",
+        clipboard = type(setclipboard) == "function"
+            or type(toclipboard) == "function",
+        httpRequest = type(request) == "function"
+            or type(http_request) == "function"
+            or (type(syn) == "table" and type(syn.request) == "function"),
+        protectedGui = type(gethui) == "function"
+    }
+    EH.logDiagnostic = function(area, detail)
+        local message = "[" .. tostring(area) .. "] " .. tostring(detail)
+        diagnosticRecords[#diagnosticRecords + 1] = message
+        if #diagnosticRecords > 60 then table.remove(diagnosticRecords, 1) end
+        warn("[HORIZON] " .. message)
+    end
+    EH.getDiagnostics = function()
+        return table.clone(diagnosticRecords)
+    end
+    EH.registerController = function(name, controller)
+        if type(name) == "string" and type(controller) == "table" then
+            activeControllers[name] = controller
+        end
+    end
+    EH.releaseController = function(name)
+        activeControllers[name] = nil
+    end
+    EH.cleanupControllers = function()
+        for name, controller in pairs(activeControllers) do
+            activeControllers[name] = nil
+            if type(controller.destroy) == "function" then
+                local ok, err = pcall(controller.destroy, controller)
+                if not ok then EH.logDiagnostic("Cleanup/" .. name, err) end
+            elseif type(controller.disable) == "function" then
+                pcall(controller.disable, controller)
+            end
+        end
+    end
+    EH.logDiagnostic("Capabilities",
+        "compile=" .. tostring(EH.capabilities.compile)
+        .. ", files=" .. tostring(EH.capabilities.fileRead and EH.capabilities.fileWrite)
+        .. ", request=" .. tostring(EH.capabilities.httpRequest))
+end
+
 function EH.accentRule(parent, position, size, transparency, tone)
     return create("Frame", {
         Name = "EHAccent",
@@ -3592,28 +3643,36 @@ do
         -- A private GitHub repository cannot be read via anonymous HttpGet:
         -- this guarded loader fails without affecting the main UI.
         local flyController = nil
+        local flyRetryAt, flyRetryReason = 0, nil
         local flyModuleURL =
             "https://raw.githubusercontent.com/kykrunikcu-byte/Functions/main/Player.lua"
 
         local function getFlyController()
             if flyController then return flyController end
-            if type(loadstring) ~= "function" then
-                return nil, "loadstring is unavailable"
+            if os.clock() < flyRetryAt then return nil, flyRetryReason end
+            local function failed(reason)
+                flyRetryAt = os.clock() + 6
+                flyRetryReason = reason
+                EH.logDiagnostic("Player controller", reason)
+                return nil, reason
+            end
+            if not EH.capabilities.compile then
+                return failed("loadstring is unavailable")
             end
             local fetched, contents = pcall(function()
                 return game:HttpGet(flyModuleURL)
             end)
             if not fetched or type(contents) ~= "string"
                 or contents:sub(1, 2) ~= "--" then
-                return nil, "Player.lua cannot be downloaded (check repository visibility)"
+                return failed("Player.lua cannot be downloaded (check repository visibility)")
             end
             local compiled, chunk = pcall(loadstring, contents)
             if not compiled or type(chunk) ~= "function" then
-                return nil, "Player.lua compilation failed: " .. tostring(chunk)
+                return failed("Player.lua compilation failed: " .. tostring(chunk))
             end
             local ran, result = pcall(chunk)
             if not ran or type(result) ~= "table" or type(result.new) ~= "function" then
-                return nil, "Player.lua did not provide its module interface"
+                return failed("Player.lua did not provide its module interface")
             end
             local initialized, controller = pcall(result.new, {
                 screenGui = ScreenGui,
@@ -3622,9 +3681,11 @@ do
                 tweens = TweenService
             })
             if not initialized or type(controller) ~= "table" then
-                return nil, "Player.lua initialization failed: " .. tostring(controller)
+                return failed("Player.lua initialization failed: " .. tostring(controller))
             end
             flyController = controller
+            flyRetryAt, flyRetryReason = 0, nil
+            EH.registerController("Player", controller)
             return controller
         end
 
@@ -3656,6 +3717,7 @@ do
 
         EH.stopFly = function()
             if flyController then
+                EH.releaseController("Player")
                 pcall(function() flyController:destroy() end)
                 flyController = nil
             end
@@ -4492,20 +4554,52 @@ local function cloneCharacter(character)
     return clone
 end
 
--- Prefer the avatar description attached to the Roblox account rather than a
--- game-specific morph applied to Player.Character. Fall back to the live
--- HumanoidDescription only when the account lookup is unavailable.
+-- Account descriptions are cloned per consumer, so callers may safely Destroy()
+-- their own copies. Never cache or substitute a game morph for an account avatar.
+EH.accountDescriptionCache = {}
 local function getOriginalAvatarDescription(player, humanoid)
-    if player and player.UserId then
+    local userId = player and tonumber(player.UserId)
+    if userId and userId > 0 then
+        local cache = EH.accountDescriptionCache
+        local stored = cache[userId]
+        if stored and os.clock() - stored.time <= 25 and stored.template then
+            local cloneOk, clone = pcall(function()
+                return stored.template:Clone()
+            end)
+            if cloneOk and clone then return clone, "account" end
+        end
         local ok, description = pcall(function()
             if Players.GetHumanoidDescriptionFromUserIdAsync then
-                return Players:GetHumanoidDescriptionFromUserIdAsync(player.UserId)
+                return Players:GetHumanoidDescriptionFromUserIdAsync(userId)
             end
-            return Players:GetHumanoidDescriptionFromUserId(player.UserId)
+            return Players:GetHumanoidDescriptionFromUserId(userId)
         end)
         if ok and description then
+            local cloned, template = pcall(function()
+                return description:Clone()
+            end)
+            if cloned and template then
+                if stored and stored.template then
+                    pcall(function() stored.template:Destroy() end)
+                end
+                cache[userId] = {time = os.clock(), template = template}
+                -- Bounded cache protects mobile memory after inspecting many players.
+                local count, oldestKey, oldestTime = 0, nil, math.huge
+                for id, entry in pairs(cache) do
+                    count += 1
+                    if entry.time < oldestTime then
+                        oldestKey, oldestTime = id, entry.time
+                    end
+                end
+                if count > 24 and oldestKey then
+                    local old = cache[oldestKey]
+                    cache[oldestKey] = nil
+                    if old and old.template then old.template:Destroy() end
+                end
+            end
             return description, "account"
         end
+        EH.logDiagnostic("Account avatar", "description lookup failed")
     end
 
     if humanoid then
@@ -4978,8 +5072,20 @@ local function cancelPoseTweens()
 end
 
 shutdownAvatarInspector = function()
-    -- Restore normal character physics before shutting down HORIZON.
+    -- Cancel pending async scans and prevent stale results from rebuilding GUI.
+    EH.avatarScanToken = (EH.avatarScanToken or 0) + 1
+    EH.lastAvatarScan = nil
+    if EH.animationController then
+        pcall(function() EH.animationController:destroy() end)
+        EH.animationController = nil
+    end
+    -- Restore player tools and all registered feature controllers.
     if EH.stopFly then pcall(EH.stopFly) end
+    if EH.cleanupControllers then EH.cleanupControllers() end
+    for id, cache in pairs(EH.accountDescriptionCache or {}) do
+        EH.accountDescriptionCache[id] = nil
+        if cache.template then pcall(function() cache.template:Destroy() end) end
+    end
     -- Disconnect listeners attached to services/workspace before removing the GUI.
     for _, connection in ipairs(externalConnections) do
         pcall(function() connection:Disconnect() end)
@@ -6137,6 +6243,7 @@ local function scanPlayer(player)
 
     selectedPlayer = player
     selectedFavorite = nil
+    EH.lastAvatarScan = nil
     EH.avatarScanToken = (EH.avatarScanToken or 0) + 1
     local token = EH.avatarScanToken
     local source = EH.avatarSourceMode or "Original"
@@ -6324,7 +6431,26 @@ local function scanPlayer(player)
         animationCount,
         source == "Original" and " | Original account avatar" or " | Current morph"
     )
+    -- Commit the entire scan atomically only after its async calls have finished.
+    local stableItems = {}
+    for _, item in ipairs(identifiers) do
+        stableItems[#stableItems + 1] = {
+            name = tostring(item.name or "Item"),
+            id = tonumber(item.id),
+            category = item.category == "Animations" and "Animations" or "Items",
+            classicClothing = item.classicClothing == true
+        }
+    end
+    local snapshot = {
+        player = player,
+        playerId = player.UserId,
+        sourceMode = source,
+        items = stableItems,
+        scanToken = token
+    }
+    EH.lastAvatarScan = snapshot
     pcall(function() description:Destroy() end)
+    return snapshot
 end
 
 EH.scanAvatarSourcePlayer = scanPlayer
@@ -6360,9 +6486,20 @@ end
 --==================================================
 
 refreshPlayerList = function()
+    local serverPlayerList = Players:GetPlayers()
+    -- Skip identical rebuilds after repeated events/search callbacks.
+    local signatureParts = {string.lower(Search.Text)}
+    for _, player in ipairs(serverPlayerList) do
+        signatureParts[#signatureParts + 1] = tostring(player.UserId)
+            .. ":" .. tostring(player.DisplayName)
+    end
+    local signature = table.concat(signatureParts, "|")
+    if currentMode == "Players" and EH.lastPlayerListSignature == signature then
+        return
+    end
+    EH.lastPlayerListSignature = signature
     clearGuiList(PlayerList)
 
-    local serverPlayerList = Players:GetPlayers()
     local serverPlayers = #serverPlayerList
 
     local countHeader = create("Frame", {
@@ -6525,8 +6662,7 @@ refreshPlayerList = function()
                 scanPlayer(player)
             end)
 
-            -- Save this player's outfit directly from the player list.
-            -- scanPlayer() fills currentItems synchronously before saveFavorite().
+            -- Save the exact snapshot returned by this scan, not shared currentItems.
             local rowSaveButton = makeButton(
                 row, "＋",
                 UDim2.fromOffset(34, 30),
@@ -6546,8 +6682,9 @@ refreshPlayerList = function()
                     return
                 end
 
-                scanPlayer(player)
-                saveFavorite()
+                if EH.isSavingOutfit then return end
+                local snapshot = scanPlayer(player)
+                if snapshot then saveFavorite(snapshot) end
             end)
         end
     end
@@ -7101,82 +7238,95 @@ local function showSavedAvatarAppearance(favorite)
     return true
 end
 
-saveFavorite = function()
-    if not selectedPlayer then
-        Status.Text = "Select a player first"
+saveFavorite = function(snapshot)
+    if EH.isSavingOutfit then return end
+    local scan = snapshot or EH.lastAvatarScan
+    if not scan or not scan.player or type(scan.items) ~= "table"
+        or #scan.items == 0 then
+        Status.Text = "Scan a player before saving"
+        return
+    end
+    -- A manual save must refer to the currently selected scan. Explicit row
+    -- saves keep their own player/source even if another selection starts.
+    if not snapshot and (scan.player ~= selectedPlayer
+        or scan.sourceMode ~= EH.avatarSourceMode) then
+        Status.Text = "Selection changed; scan the player again"
+        return
+    end
+    if scan.player.Parent ~= Players then
+        Status.Text = "This player is no longer available"
         return
     end
 
-    if #currentItems == 0 then
-        Status.Text = "Scan the player before saving"
-        return
-    end
-
-    -- Save a data-only snapshot. Every save creates a separate outfit,
-    -- including when the same player has already been saved before.
-    local savedItems = {}
-
-    for _, item in ipairs(currentItems) do
-        local itemId = tonumber(item.id)
-        if itemId and itemId > 0 then
-            table.insert(savedItems, {
-                name = tostring(item.name or "Item"),
-                id = itemId,
-                category = item.category == "Animations" and "Animations" or "Items",
-                classicClothing = item.classicClothing == true
-            })
+    EH.isSavingOutfit = true
+    local ok, errorText = pcall(function()
+        local player, sourceMode = scan.player, scan.sourceMode
+        local savedItems = {}
+        for _, item in ipairs(scan.items) do
+            local itemId = tonumber(item.id)
+            if itemId and itemId > 0 then
+                savedItems[#savedItems + 1] = {
+                    name = tostring(item.name or "Item"),
+                    id = itemId,
+                    category = item.category == "Animations" and "Animations" or "Items",
+                    classicClothing = item.classicClothing == true
+                }
+            end
         end
-    end
+        if #savedItems == 0 then
+            Status.Text = "No valid outfit IDs to save"
+            return
+        end
 
-    if #savedItems == 0 then
-        Status.Text = "No valid outfit IDs to save"
-        return
-    end
+        local appearance, appearanceError = captureAvatarAppearance(player, sourceMode)
+        if not appearance then
+            Status.Text = "3D appearance was not saved: " .. tostring(appearanceError)
+            EH.logDiagnostic("Outfit save", appearanceError)
+            return
+        end
 
-    local appearance, appearanceError = captureAvatarAppearance(
-        selectedPlayer, EH.avatarSourceMode)
-    if not appearance then
-        Status.Text = "3D appearance was not saved: " .. tostring(appearanceError)
-        return
-    end
+        local newFavorite = {
+            name = player.DisplayName,
+            username = player.Name,
+            userId = player.UserId,
+            savedAt = os.time(),
+            items = savedItems,
+            appearance = appearance
+        }
+        table.insert(favorites, newFavorite)
+        while #favorites > MAX_SAVED_OUTFITS do
+            table.remove(favorites, 1)
+        end
 
-    local newFavorite = {
-        name = selectedPlayer.DisplayName,
-        username = selectedPlayer.Name,
-        userId = selectedPlayer.UserId,
-        savedAt = os.time(),
-        items = savedItems,
-        appearance = appearance
-    }
-
-    table.insert(favorites, newFavorite)
-
-    while #favorites > MAX_SAVED_OUTFITS do
-        table.remove(favorites, 1)
-    end
-
-    local saved, storageError = persistFavorites()
-    if saved then
-        if appearance.sourceMode == "Morph" then
-            -- JSON snapshots cannot preserve arbitrary game-created mesh models.
-            Status.Text = "Morph assets saved; custom geometry may not restore"
-            showSuccessToast("Morph assets saved")
+        local saved, storageError = persistFavorites()
+        if saved then
+            if appearance.sourceMode == "Morph" then
+                Status.Text = "Morph assets saved; custom geometry may not restore"
+                showSuccessToast("Morph assets saved")
+            else
+                Status.Text = "Outfit saved permanently"
+                showSuccessToast("Avatar saved successfully")
+            end
         else
-            Status.Text = "Outfit saved permanently"
-            showSuccessToast("Avatar saved successfully")
+            Status.Text = "Session only: " .. tostring(storageError)
+            EH.logDiagnostic("Outfit storage", storageError)
         end
-    else
-        Status.Text = "Session only: " .. tostring(storageError)
-    end
 
-    if currentMode == "Favorites" then
-        refreshFavoritesList()
+        if currentMode == "Favorites" then refreshFavoritesList() end
+    end)
+    EH.isSavingOutfit = false
+    if not ok then
+        EH.logDiagnostic("Outfit save error", errorText)
+        Status.Text = "Could not save outfit: " .. tostring(errorText)
     end
 end
+
 
 showFavorite = function(favorite)
     if not favorite then return end
 
+    EH.avatarScanToken = (EH.avatarScanToken or 0) + 1
+    EH.lastAvatarScan = nil
     selectedPlayer = nil
     selectedFavorite = favorite
 
@@ -7433,6 +7583,7 @@ end
 local function updateListMode()
     if currentMode == "Players" then
         currentMode = "Favorites"
+        EH.lastPlayerListSignature = nil
         Search.Visible = false
         EH.setModeButtonLabel(ModeButton, currentMode)
         refreshFavoritesList()
@@ -7507,7 +7658,14 @@ trackExternalConnection(Players.PlayerAdded:Connect(function()
 end))
 
 trackExternalConnection(Players.PlayerRemoving:Connect(function(player)
+    local cached = EH.accountDescriptionCache and EH.accountDescriptionCache[player.UserId]
+    if cached then
+        EH.accountDescriptionCache[player.UserId] = nil
+        if cached.template then pcall(function() cached.template:Destroy() end) end
+    end
     if selectedPlayer == player then
+        EH.avatarScanToken = (EH.avatarScanToken or 0) + 1
+        EH.lastAvatarScan = nil
         selectedPlayer = nil
         clearViewport()
         clearItems()
