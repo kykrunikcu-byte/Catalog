@@ -4492,19 +4492,9 @@ do
                 BackgroundTransparency=1,BorderSizePixel=0,
                 Active=false,ZIndex=2,Visible=false
             },entry.node)
-            local full=newNativeOutline(root)
-            local corners={}
-            for i=1,4 do
-                local clip=create("Frame",{
-                    Name="HorizonESPPrecisionCorner"..i,
-                    Size=UDim2.fromOffset(16,16),
-                    BackgroundTransparency=1,BorderSizePixel=0,
-                    ClipsDescendants=true,Active=false,ZIndex=2,
-                    Visible=false
-                },root)
-                corners[i]={clip=clip,outline=newNativeOutline(clip)}
-            end
-            return {root=root,full=full,corners=corners}
+            -- The selected style allocates its own UIStroke objects lazily.
+            -- Clean Box uses only 2 strokes rather than allocating 10.
+            return {root=root,full=nil,corners=nil}
         end
         local function paintNativeOutline(pair,w,h,x,y,color)
             local size=UDim2.fromOffset(math.max(1,w-4),math.max(1,h-4))
@@ -4529,21 +4519,41 @@ do
             local style=cfg.style==2 and 2 or 1
             if entry.frameStyle==style and entry.frameColor==color
                 and entry.renderedW==w and entry.renderedH==h then return end
-            native.full.shadow.surface.Visible=style==2
-            native.full.inner.surface.Visible=style==2
-            if style==2 then
-                paintNativeOutline(native.full,w,h,0,0,color)
+            if style==2 and not native.full then
+                native.full=newNativeOutline(native.root)
+            elseif style==1 and not native.corners then
+                local sections={}
+                for i=1,4 do
+                    local clip=create("Frame",{
+                        Name="HorizonESPPrecisionCorner"..i,
+                        Size=UDim2.fromOffset(16,16),
+                        BackgroundTransparency=1,BorderSizePixel=0,
+                        ClipsDescendants=true,Active=false,ZIndex=2,
+                        Visible=false
+                    },native.root)
+                    sections[i]={clip=clip,outline=newNativeOutline(clip)}
+                end
+                native.corners=sections
             end
-            local side=math.min(w,h,math.clamp(
-                math.floor(math.min(w,h)*.24+.5),10,24))
-            local corners={{0,0},{w-side,0},{0,h-side},{w-side,h-side}}
-            for i,section in ipairs(native.corners) do
-                section.clip.Visible=style==1
-                if style==1 then
-                    local x,y=corners[i][1],corners[i][2]
-                    section.clip.Position=UDim2.fromOffset(x,y)
-                    section.clip.Size=UDim2.fromOffset(side,side)
-                    paintNativeOutline(section.outline,w,h,x,y,color)
+            if native.full then
+                native.full.shadow.surface.Visible=style==2
+                native.full.inner.surface.Visible=style==2
+                if style==2 then
+                    paintNativeOutline(native.full,w,h,0,0,color)
+                end
+            end
+            if native.corners then
+                local side=math.min(w,h,math.clamp(
+                    math.floor(math.min(w,h)*.24+.5),10,24))
+                local offsets={{0,0},{w-side,0},{0,h-side},{w-side,h-side}}
+                for i,section in ipairs(native.corners) do
+                    section.clip.Visible=style==1
+                    if style==1 then
+                        local x,y=offsets[i][1],offsets[i][2]
+                        section.clip.Position=UDim2.fromOffset(x,y)
+                        section.clip.Size=UDim2.fromOffset(side,side)
+                        paintNativeOutline(section.outline,w,h,x,y,color)
+                    end
                 end
             end
             entry.frameStyle=style
