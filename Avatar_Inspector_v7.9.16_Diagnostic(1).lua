@@ -1,5 +1,10 @@
 --[[
-    AVATAR INSPECTOR v7.9.71
+    AVATAR INSPECTOR v7.9.72
+
+    CHANGES IN v7.9.72:
+    - Keep item scrolling below the fixed count header on desktop and mobile
+    - Clip and bound the item viewport, reset scroll when changing avatars
+    - Hide the full scan-status pill on mobile so it cannot cover item rows
 
     CHANGES IN v7.9.71:
     - Replaced Home, Avatars and Player navigation icons with bundled Lucide PNGs
@@ -2806,7 +2811,7 @@ do
         Active = false
     }, ItemsPanel)
 end
-EH.statusChip(ItemsPanel, "EHScanStatusPill",
+EH.scanStatusPill = EH.statusChip(ItemsPanel, "EHScanStatusPill",
     UDim2.new(0, 12, 1, -31), UDim2.fromOffset(128, 24),
     Color3.fromRGB(142, 222, 175))
 local ItemsStatusChip = makeLabel(
@@ -2824,6 +2829,9 @@ local ItemList = create("ScrollingFrame", {
     BorderSizePixel = 0,
     ScrollBarThickness = 5,
     ScrollBarImageColor3 = Color3.fromRGB(155, 112, 73),
+    ClipsDescendants = true,
+    ScrollingEnabled = true,
+    ElasticBehavior = Enum.ElasticBehavior.Never,
     AutomaticCanvasSize = Enum.AutomaticSize.Y,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -6001,6 +6009,7 @@ local function updateLayout()
 
     EHBridge.Visible = not mobile
     ItemsStatusChip.Visible = not mobile
+    EH.scanStatusPill.Visible = not mobile
     if EH.emptyPreview then
         EH.emptyPreview.Size = mobile and UDim2.fromOffset(110, 110)
             or UDim2.fromOffset(142, 128)
@@ -6024,8 +6033,6 @@ local function updateLayout()
 
         ItemsPanel.Position = UDim2.fromOffset(12, 473)
         ItemsPanel.Size = UDim2.new(1, -24, 0, 137)
-        ItemList.Position = UDim2.fromOffset(6, 60)
-        ItemList.Size = UDim2.new(1, -12, 1, -65)
 
         Status.Position = UDim2.new(0, 181, 1, -45)
         Status.Size = UDim2.new(1, -240, 0, 30)
@@ -6047,12 +6054,17 @@ local function updateLayout()
 
         ItemsPanel.Position = UDim2.fromOffset(526, 160)
         ItemsPanel.Size = UDim2.fromOffset(262, 350)
-        ItemList.Position = UDim2.fromOffset(6, 63)
-        ItemList.Size = UDim2.new(1, -12, 1, -97)
 
         Status.Position = UDim2.new(0, 181, 1, -45)
         Status.Size = UDim2.new(1, -240, 0, 30)
     end
+
+    -- Reserve the entire fixed counter before the scrollable viewport.
+    -- A shared boundary prevents desktop/mobile layouts from overlapping it.
+    local itemListTop = EH.wornHeader.Position.Y.Offset + EH.wornHeader.Size.Y.Offset + 8
+    local itemListBottom = mobile and 5 or 34
+    ItemList.Position = UDim2.fromOffset(6, itemListTop)
+    ItemList.Size = UDim2.new(1, -12, 1, -(itemListTop + itemListBottom))
 end
 
 updateLayout()
@@ -7794,6 +7806,7 @@ local function clearItems()
             child:Destroy()
         end
     end
+    ItemList.CanvasPosition = Vector2.zero
 end
 
 local function addSectionHeader(text)
@@ -9500,7 +9513,7 @@ end
 
 AI_DIAG_STAGE = "INITIALIZATION_FINISHED"
 AIDiag("11 All initialization steps finished")
-print("Avatar Inspector v7.9.71 loaded successfully")
+print("Avatar Inspector v7.9.72 loaded successfully")
 
 end
 
@@ -9523,11 +9536,11 @@ local success, result = xpcall(
 
 if not success then
     warn("========================================")
-    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.71 STARTUP ERROR")
+    warn("[AI-DIAG] AVATAR INSPECTOR v7.9.72 STARTUP ERROR")
     warn("[AI-DIAG] LAST STAGE: " .. tostring(AI_DIAG_STAGE))
     warn("[AI-DIAG] ERROR: " .. tostring(result))
     warn("========================================")
 else
     AIDiag("12 Protected startup completed successfully")
-    print("AVATAR INSPECTOR v7.9.71 INITIALIZATION FINISHED")
+    print("AVATAR INSPECTOR v7.9.72 INITIALIZATION FINISHED")
 end
