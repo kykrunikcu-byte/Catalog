@@ -4132,14 +4132,13 @@ do
         -- Each main ESP switch owns its own model highlighting; no separate toggle.
         local cfg = {players=false,npcs=false,box=true,
             names=true,distance=true,health=true,tracer=false,arrows=false,
-            roleColors=true,style=1,maxDistance=3000000,
+            style=1,maxDistance=3000000,
             playerColor=Color3.fromRGB(89,228,133),
             monsterColor=Color3.fromRGB(245,87,97)}
         local palette = {
             safe=Color3.fromRGB(89,228,133),
             danger=Color3.fromRGB(245,87,97),
-            unknown=Color3.fromRGB(245,189,92),
-            plain=Color3.fromRGB(222,172,109)
+            unknown=Color3.fromRGB(245,189,92)
         }
         local styles = {"Corner Box","Full Box","Double Box","Dashed Box",
             "Bracket Box","Tactical Box","Diamond Box","Neon Box",
@@ -5196,9 +5195,11 @@ do
                     Thickness=1,Transparency=.2
                 },hex)
                 local H,S,V=defaultColor:ToHSV()
-                local function paint(color)
+                local function paint(color,preserveHSV)
                     cfg[key]=color
-                    H,S,V=color:ToHSV()
+                    if not preserveHSV then
+                        H,S,V=color:ToHSV()
+                    end
                     svGradient.Color=ColorSequence.new(
                         Color3.new(1,1,1),Color3.fromHSV(H,1,1))
                     cursor.Position=UDim2.fromScale(S,1-V)
@@ -5244,7 +5245,8 @@ do
                                 (screenY-control.AbsolutePosition.Y)/size.Y,0,1)
                         end
                     end
-                    paint(Color3.fromHSV(H,S,V))
+                    -- Preserve hue when brightness or saturation reaches zero.
+                    paint(Color3.fromHSV(H,S,V),true)
                 end
                 local function capture(control,mode)
                     control.InputBegan:Connect(function(input)
