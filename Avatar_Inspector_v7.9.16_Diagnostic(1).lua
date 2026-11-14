@@ -5306,6 +5306,8 @@ do
                 "Осветлить карту и убрать туман",0,false,
                 function(v) fullBright:setEnabled(v) end,false,"lightbulb")
 
+            -- Forward declaration shared by all disclosure controls.
+            local updateESPLayout
             -- Dedicated settings for visible data; they never toggle ESP itself.
             local function dataCard(kind)
                 local player=kind=="players"
@@ -5322,7 +5324,8 @@ do
                     Name=player and "HorizonESPPlayerDataCard"
                         or "HorizonESPNPCDataCard",
                     Position=UDim2.fromOffset(12,0),
-                    Size=UDim2.new(1,-24,0,140),
+                    -- Initially collapsed; an active section uses 140 pixels.
+                    Size=UDim2.new(1,-24,0,44),
                     BackgroundColor3=Color3.fromRGB(37,34,31),
                     BorderSizePixel=0,ZIndex=31
                 },espPage)
@@ -5332,12 +5335,29 @@ do
                     Thickness=1,Transparency=.17
                 },card)
                 local title=makeLabel(card,"",
-                    UDim2.new(1,-30,0,23),
-                    UDim2.fromOffset(14,8),13)
+                    UDim2.new(1,-62,0,23),
+                    UDim2.fromOffset(14,10),13)
                 title.Font=Enum.Font.GothamBold
                 title.TextColor3=Color3.fromRGB(230,190,141)
                 title.ZIndex=32
+                local arrow=makeLabel(card,"▾",
+                    UDim2.fromOffset(24,30),
+                    UDim2.new(1,-40,0,6),20)
+                arrow.Font=Enum.Font.GothamBold
+                arrow.TextColor3=Color3.fromRGB(226,185,139)
+                arrow.TextXAlignment=Enum.TextXAlignment.Center
+                arrow.ZIndex=35
+                local expandButton=create("TextButton",{
+                    Name=player and "HorizonESPPlayerDataExpand"
+                        or "HorizonESPNPCDataExpand",
+                    Position=UDim2.fromOffset(0,0),
+                    Size=UDim2.new(1,0,0,43),
+                    BackgroundTransparency=1,BorderSizePixel=0,
+                    Text="",AutoButtonColor=false,
+                    Active=true,ZIndex=34
+                },card)
                 local texts={}
+                local rowButtons={}
                 for i,def in ipairs(rows) do
                     local key=def[1]
                     local y=34+(i-1)*32
@@ -5348,6 +5368,7 @@ do
                     description.TextColor3=Color3.fromRGB(234,216,195)
                     description.ZIndex=32
                     texts[i]=description
+                    description.Visible=false
                     local toggle=create("TextButton",{
                         Name="Horizon"..key.."Toggle",
                         Position=UDim2.new(1,-70,0,y),
@@ -5357,6 +5378,8 @@ do
                         Active=true,ZIndex=33,Text=""
                     },card)
                     round(toggle,13)
+                    toggle.Visible=false
+                    rowButtons[i]=toggle
                     local knob=create("Frame",{
                         Name="DataSwitchKnob",
                         Position=UDim2.fromOffset(3,3),
@@ -5393,16 +5416,27 @@ do
                         refresh(true)
                     end)
                 end
-                return {
-                    card=card,
-                    refresh=function()
-                        local ru=currentLanguage=="ru"
-                        title.Text=ru and "ОТОБРАЖЕНИЕ ДАННЫХ" or "VISIBLE INFORMATION"
-                        for i,def in ipairs(rows) do
-                            texts[i].Text=ru and def[2] or def[3]
-                        end
+                local controller={card=card,expanded=false}
+                expandButton.Activated:Connect(function()
+                    controller.expanded=not controller.expanded
+                    card.Size=UDim2.new(1,-24,0,
+                        controller.expanded and 140 or 44)
+                    arrow.Text=controller.expanded and "▴" or "▾"
+                    for i=1,#rows do
+                        texts[i].Visible=controller.expanded
+                        rowButtons[i].Visible=controller.expanded
                     end
-                }
+                    if updateESPLayout then updateESPLayout() end
+                end)
+                function controller.refresh()
+                    local ru=currentLanguage=="ru"
+                    title.Text=ru and "ОТОБРАЖАЕМЫЕ ДАННЫЕ"
+                        or "VISIBLE INFORMATION"
+                    for i,def in ipairs(rows) do
+                        texts[i].Text=ru and def[2] or def[3]
+                    end
+                end
+                return controller
             end
             local playerData=dataCard("players")
             local npcData=dataCard("npcs")
@@ -5507,7 +5541,6 @@ do
                 Color=Color3.fromRGB(164,120,75),Thickness=1
             },menu)
             local options=styles
-            local updateESPLayout
             local rows={}
             for i,label in ipairs(options) do
                 local row=makeButton(menu,string.format("%02d  %s",i,label),
@@ -5910,7 +5943,7 @@ do
                 playerSwitch.card.Position=UDim2.fromOffset(12,y)
                 y+=86
                 playerData.card.Position=UDim2.fromOffset(12,y)
-                y+=152
+                y+=playerData.expanded and 152 or 56
                 highlightCard.Position=UDim2.fromOffset(12,y)
                 y+=90
                 playerDisclosure.button.Position=UDim2.fromOffset(12,y)
@@ -5923,7 +5956,7 @@ do
                 npcSwitch.card.Position=UDim2.fromOffset(12,y)
                 y+=86
                 npcData.card.Position=UDim2.fromOffset(12,y)
-                y+=152
+                y+=npcData.expanded and 152 or 56
                 npcDisclosure.button.Position=UDim2.fromOffset(12,y)
                 y+=52
                 monsterColors.card.Visible=npcDisclosure.expanded
@@ -5975,10 +6008,10 @@ do
                 refreshHighlight()
                 playerColors.title.Text=ru and "ЦВЕТ ИГРОКОВ" or "PLAYER COLOR"
                 monsterColors.title.Text=ru and "ЦВЕТ NPC И МОНСТРОВ" or "NPC / MONSTER COLOR"
-                playerDisclosure.title.Text=ru and "Настроить цвет игроков"
-                    or "Player color settings"
-                npcDisclosure.title.Text=ru and "Настроить цвет NPC"
-                    or "NPC color settings"
+                playerDisclosure.title.Text=ru and "Палитра цветов игроков"
+                    or "Player color palette"
+                npcDisclosure.title.Text=ru and "Палитра цветов NPC"
+                    or "NPC color palette"
                 playerColors.reset.Text=ru and "Сброс" or "Reset"
                 monsterColors.reset.Text=ru and "Сброс" or "Reset"
                 playerColors.subtitle.Text=ru and "10 цветов · палитра · HEX"
