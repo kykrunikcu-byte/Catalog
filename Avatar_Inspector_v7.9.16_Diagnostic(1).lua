@@ -3135,16 +3135,20 @@ do
     end
     EH.refreshHomeText()
 
-    -- Third page is deliberately empty of gameplay features until agreed.
-    local playerPage = create("Frame", {
+    -- All player settings stay inside the main tab, without extra panels.
+    local playerPage = create("ScrollingFrame", {
         Name = "HorizonPlayerPage",
         Position = UDim2.fromOffset(8, 108),
         Size = UDim2.new(1, -16, 1, -166),
+        CanvasSize = UDim2.fromOffset(0, 742),
+        ScrollBarThickness = 3,
+        ScrollBarImageColor3 = Color3.fromRGB(166, 125, 87),
+        ScrollingDirection = Enum.ScrollingDirection.Y,
+        ScrollingEnabled = true,
+        ClipsDescendants = true,
         BackgroundColor3 = BG,
         BorderSizePixel = 0,
-        Active = true,
-        Visible = false,
-        ZIndex = 30
+        Active = true, Visible = false, ZIndex = 30
     }, Main)
     round(playerPage, 12)
     local playerCard = create("Frame", {
@@ -3487,10 +3491,232 @@ do
             noclipEnabled = false
         end
 
+        -- Speed and Jump Power use in-page controls (not Fly mini-panels).
+        local function makeStatCard(kind, y, title, descriptionRU, descriptionEN,
+            method, resetMethod, glyph)
+            local card = create("Frame", {
+                Name = kind == "speed" and "HorizonSpeedCard" or "HorizonJumpCard",
+                Position = UDim2.fromOffset(12, y),
+                Size = UDim2.new(1, -24, 0, 170),
+                BackgroundColor3 = Color3.fromRGB(40, 37, 33),
+                BorderSizePixel = 0, ZIndex = 31
+            }, playerPage)
+            round(card, 10)
+            create("UIStroke", {Color = Color3.fromRGB(69, 64, 58),
+                Thickness = 1}, card)
+            local accent = create("Frame", {
+                Position = UDim2.fromOffset(13, 15), Size = UDim2.fromOffset(3, 40),
+                BackgroundColor3 = Color3.fromRGB(190, 147, 107),
+                BorderSizePixel = 0, ZIndex = 32
+            }, card)
+            round(accent, 2)
+
+            local iconLabel = makeLabel(card, glyph, UDim2.fromOffset(27, 25),
+                UDim2.fromOffset(27, 21), 23)
+            iconLabel.Font = Enum.Font.GothamBold
+            iconLabel.TextColor3 = Color3.fromRGB(216, 173, 115)
+            iconLabel.TextXAlignment = Enum.TextXAlignment.Center
+            iconLabel.ZIndex = 32
+            local caption = makeLabel(card, title, UDim2.new(1, -178, 0, 24),
+                UDim2.fromOffset(64, 11), 15)
+            caption.Font = Enum.Font.GothamBold
+            caption.TextColor3 = Color3.fromRGB(242, 223, 205)
+            caption.ZIndex = 32
+            local description = makeLabel(card, "", UDim2.new(1, -174, 0, 18),
+                UDim2.fromOffset(64, 36), 11)
+            description.TextColor3 = Color3.fromRGB(170, 160, 152)
+            description.ZIndex = 32
+
+            local character = LocalPlayer.Character
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            local initial = kind == "speed" and (humanoid and humanoid.WalkSpeed or 16)
+                or (humanoid and (humanoid.UseJumpPower and humanoid.JumpPower
+                    or humanoid.JumpHeight) or 50)
+            local readout = makeLabel(card, tostring(initial),
+                UDim2.fromOffset(101, 25), UDim2.new(1, -112, 0, 17), 13)
+            readout.Font = Enum.Font.GothamBold
+            readout.TextColor3 = Color3.fromRGB(229, 187, 138)
+            readout.TextXAlignment = Enum.TextXAlignment.Right
+            readout.ZIndex = 32
+
+            local slider = create("TextButton", {
+                Name = "StatSlider", Text = "", AutoButtonColor = false,
+                Position = UDim2.fromOffset(16, 65),
+                Size = UDim2.new(1, -32, 0, 25),
+                BackgroundTransparency = 1, BorderSizePixel = 0,
+                Active = true, ZIndex = 33
+            }, card)
+            local rail = create("Frame", {
+                Size = UDim2.new(1, 0, 0, 6),
+                Position = UDim2.new(0, 0, 0.5, -3),
+                BackgroundColor3 = Color3.fromRGB(84, 72, 60),
+                BorderSizePixel = 0, Active = false, ZIndex = 33
+            }, slider)
+            round(rail, 3)
+            local fill = create("Frame", {
+                Size = UDim2.fromScale(math.clamp(initial / 500, 0, 1), 1),
+                BackgroundColor3 = Color3.fromRGB(204, 159, 111),
+                BorderSizePixel = 0, Active = false, ZIndex = 34
+            }, rail)
+            round(fill, 3)
+            local knob = create("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromScale(math.clamp(initial / 500, 0, 1), 0.5),
+                Size = UDim2.fromOffset(16, 16),
+                BackgroundColor3 = Color3.fromRGB(227, 190, 151),
+                BorderSizePixel = 0, Active = false, ZIndex = 35
+            }, slider)
+            round(knob, 8)
+            local low = makeLabel(card, "0", UDim2.fromOffset(40, 16),
+                UDim2.fromOffset(16, 91), 10)
+            low.TextColor3 = Color3.fromRGB(179, 166, 148)
+            low.ZIndex = 32
+            local high = makeLabel(card, "500", UDim2.fromOffset(50, 16),
+                UDim2.new(1, -66, 0, 91), 10)
+            high.TextXAlignment = Enum.TextXAlignment.Right
+            high.TextColor3 = Color3.fromRGB(179, 166, 148)
+            high.ZIndex = 32
+
+            local manualLabel = makeLabel(card, "", UDim2.new(1, -28, 0, 18),
+                UDim2.fromOffset(16, 109), 11)
+            manualLabel.TextColor3 = Color3.fromRGB(201, 184, 162)
+            manualLabel.ZIndex = 32
+            local manual = create("TextBox", {
+                Name = kind == "speed" and "HorizonSpeedInput" or "HorizonJumpInput",
+                Position = UDim2.fromOffset(16, 132),
+                Size = UDim2.new(1, -128, 0, 29),
+                BackgroundColor3 = Color3.fromRGB(48, 43, 39),
+                BorderSizePixel = 0,
+                Text = tostring(initial), PlaceholderText = "0–10000000",
+                ClearTextOnFocus = false,
+                TextColor3 = Color3.fromRGB(242, 223, 205),
+                PlaceholderColor3 = Color3.fromRGB(163, 150, 134),
+                Font = Enum.Font.Gotham, TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33
+            }, card)
+            round(manual, 7)
+            create("UIStroke", {Color = Color3.fromRGB(95, 77, 60),
+                Thickness = 1}, manual)
+            local reset = create("TextButton", {
+                Name = "StatReset", Position = UDim2.new(1, -104, 0, 132),
+                Size = UDim2.fromOffset(88, 29), Text = "",
+                BackgroundColor3 = Color3.fromRGB(76, 62, 50),
+                BorderSizePixel = 0,
+                TextColor3 = Color3.fromRGB(239, 216, 188),
+                Font = Enum.Font.GothamMedium, TextSize = 11,
+                AutoButtonColor = true, Active = true, ZIndex = 33
+            }, card)
+            round(reset, 7)
+
+            local function show(value, updateManual)
+                readout.Text = tostring(value)
+                local t = math.clamp(value / 500, 0, 1)
+                fill.Size = UDim2.fromScale(t, 1)
+                knob.Position = UDim2.fromScale(t, 0.5)
+                if updateManual then manual.Text = tostring(value) end
+                manual.TextColor3 = Color3.fromRGB(242, 223, 205)
+            end
+            local function apply(value, updateManual)
+                local controller, errorText = getFlyController()
+                if not controller or type(controller[method]) ~= "function" then
+                    warn("[HORIZON " .. title .. "] " .. tostring(errorText or "Missing method"))
+                    manual.TextColor3 = Color3.fromRGB(248, 128, 128)
+                    return
+                end
+                local ok, result, err = pcall(controller[method], controller, value)
+                if not ok or result == false then
+                    warn("[HORIZON " .. title .. "] " .. tostring(ok and err or result))
+                    manual.TextColor3 = Color3.fromRGB(248, 128, 128)
+                    return
+                end
+                show(value, updateManual)
+            end
+
+            -- Temporary global pointers prevent lingering listeners and keep
+            -- touch slider movement independent of page scrolling.
+            local moving, pointer, onMove, onRelease = false, nil, nil, nil
+            local function release()
+                moving, pointer = false, nil
+                if onMove then onMove:Disconnect(); onMove = nil end
+                if onRelease then onRelease:Disconnect(); onRelease = nil end
+                if playerPage.Parent then playerPage.ScrollingEnabled = true end
+            end
+            local function dragTo(x)
+                local width = slider.AbsoluteSize.X
+                if width <= 0 then return end
+                local value = math.floor(math.clamp(
+                    (x - slider.AbsolutePosition.X) / width, 0, 1) * 500 + 0.5)
+                apply(value, false)
+            end
+            slider.InputBegan:Connect(function(input)
+                if input.UserInputType ~= Enum.UserInputType.MouseButton1
+                    and input.UserInputType ~= Enum.UserInputType.Touch then return end
+                release()
+                moving, pointer = true, input
+                playerPage.ScrollingEnabled = false
+                dragTo(input.Position.X)
+                onMove = UserInputService.InputChanged:Connect(function(changed)
+                    if moving and (changed == pointer or (pointer
+                        and pointer.UserInputType == Enum.UserInputType.MouseButton1
+                        and changed.UserInputType == Enum.UserInputType.MouseMovement)) then
+                        dragTo(changed.Position.X)
+                    end
+                end)
+                onRelease = UserInputService.InputEnded:Connect(function(ended)
+                    if ended == pointer or (pointer
+                        and pointer.UserInputType == Enum.UserInputType.MouseButton1
+                        and ended.UserInputType == Enum.UserInputType.MouseButton1) then
+                        release()
+                    end
+                end)
+            end)
+            ScreenGui.Destroying:Connect(release)
+            manual.FocusLost:Connect(function(enterPressed)
+                if not enterPressed then return end
+                local digits = manual.Text:match("^%s*(%d+)%s*$")
+                local value = digits and tonumber(digits)
+                if not value or value > 10000000 then
+                    manual.TextColor3 = Color3.fromRGB(248, 128, 128)
+                    return
+                end
+                apply(value, true)
+            end)
+            reset.Activated:Connect(function()
+                local controller, err = getFlyController()
+                if not controller or type(controller[resetMethod]) ~= "function" then
+                    warn("[HORIZON " .. title .. "] " .. tostring(err or "Missing reset"))
+                    return
+                end
+                local ok, value = pcall(controller[resetMethod], controller)
+                if ok and type(value) == "number" then
+                    show(value, true)
+                else
+                    warn("[HORIZON " .. title .. "] Reset failed: " .. tostring(value))
+                end
+            end)
+            return function()
+                local ru = currentLanguage == "ru"
+                description.Text = ru and descriptionRU or descriptionEN
+                manualLabel.Text = ru and "Ручной ввод (Enter)" or "Manual entry (Enter)"
+                reset.Text = ru and "Сброс" or "Reset"
+            end
+        end
+        local refreshSpeed = makeStatCard("speed", 364,
+            "Speed", "Скорость передвижения", "Movement speed",
+            "setWalkSpeed", "resetWalkSpeed", "»")
+        local refreshJump = makeStatCard("jump", 548,
+            "Jump Power", "Высота прыжка", "Jump height / power",
+            "setJumpPower", "resetJumpPower", "↑")
+        local function refreshStatCards()
+            refreshSpeed()
+            refreshJump()
+        end
+
         -- The existing localization system can call the most recent page refresh.
         EH.refreshFlyCardText = function()
             flySubtitle.Text = currentLanguage == "ru" and "Режим полёта" or "Flight mode"
             noclipSubtitle.Text = currentLanguage == "ru" and "Сквозь стены" or "Through walls"
+            refreshStatCards()
         end
     end
 
@@ -3501,8 +3727,8 @@ do
         playerTitle.Text = ru and "Управление игроком" or "Player tools"
         if EH.refreshFlyCardText then EH.refreshFlyCardText() end
         playerDescription.Text = ru
-            and "Включайте Fly для полёта и Noclip для прохождения сквозь стены."
-            or "Use Fly to fly and Noclip to pass through walls."
+            and "Fly, Noclip, скорость передвижения и высота прыжка — всё в одном разделе."
+            or "Fly, Noclip, movement speed and jump height — in one place."
     end
     EH.refreshHomeText()
 
