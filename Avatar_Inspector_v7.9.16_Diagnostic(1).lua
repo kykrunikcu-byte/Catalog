@@ -5351,7 +5351,9 @@ do
                     Name=player and "HorizonESPPlayerDataExpand"
                         or "HorizonESPNPCDataExpand",
                     Position=UDim2.fromOffset(0,0),
-                    Size=UDim2.new(1,0,0,43),
+                    -- Stop before the first toggle (row starts at y=34).
+                    -- Otherwise the header consumes taps on that toggle.
+                    Size=UDim2.new(1,0,0,32),
                     BackgroundTransparency=1,BorderSizePixel=0,
                     Text="",AutoButtonColor=false,
                     Active=true,ZIndex=34
