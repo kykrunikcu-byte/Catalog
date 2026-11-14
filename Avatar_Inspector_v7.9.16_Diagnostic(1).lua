@@ -4184,13 +4184,9 @@ do
             end
             if hostile then return "MONSTER",cfg.monsterColor end
             if player then return "PLAYER",cfg.playerColor end
-            if role:find("surviv") or role:find("friend")
-                or role:find("civilian") or role:find("ally") then
-                return "NPC",cfg.playerColor
-            end
-            -- Unknown NPCs remain clearly identified as NPC rather than
-            -- being falsely advertised as killers.
-            return "NPC",palette.unknown
+            -- The NPC color editor controls every NPC, including unknown ones.
+            -- Classification still distinguishes NPCs from actual monsters.
+            return "NPC",cfg.monsterColor
         end
         local function playerOwner(model)
             local obj=model
@@ -4242,6 +4238,13 @@ do
                     AnchorPoint=Vector2.new(0,0.5),
                     BorderSizePixel=0,Active=false,ZIndex=3
                 },parent)
+                -- One reusable dark border per line keeps the thin geometry
+                -- legible on bright and complex backgrounds without a HUD.
+                create("UIStroke",{
+                    Color=Color3.fromRGB(12,11,10),
+                    Thickness=1.25,Transparency=.13,
+                    ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+                },obj)
                 parts[i]=obj
             end
             local dx,dy=x2-x1,y2-y1
@@ -4255,10 +4258,17 @@ do
         -- Ten purpose-designed, low-clutter line patterns around the WORLD target.
         -- No screen-space overlay; every line belongs to the model's BillboardGui.
         local function renderFrame(entry,w,h,color)
-            local segments={}
+            -- Recompute geometry only when the apparent size/style/color changes.
+            -- This avoids flicker from subpixel animations and reduces mobile work.
+            w=math.floor(w+.5)
+            h=math.floor(h+.5)
             local style=cfg.style
-            local len=math.clamp(math.min(w,h)*.22,7,28)
-            local stroke=math.clamp(math.min(w,h)*.014,1.6,2.8)
+            if entry.frameStyle==style and entry.frameColor==color
+                and math.abs((entry.renderedW or 0)-w)<2
+                and math.abs((entry.renderedH or 0)-h)<2 then return end
+            local segments={}
+            local len=math.clamp(math.min(w,h)*.20,7,27)
+            local stroke=math.clamp(math.min(w,h)*.018,2,3)
             local function L(a,b,c,d,t,alpha)
                 segments[#segments+1]={a,b,c,d,t or stroke,alpha or 0}
             end
@@ -4333,6 +4343,10 @@ do
             for i=#segments+1,#entry.lines do
                 entry.lines[i].Visible=false
             end
+            entry.frameStyle=style
+            entry.frameColor=color
+            entry.renderedW=w
+            entry.renderedH=h
         end
         -- World ESP: all billboards, highlights and beams belong to 3D models.
         -- No ScreenGui, camera-space rectangles, or UI elements at fixed screen points.
@@ -4516,7 +4530,13 @@ do
             end
             local width,height,center
             if found>0 then
-                width=math.clamp(radius*2+0.35,2.2,10)
+                -- Limbs swing during walking; calculate width from the torso
+                -- instead so animation does not make the border pulse.
+                local torso=model:FindFirstChild("Torso")
+                    or model:FindFirstChild("UpperTorso")
+                    or model:FindFirstChild("LowerTorso")
+                width=torso and math.clamp(torso.Size.X*1.75+.2,2.2,12)
+                    or math.clamp(radius*2+.35,2.2,12)
                 height=math.clamp(maxY-minY+.35,3.5,13)
                 center=Vector3.new(rootPos.X,(maxY+minY)/2,rootPos.Z)
             else
@@ -4533,8 +4553,8 @@ do
             -- Avoid GUI resizes every frame for minuscule animation changes.
             local prevWidth=entry.frameWidth or width
             local prevHeight=entry.frameHeight or height
-            local smoothedWidth=prevWidth+(width-prevWidth)*.4
-            local smoothedHeight=prevHeight+(height-prevHeight)*.4
+            local smoothedWidth=prevWidth+(width-prevWidth)*.18
+            local smoothedHeight=prevHeight+(height-prevHeight)*.18
             if math.abs(smoothedWidth-prevWidth)<.035 then
                 smoothedWidth=prevWidth
             end
@@ -4544,7 +4564,10 @@ do
             entry.frameWidth,entry.frameHeight=smoothedWidth,smoothedHeight
             entry.billboard.Adornee=root
             entry.billboard.Size=UDim2.new(smoothedWidth,6,smoothedHeight,10)
-            entry.billboard.StudsOffsetWorldSpace=center-rootPos
+            local offset=center-rootPos
+            entry.smoothedOffset=entry.smoothedOffset
+                and entry.smoothedOffset:Lerp(offset,.18) or offset
+            entry.billboard.StudsOffsetWorldSpace=entry.smoothedOffset
             return true
         end
         local function renderTarget(entry,ownPosition,ownRoot,highlightAllowed)
@@ -4604,7 +4627,10 @@ do
                 if hl.OutlineColor~=outline then hl.OutlineColor=outline end
                 if not hl.Enabled then hl.Enabled=true end
             elseif entry.hl then
-                entry.hl.Enabled=false
+                -- Disabled Highlights still consume engine slots. Release
+                -- out-of-budget instances rather than starving other targets.
+                entry.hl:Destroy()
+                entry.hl=nil
             end
 
             if not updateWorldBounds(entry,root) then
@@ -4621,6 +4647,7 @@ do
                 end
             else
                 for _,segment in ipairs(entry.lines) do segment.Visible=false end
+                entry.frameStyle=nil -- Redraw immediately if Box ESP is re-enabled.
             end
             entry.name.Visible=cfg.names
             entry.name.Text=entry.player and entry.player.DisplayName or model.Name
@@ -4713,7 +4740,9 @@ do
                 return a.distance<b.distance
             end)
             -- Leave room for Highlight instances created by the game itself.
-            local availableHighlights=24
+            -- Roblox allows more than 24; reserve headroom for other effects
+            -- and keep a deliberate mobile-friendly cap.
+            local availableHighlights=80
             for _,target in ipairs(ordered) do
                 local entry=target.entry
                 local ok,err=pcall(renderTarget,entry,
@@ -4902,7 +4931,7 @@ do
                     if ok then show(nextValue,true)
                     else EH.logDiagnostic("ESP toggle",err) end
                 end)
-                return {subtitle=sub,title=title,button=toggle}
+                return {subtitle=sub,title=title,button=toggle,card=card}
             end
 
             local playerSwitch=switchCard("Player ESP",
@@ -4953,11 +4982,8 @@ do
             create("UIStroke",{
                 Color=Color3.fromRGB(164,120,75),Thickness=1
             },menu)
-            local options={
-                "Corner Box","Full Box","Double Box","Dashed Box",
-                "Bracket Box","Tactical Box","Diamond Box",
-                "Neon Box","Minimal Box","Crosshair Box"
-            }
+            local options=styles
+            local updateESPLayout
             local rows={}
             for i,label in ipairs(options) do
                 local row=makeButton(menu,string.format("%02d  %s",i,label),
@@ -4974,6 +5000,8 @@ do
                     cfg.style=i
                     selector.Text=label.."  ▾"
                     menu.Visible=false
+                    -- When a dropdown closes, recalculate scrolling bounds.
+                    if updateESPLayout then updateESPLayout() end
                     for j,other in ipairs(rows) do
                         other.BackgroundColor3=j==i
                             and Color3.fromRGB(87,63,43)
@@ -4983,10 +5011,12 @@ do
             end
             selector.Activated:Connect(function()
                 menu.Visible=not menu.Visible
+                if updateESPLayout then updateESPLayout() end
                 if menu.Visible then
                     espPage.CanvasPosition=Vector2.new(
                         espPage.CanvasPosition.X,
-                        math.max(espPage.CanvasPosition.Y,430))
+                        math.max(espPage.CanvasPosition.Y,
+                            selectorCard.Position.Y.Offset-10))
                 end
             end)
 
@@ -5018,7 +5048,7 @@ do
                     tonumber(hex:sub(3,4),16),
                     tonumber(hex:sub(5,6),16))
             end
-            local function makeColorEditor(key,titleText,y,defaultColor)
+            local function makeColorEditor(key,titleText,y,defaultColor,onColorChange)
                 local card=create("Frame",{
                     Name="Horizon"..key.."ESPColorCard",
                     Position=UDim2.fromOffset(12,y),
@@ -5200,6 +5230,7 @@ do
                 local H,S,V=defaultColor:ToHSV()
                 local function paint(color,preserveHSV)
                     cfg[key]=color
+                    if onColorChange then onColorChange(color) end
                     if not preserveHSV then
                         H,S,V=color:ToHSV()
                     end
@@ -5289,12 +5320,109 @@ do
                 end)
                 ScreenGui.Destroying:Connect(releaseDrag)
                 paint(defaultColor)
-                return {title=title,reset=reset,subtitle=subtitle}
+                return {title=title,reset=reset,subtitle=subtitle,card=card}
             end
+
+            -- Each ESP switch gets one compact disclosure button BELOW it.
+            -- The entire preset/HSV/HEX editor is hidden until requested.
+            local function colorDisclosure(key,caption,initialColor)
+                local button=create("TextButton",{
+                    Name="HorizonESP"..key.."ColorExpand",
+                    Position=UDim2.fromOffset(12,0),
+                    Size=UDim2.new(1,-24,0,40),
+                    BackgroundColor3=Color3.fromRGB(52,45,39),
+                    BorderSizePixel=0,Text="",Active=true,
+                    AutoButtonColor=false,ZIndex=31
+                },espPage)
+                round(button,9)
+                create("UIStroke",{
+                    Color=Color3.fromRGB(95,79,63),
+                    Thickness=1,Transparency=.15
+                },button)
+                local swatch=create("Frame",{
+                    Name="ESPCurrentColor",
+                    Position=UDim2.fromOffset(13,11),
+                    Size=UDim2.fromOffset(18,18),
+                    BackgroundColor3=initialColor,BorderSizePixel=0,
+                    Active=false,ZIndex=32
+                },button)
+                round(swatch,5)
+                create("UIStroke",{Color=Color3.fromRGB(216,199,176),
+                    Thickness=1,Transparency=.2},swatch)
+                local title=makeLabel(button,caption,
+                    UDim2.new(1,-92,1,0),UDim2.fromOffset(40,0),12)
+                title.Font=Enum.Font.GothamBold
+                title.TextColor3=Color3.fromRGB(233,210,180)
+                title.ZIndex=32
+                local arrow=makeLabel(button,"▾",
+                    UDim2.fromOffset(29,32),
+                    UDim2.new(1,-39,.5,-16),19)
+                arrow.TextXAlignment=Enum.TextXAlignment.Center
+                arrow.TextColor3=Color3.fromRGB(225,185,140)
+                arrow.ZIndex=32
+                return {button=button,title=title,swatch=swatch,
+                    arrow=arrow,expanded=false}
+            end
+            local playerDisclosure=colorDisclosure("Players",
+                "Настроить цвет игроков",cfg.playerColor)
+            local npcDisclosure=colorDisclosure("NPC",
+                "Настроить цвет NPC",cfg.monsterColor)
             local playerColors=makeColorEditor("playerColor",
-                "ЦВЕТ ИГРОКОВ",531,Color3.fromRGB(89,228,133))
+                "ЦВЕТ ИГРОКОВ",0,Color3.fromRGB(89,228,133),
+                function(color)
+                    playerDisclosure.swatch.BackgroundColor3=color
+                end)
             local monsterColors=makeColorEditor("monsterColor",
-                "ЦВЕТ МОНСТРОВ",890,Color3.fromRGB(245,87,97))
+                "ЦВЕТ NPC И МОНСТРОВ",0,Color3.fromRGB(245,87,97),
+                function(color)
+                    npcDisclosure.swatch.BackgroundColor3=color
+                end)
+
+            -- Absolute positions are recalculated when a color disclosure
+            -- expands/collapses. Both panels remain independently accessible.
+            updateESPLayout=function()
+                local y=180
+                playerSwitch.card.Position=UDim2.fromOffset(12,y)
+                y+=86
+                playerDisclosure.button.Position=UDim2.fromOffset(12,y)
+                y+=52
+                playerColors.card.Visible=playerDisclosure.expanded
+                if playerDisclosure.expanded then
+                    playerColors.card.Position=UDim2.fromOffset(12,y)
+                    y+=354
+                end
+                npcSwitch.card.Position=UDim2.fromOffset(12,y)
+                y+=86
+                npcDisclosure.button.Position=UDim2.fromOffset(12,y)
+                y+=52
+                monsterColors.card.Visible=npcDisclosure.expanded
+                if npcDisclosure.expanded then
+                    monsterColors.card.Position=UDim2.fromOffset(12,y)
+                    y+=354
+                end
+                boxSwitch.card.Position=UDim2.fromOffset(12,y)
+                y+=69
+                selectorCard.Position=UDim2.fromOffset(12,y)
+                menu.Position=UDim2.fromOffset(26,y+84)
+                y+=88
+                espPage.CanvasSize=UDim2.fromOffset(0,y+
+                    (menu.Visible and 224 or 22))
+                playerDisclosure.arrow.Text=
+                    playerDisclosure.expanded and "▴" or "▾"
+                npcDisclosure.arrow.Text=
+                    npcDisclosure.expanded and "▴" or "▾"
+            end
+            playerDisclosure.button.Activated:Connect(function()
+                playerDisclosure.expanded=not playerDisclosure.expanded
+                menu.Visible=false
+                updateESPLayout()
+            end)
+            npcDisclosure.button.Activated:Connect(function()
+                npcDisclosure.expanded=not npcDisclosure.expanded
+                menu.Visible=false
+                updateESPLayout()
+            end)
+            updateESPLayout()
 
             local oldRefresh=EH.refreshHomeText
             EH.refreshHomeText=function()
@@ -5308,7 +5436,11 @@ do
                 boxSwitch.subtitle.Text=ru and "Включить или скрыть рамки" or "Show or hide frames"
                 selectorTitle.Text=ru and "СТИЛЬ РАМКИ / BOX STYLE" or "BOX STYLE"
                 playerColors.title.Text=ru and "ЦВЕТ ИГРОКОВ" or "PLAYER COLOR"
-                monsterColors.title.Text=ru and "ЦВЕТ МОНСТРОВ" or "MONSTER COLOR"
+                monsterColors.title.Text=ru and "ЦВЕТ NPC И МОНСТРОВ" or "NPC / MONSTER COLOR"
+                playerDisclosure.title.Text=ru and "Настроить цвет игроков"
+                    or "Player color settings"
+                npcDisclosure.title.Text=ru and "Настроить цвет NPC"
+                    or "NPC color settings"
                 playerColors.reset.Text=ru and "Сброс" or "Reset"
                 monsterColors.reset.Text=ru and "Сброс" or "Reset"
                 playerColors.subtitle.Text=ru and "10 цветов · палитра · HEX"
@@ -5321,12 +5453,12 @@ do
         end
     end
 
-    -- ESP page: target switches, box selector, and independent color editors.
+    -- ESP page: two target switches, a box selector and collapsed color editors.
     local espPage = create("ScrollingFrame", {
         Name = "HorizonESPPage",
         Position = UDim2.fromOffset(8, 108),
         Size = UDim2.new(1, -16, 1, -166),
-        CanvasSize = UDim2.fromOffset(0, 1390),
+        CanvasSize = UDim2.fromOffset(0, 680),
         ScrollBarThickness = 3,
         ScrollBarImageColor3 = Color3.fromRGB(166, 125, 87),
         ScrollingDirection = Enum.ScrollingDirection.Y,
