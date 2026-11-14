@@ -2640,88 +2640,72 @@ addStroke(ItemsPanel)
 EH.ehPanel(ItemsPanel, "viewer")
 EH.listNeon(ItemsPanel)
 
--- Dashboard 19: title, prominent count, and supporting status in one panel.
+-- Live Monitor / compact item metric; keep scanner-bound references.
 EH.wornHeader = EH.statusChip(ItemsPanel, "EHWornCountPill",
     UDim2.fromOffset(13, 5), UDim2.new(1, -26, 0, 76),
     Color3.fromRGB(142, 222, 175))
-EH.wornHeader.BackgroundColor3 = Color3.fromRGB(43, 36, 30)
+EH.wornHeader.BackgroundColor3 = Color3.fromRGB(24, 23, 21)
 EH.wornHeader.EHStatusDot.Visible = false
-EH.wornHeader:FindFirstChildOfClass("UIStroke").Color = Color3.fromRGB(135, 100, 67)
-EH.wornHeader:FindFirstChildOfClass("UIStroke").Transparency = 0.36
+EH.wornHeader:FindFirstChildOfClass("UIStroke").Color = Color3.fromRGB(119, 88, 61)
+EH.wornHeader:FindFirstChildOfClass("UIStroke").Transparency = 0.42
 EH.wornHeader:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(0, 12)
--- Scoped decoration: no extra long-lived Luau locals.
 do
-    local tag = create("Frame", {
-        Name = "EHItemsOutlinedTitle",
-        Position = UDim2.fromOffset(12, 5),
-        Size = UDim2.fromOffset(112, 23),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        ZIndex = EH.wornHeader.ZIndex + 2
-    }, EH.wornHeader)
-    round(tag, 6)
-    create("UIStroke", {
-        Color = Color3.fromRGB(170, 127, 83),
-        Thickness = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    }, tag)
-    local title = makeLabel(tag, "ITEMS",
-        UDim2.new(1, -8, 1, 0), UDim2.fromOffset(4, 0), 12)
-    title.Font = Enum.Font.GothamMedium
-    title.TextColor3 = Color3.fromRGB(235, 225, 209)
-    title.TextXAlignment = Enum.TextXAlignment.Center
-    title.TextScaled = false
-    title.ZIndex = tag.ZIndex + 1
+    local header = EH.wornHeader
+    local title = makeLabel(header, currentLanguage == "ru" and "НАДЕТЫЕ ПРЕДМЕТЫ" or "WORN ITEMS",
+        UDim2.new(1, -60, 0, 17), UDim2.fromOffset(11, 5), 11)
+    title.Name = "EHItemsLiveTitle"
+    title.Font = Enum.Font.GothamBold
+    title.TextColor3 = Color3.fromRGB(235, 189, 146)
+    title.ZIndex = header.ZIndex + 2
+    local live = makeLabel(header, "LIVE", UDim2.fromOffset(36, 16),
+        UDim2.new(1, -43, 0, 5), 10)
+    live.Font = Enum.Font.GothamMedium
+    live.TextColor3 = Color3.fromRGB(143, 209, 168)
+    live.TextXAlignment = Enum.TextXAlignment.Right
+    live.ZIndex = header.ZIndex + 2
 end
-EH.safeIcon(EH.wornHeader, "items", UDim2.new(1, -32, 0, 5), 22)
-
-EH.wornBadge = makeLabel(
-    EH.wornHeader, "—",
-    UDim2.fromOffset(72, 26), UDim2.fromOffset(12, 29), 19
-)
+EH.wornBadge = makeLabel(EH.wornHeader, "—",
+    UDim2.fromOffset(66, 30), UDim2.fromOffset(11, 24), 25)
 EH.wornBadge.Name = "EclipseItemCount"
 EH.wornBadge.BackgroundTransparency = 1
-EH.wornBadge.TextColor3 = Color3.fromRGB(242, 233, 218)
+EH.wornBadge.TextColor3 = Color3.fromRGB(244, 204, 161)
 EH.wornBadge.TextXAlignment = Enum.TextXAlignment.Left
-EH.wornBadge.Font = Enum.Font.GothamSemibold
+EH.wornBadge.Font = Enum.Font.GothamBold
 EH.wornBadge.ZIndex = EH.wornHeader.ZIndex + 2
 
--- Keep the existing WornCountLabel binding used by scanner and favorites.
+-- Scanner and favorites still update this same label.
 local WornCountLabel
 do
-    local tag = create("Frame", {
-        Name = "EHItemsThinStatus",
-        Position = UDim2.fromOffset(12, 55),
-        Size = UDim2.fromOffset(146, 19),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        ZIndex = EH.wornHeader.ZIndex + 2
-    }, EH.wornHeader)
-    round(tag, 9)
-    create("UIStroke", {
-        Color = Color3.fromRGB(133, 204, 169),
-        Transparency = 0.2,
-        Thickness = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    }, tag)
-    local dot = create("Frame", {
-        Name = "EHDashboardWornDot",
-        Position = UDim2.fromOffset(7, 7),
-        Size = UDim2.fromOffset(5, 5),
-        BackgroundColor3 = Color3.fromRGB(155, 231, 186),
-        BorderSizePixel = 0,
-        ZIndex = tag.ZIndex + 1
-    }, tag)
-    round(dot, 3)
-    WornCountLabel = makeLabel(tag, "WORN ITEMS: —",
-        UDim2.new(1, -21, 1, 0), UDim2.fromOffset(17, 0), 10)
+    local header = EH.wornHeader
+    WornCountLabel = makeLabel(header,
+        currentLanguage == "ru" and "Предметов обнаружено" or "Items detected",
+        UDim2.new(1, -87, 0, 21), UDim2.fromOffset(81, 29), 10)
     WornCountLabel.Name = "WornItemsCounter"
-    WornCountLabel.ZIndex = tag.ZIndex + 1
-    WornCountLabel.TextColor3 = Color3.fromRGB(196, 244, 216)
+    WornCountLabel.ZIndex = header.ZIndex + 2
+    WornCountLabel.TextColor3 = Color3.fromRGB(225, 208, 189)
     WornCountLabel.Font = Enum.Font.GothamMedium
     WornCountLabel.TextXAlignment = Enum.TextXAlignment.Left
     WornCountLabel.TextScaled = false
-    WornCountLabel.Text = translateText("WORN ITEMS: —"):gsub(":%s*—$", "")
+    local bar = create("Frame", {
+        Name = "EHItemsLiveAccent",
+        Position = UDim2.fromOffset(12, 55),
+        Size = UDim2.new(1, -24, 0, 2),
+        BackgroundColor3 = Color3.fromRGB(197, 149, 100),
+        BorderSizePixel = 0, ZIndex = header.ZIndex + 2
+    }, header)
+    round(bar, 2)
+    local footer = makeLabel(header,
+        currentLanguage == "ru" and "МОНИТОРИНГ ПРЕДМЕТОВ" or "ITEM MONITOR",
+        UDim2.new(1, -78, 0, 14), UDim2.fromOffset(12, 60), 8)
+    footer.TextColor3 = Color3.fromRGB(167, 146, 125)
+    footer.Font = Enum.Font.GothamMedium
+    footer.ZIndex = header.ZIndex + 2
+    local active = makeLabel(header,
+        currentLanguage == "ru" and "● Активен" or "● Active",
+        UDim2.fromOffset(66, 14), UDim2.new(1, -77, 0, 60), 9)
+    active.TextColor3 = Color3.fromRGB(130, 215, 165)
+    active.TextXAlignment = Enum.TextXAlignment.Right
+    active.ZIndex = header.ZIndex + 2
 end
 
 do
@@ -7740,7 +7724,7 @@ local function scanPlayer(player)
     local source = EH.avatarSourceMode or "Original"
 
     clearItems()
-    WornCountLabel.Text = translateText("WORN ITEMS: —"):gsub(":%s*—$", "")
+    WornCountLabel.Text = currentLanguage == "ru" and "Предметов обнаружено" or "Items detected"
     EH.wornBadge.Text = "—"
     Status.Text = source == "Original" and "Loading account avatar..."
         or "Scanning current game morph..."
@@ -7901,8 +7885,8 @@ local function scanPlayer(player)
         end
     end
 
-    WornCountLabel.Text = translateText("WORN ITEMS: —"):gsub(":%s*—$", "")
-    EH.wornBadge.Text = string.format("%02d", wornItemCount)
+    WornCountLabel.Text = currentLanguage == "ru" and "Предметов обнаружено" or "Items detected"
+    EH.wornBadge.Text = string.format("%03d", wornItemCount)
     displaySavedItems(identifiers)
 
     local animationCount = 0
@@ -7993,87 +7977,65 @@ refreshPlayerList = function()
 
     local serverPlayers = #serverPlayerList
 
-    local countHeader = create("Frame", {
-        Name = "ServerPlayerCount",
-        Size = UDim2.fromOffset(172, 78),
-        BackgroundColor3 = Color3.fromRGB(43, 36, 30),
-        BorderSizePixel = 0,
-        LayoutOrder = 0
-    }, PlayerList)
-    round(countHeader, 12)
-    create("UIStroke", {
-        Color = Color3.fromRGB(135, 100, 67),
-        Transparency = 0.36,
-        Thickness = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    }, countHeader)
-
+    -- Live Monitor / compact player metric. Rebuilt with the player list.
     do
-        local tag = create("Frame", {
-            Name = "EHPlayersOutlinedTitle",
-            Position = UDim2.fromOffset(11, 5),
-            Size = UDim2.fromOffset(82, 23),
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            ZIndex = countHeader.ZIndex + 2
-        }, countHeader)
-        round(tag, 6)
+        local header = create("Frame", {
+            Name = "ServerPlayerCount",
+            Size = UDim2.fromOffset(172, 78),
+            BackgroundColor3 = Color3.fromRGB(24, 23, 21),
+            BorderSizePixel = 0, LayoutOrder = 0
+        }, PlayerList)
+        round(header, 12)
         create("UIStroke", {
-            Color = Color3.fromRGB(170, 127, 83),
-            Thickness = 1,
+            Color = Color3.fromRGB(119, 88, 61),
+            Transparency = 0.42, Thickness = 1,
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        }, tag)
-        local title = makeLabel(tag, "PLAYERS",
-            UDim2.new(1, -8, 1, 0), UDim2.fromOffset(4, 0), 12)
-        title.Font = Enum.Font.GothamMedium
-        title.TextColor3 = Color3.fromRGB(235, 225, 209)
-        title.TextXAlignment = Enum.TextXAlignment.Center
-        title.TextScaled = false
-        title.ZIndex = tag.ZIndex + 1
-    end
-    EH.safeIcon(countHeader, "players", UDim2.fromOffset(141, 5), 22)
-
-    local numberLabel = makeLabel(countHeader,
-        string.format("%02d", serverPlayers),
-        UDim2.fromOffset(80, 27), UDim2.fromOffset(11, 29), 19)
-    numberLabel.TextColor3 = Color3.fromRGB(242, 233, 218)
-    numberLabel.TextXAlignment = Enum.TextXAlignment.Left
-    numberLabel.Font = Enum.Font.GothamSemibold
-    numberLabel.ZIndex = countHeader.ZIndex + 2
-
-    do
-        local tag = create("Frame", {
-            Name = "EHPlayersThinStatus",
-            Position = UDim2.fromOffset(11, 57),
-            Size = UDim2.fromOffset(115, 19),
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            ZIndex = countHeader.ZIndex + 2
-        }, countHeader)
-        round(tag, 9)
-        create("UIStroke", {
-            Color = Color3.fromRGB(133, 204, 169),
-            Transparency = 0.2,
-            Thickness = 1,
-            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        }, tag)
-        local dot = create("Frame", {
-            Name = "EHDashboardOnlineDot",
-            Position = UDim2.fromOffset(7, 7),
-            Size = UDim2.fromOffset(5, 5),
-            BackgroundColor3 = Color3.fromRGB(155, 231, 186),
-            BorderSizePixel = 0,
-            ZIndex = tag.ZIndex + 1
-        }, tag)
-        round(dot, 3)
-        local caption = makeLabel(tag,
-            currentLanguage == "ru" and "Сейчас онлайн" or "Online now",
-            UDim2.new(1, -21, 1, 0), UDim2.fromOffset(17, 0), 10)
-        caption.ZIndex = tag.ZIndex + 1
+        }, header)
+        local title = makeLabel(header,
+            currentLanguage == "ru" and "АКТИВНЫЕ ИГРОКИ" or "ACTIVE PLAYERS",
+            UDim2.fromOffset(130, 18), UDim2.fromOffset(10, 5), 11)
+        title.Name = "EHPlayersLiveTitle"
+        title.Font = Enum.Font.GothamBold
+        title.TextColor3 = Color3.fromRGB(235, 189, 146)
+        title.ZIndex = header.ZIndex + 2
+        local live = makeLabel(header, "LIVE",
+            UDim2.fromOffset(30, 16), UDim2.fromOffset(136, 5), 9)
+        live.TextColor3 = Color3.fromRGB(143, 209, 168)
+        live.Font = Enum.Font.GothamMedium
+        live.TextXAlignment = Enum.TextXAlignment.Right
+        live.ZIndex = header.ZIndex + 2
+        local number = makeLabel(header, string.format("%03d", serverPlayers),
+            UDim2.fromOffset(68, 30), UDim2.fromOffset(10, 23), 25)
+        number.Font = Enum.Font.GothamBold
+        number.TextColor3 = Color3.fromRGB(244, 204, 161)
+        number.TextXAlignment = Enum.TextXAlignment.Left
+        number.ZIndex = header.ZIndex + 2
+        local caption = makeLabel(header,
+            currentLanguage == "ru" and "Игроков обнаружено" or "Players detected",
+            UDim2.fromOffset(92, 21), UDim2.fromOffset(76, 28), 10)
         caption.Font = Enum.Font.GothamMedium
-        caption.TextColor3 = Color3.fromRGB(196, 244, 216)
-        caption.TextXAlignment = Enum.TextXAlignment.Left
-        caption.TextScaled = false
+        caption.TextColor3 = Color3.fromRGB(225, 208, 189)
+        caption.ZIndex = header.ZIndex + 2
+        local bar = create("Frame", {
+            Name = "EHPlayersLiveAccent",
+            Position = UDim2.fromOffset(11, 55),
+            Size = UDim2.fromOffset(150, 2),
+            BackgroundColor3 = Color3.fromRGB(197, 149, 100),
+            BorderSizePixel = 0, ZIndex = header.ZIndex + 2
+        }, header)
+        round(bar, 2)
+        local footer = makeLabel(header,
+            currentLanguage == "ru" and "МОНИТОРИНГ СЕССИИ" or "SESSION MONITOR",
+            UDim2.fromOffset(105, 14), UDim2.fromOffset(11, 61), 8)
+        footer.Font = Enum.Font.GothamMedium
+        footer.TextColor3 = Color3.fromRGB(167, 146, 125)
+        footer.ZIndex = header.ZIndex + 2
+        local active = makeLabel(header,
+            currentLanguage == "ru" and "● Активен" or "● Active",
+            UDim2.fromOffset(60, 14), UDim2.fromOffset(105, 61), 9)
+        active.TextXAlignment = Enum.TextXAlignment.Right
+        active.TextColor3 = Color3.fromRGB(130, 215, 165)
+        active.ZIndex = header.ZIndex + 2
     end
 
     local filter = string.lower(Search.Text)
@@ -9166,7 +9128,7 @@ trackExternalConnection(Players.PlayerRemoving:Connect(function(player)
         selectedPlayer = nil
         clearViewport()
         clearItems()
-        WornCountLabel.Text = translateText("WORN ITEMS: —"):gsub(":%s*—$", "")
+        WornCountLabel.Text = currentLanguage == "ru" and "Предметов обнаружено" or "Items detected"
         EH.wornBadge.Text = "—"
         Status.Text = "Player left"
     end
