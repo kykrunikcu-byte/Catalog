@@ -3585,30 +3585,36 @@ do
             high.TextColor3 = Color3.fromRGB(179, 166, 148)
             high.ZIndex = 32
 
-            local manualLabel = makeLabel(card, "", UDim2.new(1, -28, 0, 18),
-                UDim2.fromOffset(16, 109), 11)
-            manualLabel.TextColor3 = Color3.fromRGB(201, 184, 162)
-            manualLabel.ZIndex = 32
-            local manual = create("TextBox", {
-                Name = kind == "speed" and "HorizonSpeedInput"
-                    or (kind == "jump" and "HorizonJumpInput" or "HorizonGravityInput"),
-                Position = UDim2.fromOffset(16, 132),
-                Size = UDim2.new(1, -128, 0, 29),
-                BackgroundColor3 = Color3.fromRGB(48, 43, 39),
-                BorderSizePixel = 0,
-                Text = tostring(initial), PlaceholderText = "0–" .. tostring(manualLimit),
-                ClearTextOnFocus = false,
-                TextColor3 = Color3.fromRGB(242, 223, 205),
-                PlaceholderColor3 = Color3.fromRGB(163, 150, 134),
-                Font = Enum.Font.Gotham, TextSize = 13,
-                TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33
-            }, card)
-            round(manual, 7)
-            create("UIStroke", {Color = Color3.fromRGB(95, 77, 60),
-                Thickness = 1}, manual)
+            -- Gravity is slider-only (0–500); manual entry remains for speed/jump.
+            local manualLabel, manual
+            if kind ~= "gravity" then
+                manualLabel = makeLabel(card, "", UDim2.new(1, -28, 0, 18),
+                    UDim2.fromOffset(16, 109), 11)
+                manualLabel.TextColor3 = Color3.fromRGB(201, 184, 162)
+                manualLabel.ZIndex = 32
+                manual = create("TextBox", {
+                    Name = kind == "speed" and "HorizonSpeedInput" or "HorizonJumpInput",
+                    Position = UDim2.fromOffset(16, 132),
+                    Size = UDim2.new(1, -128, 0, 29),
+                    BackgroundColor3 = Color3.fromRGB(48, 43, 39),
+                    BorderSizePixel = 0,
+                    Text = tostring(initial), PlaceholderText = "0–" .. tostring(manualLimit),
+                    ClearTextOnFocus = false,
+                    TextColor3 = Color3.fromRGB(242, 223, 205),
+                    PlaceholderColor3 = Color3.fromRGB(163, 150, 134),
+                    Font = Enum.Font.Gotham, TextSize = 13,
+                    TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33
+                }, card)
+                round(manual, 7)
+                create("UIStroke", {Color = Color3.fromRGB(95, 77, 60),
+                    Thickness = 1}, manual)
+            end
             local reset = create("TextButton", {
-                Name = "StatReset", Position = UDim2.new(1, -104, 0, 132),
-                Size = UDim2.fromOffset(88, 29), Text = "",
+                Name = "StatReset",
+                Position = kind == "gravity" and UDim2.fromOffset(16, 121)
+                    or UDim2.new(1, -104, 0, 132),
+                Size = kind == "gravity" and UDim2.new(1, -32, 0, 34)
+                    or UDim2.fromOffset(88, 29), Text = "",
                 BackgroundColor3 = Color3.fromRGB(76, 62, 50),
                 BorderSizePixel = 0,
                 TextColor3 = Color3.fromRGB(239, 216, 188),
@@ -3622,20 +3628,23 @@ do
                 local t = math.clamp(value / 500, 0, 1)
                 fill.Size = UDim2.fromScale(t, 1)
                 knob.Position = UDim2.fromScale(t, 0.5)
-                if updateManual then manual.Text = tostring(value) end
-                manual.TextColor3 = Color3.fromRGB(242, 223, 205)
+                if updateManual and manual then manual.Text = tostring(value) end
+                if manual then manual.TextColor3 = Color3.fromRGB(242, 223, 205) end
+                readout.TextColor3 = Color3.fromRGB(229, 187, 138)
             end
             local function apply(value, updateManual)
                 local controller, errorText = getFlyController()
                 if not controller or type(controller[method]) ~= "function" then
                     warn("[HORIZON " .. title .. "] " .. tostring(errorText or "Missing method"))
-                    manual.TextColor3 = Color3.fromRGB(248, 128, 128)
+                    if manual then manual.TextColor3 = Color3.fromRGB(248, 128, 128)
+                    else readout.TextColor3 = Color3.fromRGB(248, 128, 128) end
                     return
                 end
                 local ok, result, err = pcall(controller[method], controller, value)
                 if not ok or result == false then
                     warn("[HORIZON " .. title .. "] " .. tostring(ok and err or result))
-                    manual.TextColor3 = Color3.fromRGB(248, 128, 128)
+                    if manual then manual.TextColor3 = Color3.fromRGB(248, 128, 128)
+                    else readout.TextColor3 = Color3.fromRGB(248, 128, 128) end
                     return
                 end
                 show(value, updateManual)
@@ -3680,16 +3689,18 @@ do
                 end)
             end)
             ScreenGui.Destroying:Connect(release)
-            manual.FocusLost:Connect(function(enterPressed)
-                if not enterPressed then return end
-                local digits = manual.Text:match("^%s*(%d+)%s*$")
-                local value = digits and tonumber(digits)
-                if not value or value > manualLimit then
-                    manual.TextColor3 = Color3.fromRGB(248, 128, 128)
-                    return
-                end
-                apply(value, true)
-            end)
+            if manual then
+                manual.FocusLost:Connect(function(enterPressed)
+                    if not enterPressed then return end
+                    local digits = manual.Text:match("^%s*(%d+)%s*$")
+                    local value = digits and tonumber(digits)
+                    if not value or value > manualLimit then
+                        manual.TextColor3 = Color3.fromRGB(248, 128, 128)
+                        return
+                    end
+                    apply(value, true)
+                end)
+            end
             reset.Activated:Connect(function()
                 local controller, err = getFlyController()
                 if not controller or type(controller[resetMethod]) ~= "function" then
@@ -3706,7 +3717,9 @@ do
             return function()
                 local ru = currentLanguage == "ru"
                 description.Text = ru and descriptionRU or descriptionEN
-                manualLabel.Text = ru and "Ручной ввод (Enter)" or "Manual entry (Enter)"
+                if manualLabel then
+                    manualLabel.Text = ru and "Ручной ввод (Enter)" or "Manual entry (Enter)"
+                end
                 reset.Text = ru and "Сброс" or "Reset"
             end
         end
