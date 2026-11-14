@@ -4131,8 +4131,10 @@ do
         local CollectionService = game:GetService("CollectionService")
         -- Each main ESP switch owns its own model highlighting; no separate toggle.
         local cfg = {players=false,npcs=false,box=true,
-            names=true,distance=true,health=true,tracer=false,arrows=true,
-            roleColors=true,style=1,maxDistance=3000000}
+            names=true,distance=true,health=true,tracer=false,arrows=false,
+            roleColors=true,style=1,maxDistance=3000000,
+            playerColor=Color3.fromRGB(89,228,133),
+            monsterColor=Color3.fromRGB(245,87,97)}
         local palette = {
             safe=Color3.fromRGB(89,228,133),
             danger=Color3.fromRGB(245,87,97),
@@ -4163,32 +4165,33 @@ do
             end
             return nil
         end
-        local function roleColor(model,player)
-            if not cfg.roleColors then return palette.plain end
+        -- One classification drives both world-space labels and custom colors.
+        -- Game-specific role attributes take precedence over model names.
+        local function classifyTarget(model,player)
             local role=getRoleAttribute(model) or getRoleAttribute(player)
-            if not role and player and player.Team then role=player.Team.Name:lower() end
+            if not role and player and player.Team then
+                role=player.Team.Name:lower()
+            end
             if not role then role=model.Name:lower() end
-            if role:find("killer") or role:find("monster")
+            local hostile=role:find("killer") or role:find("monster")
                 or role:find("piggy") or role:find("infected")
                 or role:find("zombie") or role:find("beast")
                 or role:find("enemy") or role:find("hostile")
-                or role:find("murder") or role:find("hunter") then
-                return palette.danger
+                or role:find("murder") or role:find("hunter")
+            if not hostile then
+                hostile=CollectionService:HasTag(model,"Enemy")
+                    or CollectionService:HasTag(model,"Monster")
+                    or CollectionService:HasTag(model,"Hostile")
             end
-            if role:find("surviv") or role:find("innocent")
-                or role:find("friend") or role:find("civilian")
-                or role:find("human") or role:find("ally") then
-                return palette.safe
+            if hostile then return "MONSTER",cfg.monsterColor end
+            if player then return "PLAYER",cfg.playerColor end
+            if role:find("surviv") or role:find("friend")
+                or role:find("civilian") or role:find("ally") then
+                return "NPC",cfg.playerColor
             end
-            if player and player.Team and LocalPlayer.Team
-                and player.Team==LocalPlayer.Team and not player.Neutral then
-                return palette.safe
-            end
-            if CollectionService:HasTag(model,"Enemy")
-                or CollectionService:HasTag(model,"Monster") then
-                return palette.danger
-            end
-            return palette.unknown
+            -- Unknown NPCs remain clearly identified as NPC rather than
+            -- being falsely advertised as killers.
+            return "NPC",palette.unknown
         end
         local function playerOwner(model)
             local obj=model
@@ -4250,59 +4253,87 @@ do
             obj.BackgroundTransparency=alpha or 0
             obj.Visible=true
         end
+        -- Ten purpose-designed, low-clutter line patterns around the WORLD target.
+        -- No screen-space overlay; every line belongs to the model's BillboardGui.
         local function renderFrame(entry,w,h,color)
             local segments={}
             local style=cfg.style
-            local length=math.max(5,math.min(21,math.min(w,h)*0.26))
+            local len=math.clamp(math.min(w,h)*.22,7,28)
+            local stroke=math.clamp(math.min(w,h)*.014,1.6,2.8)
             local function L(a,b,c,d,t,alpha)
-                segments[#segments+1]={a,b,c,d,t or 2,alpha or 0}
+                segments[#segments+1]={a,b,c,d,t or stroke,alpha or 0}
             end
-            local function edges(inset,t,alpha)
+            local function corners(inset,scale,opacity)
+                local t=stroke*(scale or 1)
+                L(inset,inset,inset+len,inset,t,opacity)
+                L(inset,inset,inset,inset+len,t,opacity)
+                L(w-inset,inset,w-inset-len,inset,t,opacity)
+                L(w-inset,inset,w-inset,inset+len,t,opacity)
+                L(inset,h-inset,inset+len,h-inset,t,opacity)
+                L(inset,h-inset,inset,h-inset-len,t,opacity)
+                L(w-inset,h-inset,w-inset-len,h-inset,t,opacity)
+                L(w-inset,h-inset,w-inset,h-inset-len,t,opacity)
+            end
+            local function outline(inset,t,alpha)
                 L(inset,inset,w-inset,inset,t,alpha)
                 L(w-inset,inset,w-inset,h-inset,t,alpha)
                 L(w-inset,h-inset,inset,h-inset,t,alpha)
                 L(inset,h-inset,inset,inset,t,alpha)
             end
-            local function corners(t)
-                L(0,0,length,0,t);L(0,0,0,length,t)
-                L(w,0,w-length,0,t);L(w,0,w,length,t)
-                L(0,h,length,h,t);L(0,h,0,h-length,t)
-                L(w,h,w-length,h,t);L(w,h,w,h-length,t)
-            end
-            if style==1 then corners(2.5)
-            elseif style==2 then edges(0,2)
-            elseif style==3 then edges(0,3);edges(5,1,0.2)
+            if style==1 then
+                corners(0,1)
+            elseif style==2 then
+                outline(0,stroke)
+            elseif style==3 then
+                outline(0,stroke)
+                outline(5,math.max(.9,stroke*.55),.25)
             elseif style==4 then
                 for n=0,3 do
-                    local a,b=n/4,(n+0.65)/4
-                    L(w*a,0,w*b,0);L(w*a,h,w*b,h)
-                    L(0,h*a,0,h*b);L(w,h*a,w,h*b)
+                    local a=n/4
+                    local b=(n+.6)/4
+                    L(w*a,0,w*b,0)
+                    L(w*a,h,w*b,h)
+                    L(0,h*a,0,h*b)
+                    L(w,h*a,w,h*b)
                 end
             elseif style==5 then
-                L(0,0,0,h,3);L(w,0,w,h,3)
-                L(0,0,length,0,3);L(w,0,w-length,0,3)
-                L(0,h,length,h,3);L(w,h,w-length,h,3)
+                L(0,0,0,h,stroke*1.2)
+                L(w,0,w,h,stroke*1.2)
+                L(0,0,len,0);L(0,h,len,h)
+                L(w,0,w-len,0);L(w,h,w-len,h)
             elseif style==6 then
-                corners(3);L(w*.42,0,w*.58,0);L(w*.42,h,w*.58,h)
-                L(0,h*.42,0,h*.58);L(w,h*.42,w,h*.58)
+                corners(0,1.2)
+                L(w*.43,0,w*.57,0)
+                L(w*.43,h,w*.57,h)
+                L(0,h*.45,0,h*.55)
+                L(w,h*.45,w,h*.55)
             elseif style==7 then
-                L(w/2,0,w,h/2);L(w,h/2,w/2,h)
-                L(w/2,h,0,h/2);L(0,h/2,w/2,0)
-            elseif style==8 then edges(0,6,0.75);edges(0,2.5)
+                L(w*.5,0,w,h*.5)
+                L(w,h*.5,w*.5,h)
+                L(w*.5,h,0,h*.5)
+                L(0,h*.5,w*.5,0)
+            elseif style==8 then
+                outline(0,stroke*2.8,.78)
+                outline(0,stroke,0)
             elseif style==9 then
-                L(w*.15,0,w*.85,0,3);L(w*.15,h,w*.85,h,3)
-                L(0,h*.3,0,h*.7);L(w,h*.3,w,h*.7)
+                L(w*.2,0,w*.8,0,stroke)
+                L(w*.2,h,w*.8,h,stroke)
+                L(0,h*.34,0,h*.66,stroke)
+                L(w,h*.34,w,h*.66,stroke)
             else
-                corners(2.3)
-                L(w/2-7,0,w/2+7,0,3);L(w/2-7,h,w/2+7,h,3)
-                L(0,h/2-7,0,h/2+7,3);L(w,h/2-7,w,h/2+7,3)
+                corners(0,1)
+                L(w*.5-8,0,w*.5+8,0)
+                L(w*.5-8,h,w*.5+8,h)
+                L(0,h*.5-8,0,h*.5+8)
+                L(w,h*.5-8,w,h*.5+8)
             end
-            for i,segment in ipairs(segments) do
-                line(entry.node,entry.lines,i,
-                    segment[1],segment[2],segment[3],segment[4],
-                    segment[5],color,segment[6])
+            for i,d in ipairs(segments) do
+                line(entry.node,entry.lines,i,d[1],d[2],d[3],d[4],
+                    d[5],color,d[6])
             end
-            for i=#segments+1,#entry.lines do entry.lines[i].Visible=false end
+            for i=#segments+1,#entry.lines do
+                entry.lines[i].Visible=false
+            end
         end
         -- World ESP: all billboards, highlights and beams belong to 3D models.
         -- No ScreenGui, camera-space rectangles, or UI elements at fixed screen points.
@@ -4341,9 +4372,31 @@ do
                 TextStrokeTransparency=.25,
                 Active=false,ZIndex=4
             },node)
+            entry.role=create("TextLabel",{
+                Name="ESPCharacterType",
+                AnchorPoint=Vector2.new(.5,1),
+                Position=UDim2.new(.5,0,0,-32),
+                Size=UDim2.fromOffset(134,20),
+                BackgroundColor3=Color3.fromRGB(24,23,23),
+                BackgroundTransparency=.24,
+                Text="PLAYER",TextSize=11,Font=Enum.Font.GothamBold,
+                BorderSizePixel=0,TextStrokeTransparency=.35,
+                Active=false,ZIndex=4
+            },node)
+            round(entry.role,5)
+            entry.hpText=create("TextLabel",{
+                Name="ESPHealthNumber",
+                AnchorPoint=Vector2.new(.5,0),
+                Position=UDim2.new(.5,0,1,22),
+                Size=UDim2.fromOffset(146,18),
+                BackgroundTransparency=1,BorderSizePixel=0,
+                Text="",TextSize=11,Font=Enum.Font.GothamBold,
+                TextColor3=Color3.fromRGB(220,235,220),
+                TextStrokeTransparency=.3,Active=false,ZIndex=4
+            },node)
             entry.dist=create("TextLabel",{
                 Name="ESPWorldDistance",
-                Position=UDim2.new(0,0,1,4),
+                Position=UDim2.new(0,0,1,41),
                 Size=UDim2.new(1,0,0,18),
                 BackgroundTransparency=1,BorderSizePixel=0,
                 Text="",TextSize=11,Font=Enum.Font.GothamMedium,
@@ -4367,7 +4420,7 @@ do
             entry.marker=create("TextLabel",{
                 Name="ESPWorldMarker",
                 AnchorPoint=Vector2.new(.5,1),
-                Position=UDim2.new(.5,0,0,-32),
+                Position=UDim2.new(.5,0,0,-53),
                 Size=UDim2.fromOffset(34,22),
                 BackgroundTransparency=1,BorderSizePixel=0,
                 Text="▼",TextSize=18,
@@ -4432,20 +4485,67 @@ do
             entry.beam.Enabled=true
             entry.beam.Color=ColorSequence.new(color)
         end
+        -- Character-sized box: prefer body parts, not hats/tools/accessories.
+        -- Billboard stays attached to the target and smoothly follows it.
+        local bodyNames={
+            "Head","Torso","UpperTorso","LowerTorso",
+            "Left Arm","Right Arm","Left Leg","Right Leg",
+            "LeftUpperArm","RightUpperArm","LeftLowerArm","RightLowerArm",
+            "LeftUpperLeg","RightUpperLeg","LeftLowerLeg","RightLowerLeg",
+            "LeftHand","RightHand","LeftFoot","RightFoot"
+        }
         local function updateWorldBounds(entry,root)
-            -- A scale-sized BillboardGui tracks the target in studs, not
-            -- screen pixels; a small offset keeps distant boxes readable.
-            local ok,cf,size=pcall(function()
-                return entry.model:GetBoundingBox()
-            end)
-            if not ok or not size or size.Magnitude<.05 then
+            if not entry.billboard or not entry.billboard.Parent then
                 return false
             end
-            local width=math.clamp(math.max(size.X,size.Z)*1.12,2,22)
-            local height=math.clamp(size.Y*1.1,3,30)
+            local model=entry.model
+            local minY,maxY=math.huge,-math.huge
+            local radius=0
+            local found=0
+            local rootPos=root.Position
+            for _,name in ipairs(bodyNames) do
+                local part=model:FindFirstChild(name)
+                if part and part:IsA("BasePart") then
+                    local pos=part.Position
+                    minY=math.min(minY,pos.Y-part.Size.Y*.5)
+                    maxY=math.max(maxY,pos.Y+part.Size.Y*.5)
+                    local lateral=Vector3.new(pos.X-rootPos.X,0,pos.Z-rootPos.Z).Magnitude
+                    radius=math.max(radius,lateral+
+                        math.max(part.Size.X,part.Size.Z)*.5)
+                    found+=1
+                end
+            end
+            local width,height,center
+            if found>0 then
+                width=math.clamp(radius*2+0.35,2.2,10)
+                height=math.clamp(maxY-minY+.35,3.5,13)
+                center=Vector3.new(rootPos.X,(maxY+minY)/2,rootPos.Z)
+            else
+                local ok,cf,size=pcall(function()
+                    return model:GetBoundingBox()
+                end)
+                if not ok or not size or size.Magnitude<.1 then
+                    return false
+                end
+                width=math.clamp(math.max(size.X,size.Z)*1.08,2.2,18)
+                height=math.clamp(size.Y*1.08,3.5,23)
+                center=cf.Position
+            end
+            -- Avoid GUI resizes every frame for minuscule animation changes.
+            local prevWidth=entry.frameWidth or width
+            local prevHeight=entry.frameHeight or height
+            local smoothedWidth=prevWidth+(width-prevWidth)*.4
+            local smoothedHeight=prevHeight+(height-prevHeight)*.4
+            if math.abs(smoothedWidth-prevWidth)<.035 then
+                smoothedWidth=prevWidth
+            end
+            if math.abs(smoothedHeight-prevHeight)<.035 then
+                smoothedHeight=prevHeight
+            end
+            entry.frameWidth,entry.frameHeight=smoothedWidth,smoothedHeight
             entry.billboard.Adornee=root
-            entry.billboard.Size=UDim2.new(width,12,height,18)
-            entry.billboard.StudsOffsetWorldSpace=cf.Position-root.Position
+            entry.billboard.Size=UDim2.new(smoothedWidth,6,smoothedHeight,10)
+            entry.billboard.StudsOffsetWorldSpace=center-rootPos
             return true
         end
         local function renderTarget(entry,ownPosition,ownRoot,highlightAllowed)
@@ -4465,7 +4565,7 @@ do
                 entry.rootPart=root
                 clearTracer(entry)
             end
-            local color=roleColor(model,entry.player)
+            local characterType,color=classifyTarget(model,entry.player)
             -- Repair model highlighting before processing the optional frame.
             -- Billboard calculation failure must not suppress the actual ESP.
             -- Restore missing/disabled/reparented Highlights on every scan.
@@ -4492,13 +4592,17 @@ do
                 if hl.DepthMode~=Enum.HighlightDepthMode.AlwaysOnTop then
                     hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
                 end
-                local opacity=entry.kind=="players" and .08 or .14
+                -- Strong fill for occluded targets; engine-depth artefacts are
+                -- outside the script's full control, so preserve the same
+                -- Highlight rather than recreating it every tick.
+                local opacity=entry.kind=="players" and .07 or .1
                 if hl.FillTransparency~=opacity then
                     hl.FillTransparency=opacity
                 end
                 if hl.OutlineTransparency~=0 then hl.OutlineTransparency=0 end
-                hl.FillColor=color
-                hl.OutlineColor=color:Lerp(Color3.new(1,1,1),.3)
+                if hl.FillColor~=color then hl.FillColor=color end
+                local outline=color:Lerp(Color3.new(1,1,1),.4)
+                if hl.OutlineColor~=outline then hl.OutlineColor=outline end
                 if not hl.Enabled then hl.Enabled=true end
             elseif entry.hl then
                 entry.hl.Enabled=false
@@ -4522,12 +4626,19 @@ do
             entry.name.Visible=cfg.names
             entry.name.Text=entry.player and entry.player.DisplayName or model.Name
             entry.name.TextColor3=color
+            entry.role.Visible=true
+            entry.role.Text=characterType
+            entry.role.TextColor3=color
             entry.dist.Visible=cfg.distance
             entry.dist.Text=string.format("%d studs",math.floor(distance+.5))
             local hum=model:FindFirstChildOfClass("Humanoid")
             local hp=hum and hum.Health or 0
             local maxHp=hum and hum.MaxHealth or 0
             entry.hp.Visible=cfg.health and maxHp>0
+            entry.hpText.Visible=cfg.health
+            entry.hpText.Text=maxHp>0
+                and string.format("HP %d / %d",math.floor(hp+.5),math.floor(maxHp+.5))
+                or "HP —"
             if maxHp>0 then
                 local ratio=math.clamp(hp/maxHp,0,1)
                 entry.hpFill.Size=UDim2.fromScale(1,ratio)
