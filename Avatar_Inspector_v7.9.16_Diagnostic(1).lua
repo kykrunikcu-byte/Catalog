@@ -4835,6 +4835,122 @@ do
             engine:destroy()
         end)
 
+
+        -- FullBright / No Fog: client-side lighting override scoped to this GUI.
+        -- No global toggles, remote code, permanent loops or waiting callbacks.
+        local Lighting=game:GetService("Lighting")
+        local brightTargets={
+            Brightness=1,ClockTime=12,FogEnd=786543,
+            GlobalShadows=false,Ambient=Color3.fromRGB(178,178,178)
+        }
+        local brightProperties={
+            "Brightness","ClockTime","FogEnd","GlobalShadows","Ambient"
+        }
+        local atmosphereProperties={"Density","Haze","Glare"}
+        local fullBright={
+            enabled=false,applying=false,connections={},
+            originals={},atmospheres={},errorReported=false
+        }
+        local function brightWrite(self,object,property,value)
+            self.applying=true
+            local ok,err=pcall(function()
+                if object[property]~=value then object[property]=value end
+            end)
+            self.applying=false
+            if not ok and not self.errorReported then
+                self.errorReported=true
+                EH.logDiagnostic("FullBright/"..property,err)
+            end
+        end
+        local function captureAtmosphere(self,atmosphere)
+            if not self.enabled or not atmosphere:IsA("Atmosphere")
+                or self.atmospheres[atmosphere] then return end
+            local saved={}
+            self.atmospheres[atmosphere]=saved
+            for _,property in ipairs(atmosphereProperties) do
+                saved[property]=atmosphere[property]
+                self.connections[#self.connections+1]=
+                    atmosphere:GetPropertyChangedSignal(property):Connect(function()
+                        if not self.enabled or self.applying
+                            or atmosphere.Parent~=Lighting then return end
+                        local current=atmosphere[property]
+                        if current~=0 then
+                            saved[property]=current
+                            brightWrite(self,atmosphere,property,0)
+                        end
+                    end)
+                brightWrite(self,atmosphere,property,0)
+            end
+        end
+        function fullBright:setEnabled(enabled)
+            enabled=enabled==true
+            if self.enabled==enabled then return end
+            if enabled then
+                self.enabled=true
+                self.errorReported=false
+                self.originals={}
+                self.atmospheres={}
+                for _,property in ipairs(brightProperties) do
+                    self.originals[property]=Lighting[property]
+                    self.connections[#self.connections+1]=
+                        Lighting:GetPropertyChangedSignal(property):Connect(function()
+                            if not self.enabled or self.applying then return end
+                            local current=Lighting[property]
+                            if current~=brightTargets[property] then
+                                self.originals[property]=current
+                                brightWrite(self,Lighting,property,brightTargets[property])
+                            end
+                        end)
+                end
+                self.connections[#self.connections+1]=
+                    Lighting.ChildAdded:Connect(function(child)
+                        if child:IsA("Atmosphere") then
+                            captureAtmosphere(self,child)
+                        end
+                    end)
+                for _,child in ipairs(Lighting:GetChildren()) do
+                    if child:IsA("Atmosphere") then
+                        captureAtmosphere(self,child)
+                    end
+                end
+                for _,property in ipairs(brightProperties) do
+                    brightWrite(self,Lighting,property,brightTargets[property])
+                end
+            else
+                self.enabled=false
+                for _,connection in ipairs(self.connections) do
+                    connection:Disconnect()
+                end
+                table.clear(self.connections)
+                -- Restore only values this controller owned, including false.
+                for _,property in ipairs(brightProperties) do
+                    local original=self.originals[property]
+                    if original~=nil then
+                        brightWrite(self,Lighting,property,original)
+                    end
+                end
+                for atmosphere,saved in pairs(self.atmospheres) do
+                    if atmosphere.Parent==Lighting then
+                        for _,property in ipairs(atmosphereProperties) do
+                            local original=saved[property]
+                            if original~=nil then
+                                brightWrite(self,atmosphere,property,original)
+                            end
+                        end
+                    end
+                end
+                table.clear(self.originals)
+                table.clear(self.atmospheres)
+            end
+        end
+        function fullBright:destroy()
+            self:setEnabled(false)
+        end
+        EH.registerController("FullBright",fullBright)
+        ScreenGui.Destroying:Connect(function()
+            fullBright:destroy()
+        end)
+
         -- UI controls are installed immediately below, in the original ESP tab.
         EH.espBuildUI = function(espPage,espDescription)
 
@@ -4945,6 +5061,9 @@ do
             local boxSwitch=switchCard("Box ESP",
                 "Включить или скрыть рамки",362,cfg.box,
                 function(v) cfg.box=v end,true,nil)
+            local fullBrightSwitch=switchCard("FullBright",
+                "Осветлить карту и убрать туман",0,false,
+                function(v) fullBright:setEnabled(v) end,false,nil)
             local selectorCard=create("Frame",{
                 Name="HorizonESPFrameStyleCard",
                 Position=UDim2.fromOffset(12,431),
@@ -5402,6 +5521,8 @@ do
                 end
                 boxSwitch.card.Position=UDim2.fromOffset(12,y)
                 y+=69
+                fullBrightSwitch.card.Position=UDim2.fromOffset(12,y)
+                y+=87
                 selectorCard.Position=UDim2.fromOffset(12,y)
                 menu.Position=UDim2.fromOffset(26,y+84)
                 y+=88
@@ -5429,11 +5550,13 @@ do
                 oldRefresh()
                 local ru=currentLanguage=="ru"
                 espDescription.Text=ru
-                    and "Подсветка игроков и монстров, 10 рамок, здоровье и отдельные настройки цвета."
-                    or "Player/monster highlighting, ten frames, health and custom colors."
+                    and "ESP игроков и монстров, 10 рамок, цвета и освещение карты."
+                    or "Player/monster ESP, ten frames, colors and map lighting."
                 playerSwitch.subtitle.Text=ru and "Обнаружение других игроков" or "Detect other players"
                 npcSwitch.subtitle.Text=ru and "Обнаружение NPC и монстров" or "Detect NPCs and monsters"
                 boxSwitch.subtitle.Text=ru and "Включить или скрыть рамки" or "Show or hide frames"
+                fullBrightSwitch.subtitle.Text=ru and "Осветлить карту и убрать туман"
+                    or "Brighten the map and remove fog"
                 selectorTitle.Text=ru and "СТИЛЬ РАМКИ / BOX STYLE" or "BOX STYLE"
                 playerColors.title.Text=ru and "ЦВЕТ ИГРОКОВ" or "PLAYER COLOR"
                 monsterColors.title.Text=ru and "ЦВЕТ NPC И МОНСТРОВ" or "NPC / MONSTER COLOR"
